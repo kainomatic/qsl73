@@ -150,11 +150,15 @@ enthalten — Tesseract dekodiert QR-Codes nicht (empirisch bestätigt, Schritt 
 Kartenbild/PDF dekodieren**.
 
 **Ablauf QR-Pfad:**
-1. Dokument-Bytes via `GET /api/documents/{id}/download/` (oder `/preview/`) holen.
-2. PDF-Seiten in Rasterbilder rendern (z. B. `pymupdf`).
-3. Im gerenderten Bild QR-Code suchen und dekodieren (z. B. `pyzbar`).
-4. Dekodierten Klartext parsen (strukturiertes Format, siehe unten).
-5. Schlägt Decoding fehl oder enthält das Bild keinen QR-Code → Fallback auf §6.3 (OCR).
+1. Dokument-Bytes via `GET /api/documents/{id}/download/` holen.
+2. **Alle** PDF-Seiten in Rasterbilder rendern (z. B. `pymupdf`) — QSO-Daten können auf
+   Vorder- oder Rückseite stehen, beide Seiten werden durchsucht.
+3. In jedem gerenderten Bild alle QR-Codes suchen und dekodieren (z. B. `pyzbar`).
+4. Jeden dekodierten QR-Inhalt auf **gültiges QSO-Format** prüfen: enthält er die
+   erwarteten Schlüssel (`From`, `To`, `Date`, `Band`, `Mode`)? Den ersten gültigen QR
+   verwenden; ungültige ignorieren (z. B. Druckdienst-/Werbe-Codes wie Zazzle).
+5. Schlägt Decoding fehl, liefert kein QR einen gültigen QSO-Inhalt oder ist kein QR
+   vorhanden → Fallback auf §6.3 (OCR).
 
 Moderne Karten (z. B. DARC-QSL-Service) tragen einen QR-Code mit QSO-Daten als
 strukturierten Klartext. Bekanntes Format (tolerant gegenüber Feldreihenfolge/Varianten):
@@ -165,14 +169,17 @@ Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RS
 ```
 
 - **From** = Rufzeichen der Gegenstation (Match-Schlüssel gegen Log4OM `callsign`).
-- **To** = eigener Call; wird gegen den konfigurierten eigenen Call (`log4om.own_callsign`)
-  abgeglichen — stimmt er nicht überein, gehört die Karte nicht zu diesem Log.
+- **To** = eigener Call; toleranter Abgleich gegen `log4om.own_callsign` (siehe §6.3
+  „Rufzeichen / From-To-Logik") — portabel geänderte Calls (z. B. `SV9/DH3KR`) werden
+  korrekt dem eigenen Log zugeordnet.
 - **Date/Time** → normalisieren (siehe §6.3).
 - **Band/Mode** → normalisieren (siehe §6.3); QR liefert Klartext-Band (`6m`), kein OCR-Artefakt.
 - Ein sauberer QR-Treffer (alle vier Pflichtfelder eindeutig) **darf auto-bestätigen**,
   wenn Rufzeichen + Datum + Band + Mode passen — identische Regel wie beim OCR-Match.
   Sicherheitsschleife bleibt die gemeinsame Vorschau + Bestätigung (Schreibmodell B).
-- Nicht jede Karte hat einen QR-Code; QR ist ein Bonus, kein Universalersatz.
+- Nicht jede Karte hat einen QR-Code; nicht jeder QR-Code enthält QSO-Daten (z. B.
+  Druckdienst-/Werbe-Codes). Mehrere QR-Codes pro Karte möglich — den ersten mit gültigem
+  QSO-Format verwenden. QR ist ein Bonus, kein Universalersatz.
 
 ### 6.3 OCR-Normalisierung
 
@@ -183,12 +190,27 @@ unzuverlässigste OCR-Feld (z. B. `"6m"` → `"tToemvem"`); handschriftliche Kar
 via OCR meist nicht matchbar. Im Alltag ist der manuelle Pfad (§6.4 / §9) daher häufig
 der einzig gangbare Weg für ältere oder handschriftliche Karten.
 
-**Datum:**
-- Erkannte Formate: `TT.MM.JJ` (`02.04.25`), `TT/MM/JJ` (`3/10/92`),
-  `YYYY-MM-DD`, sowie evtl. US-Schreibweise `MM/DD/YY`.
+**Daten-Position:** QSO-Daten können auf Vorder- oder Rückseite stehen. QSL73 wertet
+**alle Seiten** des PDFs aus — für QR-Suche (§6.2, alle Seitenbilder) und für OCR-Text
+(Paperless-OCR liefert Volltext aller Seiten im `content`-Feld).
+
+**Datum — unterstützte Formate:**
+
+| Format | Beispiel | Anmerkung |
+|--------|----------|-----------|
+| `TT.MM.JJ` | `02.04.25` | häufigste europäische Kurzform |
+| `TT/MM/JJ` | `3/10/92` | ältere europäische Variante |
+| `TT Monatsname JJJJ` | `23Apr2025` | Monatsname 3-buchstabig oder ausgeschrieben |
+| `YYYY-MM-DD` | `2024-06-21` | ISO; direkt übernehmbar |
+| US-getrennte Spalten | Month=`06` Day=`21` Year=`2024` | aus getrennten Tabellenfeldern zusammensetzen |
+| `MM/DD/YYYY` | `06/21/2024` | US-Langform |
+| `MM/DD/YY` | `06/21/24` | US-Kurzform |
+
 - Zweistellige Jahreszahl: `>= 30` → 19xx, `< 30` → 20xx (Heuristik, kann falsch sein).
-- Mehrdeutige Formate (z. B. `03/04/25` — Tag/Monat oder Monat/Tag?) → Ergebnis als
-  **unsicher** einstufen statt falsch zu matchen.
+- Mehrdeutige Formate (z. B. `03/04/25` — Tag/Monat oder Monat/Tag?) → **unsicher**.
+- Unbekannte/exotische Formate (z. B. römische Monatsziffern `17-XI-93`) werden **nicht**
+  per Sonderregel erschlossen — Grundsatz: lieber „Datum nicht normalisierbar" → **unsicher**
+  als ein Rategespräch über undokumentierte Formate. Manuelle Zuordnung (§9) fängt das auf.
 - Ziel: ISO-Datum `YYYY-MM-DD` für Vergleich mit `qsodate`.
 
 **Band (OCR-unzuverlässigstes Feld):**
@@ -220,6 +242,7 @@ der einzig gangbare Weg für ältere oder handschriftliche Karten.
 | OCR-Wert | Normalisiert |
 |----------|-------------|
 | `J3E`, `A3J`, `USB`, `LSB`, `PH` | `SSB` |
+| `2×SSB`, `2xSSB` | `SSB` (Zweiseitenband-Angabe auf franz. Karten) |
 | `A1A` | `CW` |
 | `A3E` | `AM` |
 | `F3E` | `FM` |
@@ -229,9 +252,17 @@ der einzig gangbare Weg für ältere oder handschriftliche Karten.
 - Unbekannte Mode-Bezeichnung → Fuzzy-Match gegen bekannte Modi; kein Treffer → **unsicher**.
 
 **Rufzeichen / From-To-Logik:**
-- `From` (QR) bzw. das führende Rufzeichen im OCR = Gegenstation = Match-Schlüssel.
-- `To` (QR) bzw. `"To Radio:"` o. ä. (OCR) = eigener Call; muss gegen
-  `log4om.own_callsign` passen, sonst wird die Karte übersprungen.
+- `From` (QR) bzw. das führende Rufzeichen im OCR = Gegenstation = Match-Schlüssel gegen
+  Log4OM `callsign`. Dieser Wert wird **nie** als eigener Call interpretiert.
+- `To` (QR) bzw. `"To Radio:"` o. ä. (OCR) = eigener Call — **toleranter Abgleich**:
+  - Der Basis-Call aus `log4om.own_callsign` (z. B. `DH3KR`) dient als Kern.
+  - Portabel-Präfixe (`SV9/DH3KR`) und -Suffixe (`DH3KR/P`, `DH3KR/M`, `DH3KR/MM`)
+    werden abgetrennt/ignoriert; nur der Basis-Call wird verglichen.
+  - Optional: Abgleich auch gegen die in der Log4OM-DB tatsächlich vorkommenden
+    `stationcallsign`-Werte (deckt weitere Rufzeichen-Varianten ab, z. B. frühere Calls).
+  - Stimmt der Basis-Call nicht überein, gehört die Karte nicht zu diesem Log → überspringen.
+  - Hinweis: Der Match-Schlüssel für das eigentliche QSO-Matching bleibt `From` ↔ `callsign`;
+    `To` dient ausschließlich der Zugehörigkeitsprüfung.
 - Rufzeichen case-insensitiv; Fuzzy-Toleranz 1 Zeichen bei Fuzzy=an (gegen OCR-Verleser).
 
 ### 6.4 Match-Ergebnis
@@ -255,11 +286,19 @@ nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
 - Ein um 1 Zeichen abweichendes Rufzeichen (bei sonst exakter Übereinstimmung) matcht bei
   Fuzzy=an als „sicher", bei Fuzzy=aus als „unsicher" oder „kein Match".
 - Zwei gleich gut passende Kandidaten ergeben „unsicher", nie eine Auto-Bestätigung.
-- Karte mit gültigem QR-Code → Felder werden aus QR extrahiert und bevorzugt genutzt.
+- Karte mit gültigem QR-Code (QSO-Felder vorhanden) → Felder aus QR, bevorzugt.
+- QR-Code ohne gültiges QSO-Format (z. B. Werbe-/Druckdienst-Code) → ignoriert,
+  Fallback auf OCR; kein Absturz, kein Falsch-Match.
 - Karte ohne QR → Fallback auf OCR-Normalisierung.
+- QSO-Daten auf der Vorderseite eines PDFs werden ebenso gefunden wie auf der Rückseite.
 - `"6m"` und `"50.100 MHz"` ergeben dasselbe Band; `"144.255 MHz"` → `"2m"`.
-- `"J3E"`, `"USB"`, `"LSB"` → `"SSB"`.
-- `From`/`To` korrekt unterschieden; `To` ≠ `log4om.own_callsign` → Karte übersprungen.
+- `"J3E"`, `"USB"`, `"LSB"`, `"2×SSB"`, `"2xSSB"` → `"SSB"`.
+- `"23Apr2025"` wird korrekt zu `2025-04-23` normalisiert.
+- US-Spaltenformat Month=`06` Day=`21` Year=`2024` → `2024-06-21`.
+- Unbekanntes Datumsformat (z. B. römische Monatsziffern `17-XI-93`) → **unsicher**,
+  kein Absturz, kein Rate-Match; manuelle Zuordnung greift.
+- `To: SV9/DH3KR` bei `own_callsign = DH3KR` → Karte korrekt als eigenes Log erkannt.
+- `From`/`To` korrekt unterschieden; Basis-Call von `To` stimmt nicht überein → Karte übersprungen.
 
 ---
 

@@ -251,7 +251,31 @@ Karten, d. h. der manuelle Pfad wird im Alltag häufig genutzt.
 **QR-Pfad (Schritt 4):** QR-Decoding muss im Client aus dem PDF-Bild erfolgen (z. B. `pyzbar`
 oder `opencv` auf einem gerenderten PDF-Frame). Paperless-OCR ist kein Ersatz dafür.
 
----
+### 5.3 Erweiterte Karten-Analyse (Claude Desktop, alle 7 Karten, 2026-06-16)
+
+Vollständige Bilderkennung aller 7 Musterkarten (anonymisiert/zusammengefasst).
+
+**Kartenverteilung:**
+- 1× gedruckt mit QR-Code (DARC-QSL-Service, modernes Format)
+- 2× gedruckt ohne QR (modernes und älteres Format, 1990er)
+- 4× handschriftlich (US-amerikanisch, britisch ~1990, französisch, italienisch)
+
+**Neue Befunde gegenüber §5.1/§5.2:**
+
+| Befund | Detail |
+|--------|--------|
+| QR-Code ≠ QSO-Daten | Eine Karte (Zazzle-Druckdienst) trägt einen QR-Code mit Werbe-/Herstellerkennung, keinen QSO-Inhalten. QR-Inhalt muss vor Verwendung auf QSO-Format validiert werden. |
+| Portabler eigener Call | Eine Karte adressiert den eigenen Call portabel (`SV9/[BASISCALL]`). Starrer Vergleich `To == own_callsign` würde scheitern. Basis-Call-Extraktion nötig. |
+| Datum `TT Monatsname JJJJ` | Format `23Apr2025` auf gedruckter Karte — real und häufig genug für Unterstützung. |
+| Datum US-Spaltenformat | Getrennte Tabellenfelder Month/Day/Year — auf US-Karte; zusammenzusetzen und zu normalisieren. |
+| Datum exotisch (römisch) | Format `17-XI-93` (römische Monatsziffern) auf einer Karte — bewusst NICHT per Sonderregel erschlossen, da selten und fehlerträchtig. → unsicher. |
+| Mode `2×SSB` | Auf französischer Karte; normalisiert zu SSB. |
+| Daten auf Vorderseite | Eine Karte hatte die QSO-Tabelle auf der Vorderseite, nicht der Rückseite. Alle PDF-Seiten müssen ausgewertet werden. |
+
+**Konsequenzen für §6 (bereits eingearbeitet in KONZEPT.md):**
+- §6.2: QR-Inhalt validieren; mehrere QR-Codes pro Karte möglich; alle Seiten durchsuchen.
+- §6.3: Tolerantes eigenes-Call-Matching; erweiterte Datum-Tabelle; `2×SSB`→SSB; alle Seiten.
+- Grundsatz: unbekannte Formate → unsicher, kein Ratespiel.
 
 ## 6. Offene Fragen / Klärungsbedarfe
 
