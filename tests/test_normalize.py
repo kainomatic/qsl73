@@ -113,3 +113,46 @@ def test_normalize_band(text, expected):
 ])
 def test_normalize_mode(text, expected):
     assert normalize_mode(text) == expected
+
+
+# ---------------------------------------------------------------------------
+# OCR-Fehlerkatalog: empirisch bestätigte Fehler
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("ocr_band,expected", [
+    # Ziffern-/Buchstaben-Verwechslungen im Bandfeld (nicht in test_normalize_band)
+    ("60m", None),     # Ziffer 6 statt 6m – keine gültige Bandbezeichnung mit Tausenderstelle
+    ("6rn", None),     # rn statt m
+    ("4Om", None),     # O (Buchstabe) statt 0
+    ("2rn", None),     # rn statt m
+    ("B0m", None),     # B statt 8 (kein Band "B0m")
+    ("l44.255", None), # l (kleines L) statt 1
+])
+def test_ocr_band_errors(ocr_band, expected):
+    assert normalize_band(ocr_band) == expected
+
+
+@pytest.mark.parametrize("ocr_date,expected", [
+    # Ziffern-/Buchstaben-Verwechslungen im Datum
+    ("02.O4.25", None),       # O statt 0
+    ("O2.04.25", None),       # O statt 0
+    ("02.04.2S", None),       # S statt 5
+    # Korrekte zweistellige Jahre (Heuristik >= 30 → 19xx)
+    ("15.03.30", "1930-03-15"),
+    ("15.03.29", "2029-03-15"),
+    # Leerzeichen als Trenner → unbekannt
+    ("02 04 25", None),
+])
+def test_ocr_date_errors(ocr_date, expected):
+    assert normalize_date(ocr_date) == expected
+
+
+@pytest.mark.parametrize("ocr_mode,expected", [
+    # Leerzeichen als OCR-Artefakt → kein bekannter Mode
+    ("C W", None),
+    # Mehrdeutige Fuzzy-Treffer (Distanz 1 zu mehreren Modi) → None
+    ("FT6", None),   # Distanz 1 zu FT8 UND zu FT4
+    ("FT3", None),   # Distanz 1 zu FT4 UND zu FT8
+])
+def test_ocr_mode_errors(ocr_mode, expected):
+    assert normalize_mode(ocr_mode) == expected

@@ -159,7 +159,11 @@ def normalize_mode(text: str) -> Optional[str]:
     """Normalisiert Mode-Bezeichnung. Mapping-Tabelle + Fuzzy-Fallback. None bei Unbekannt."""
     if not text or not text.strip():
         return None
-    upper = text.strip().upper()
+    stripped = text.strip()
+    # Interne Leerzeichen: kein bekannter Mode (OCR-Artefakt wie "C W" → None)
+    if " " in stripped:
+        return None
+    upper = stripped.upper()
 
     # Direkte Treffer in bekannten Modi
     if upper in _KNOWN_MODES:
