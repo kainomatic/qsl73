@@ -375,3 +375,225 @@ def test_spec_two_qsos_same_day_no_tiebreaker():
     cand1 = _candidate(qsoid="id1", time_utc="19:42")
     cand2 = _candidate(qsoid="id2", time_utc="23:00")
     assert _match(_card(time_utc=None), [cand1, cand2]).result == MatchResult.UNCERTAIN
+
+
+# ===========================================================================
+# Kategorie A: Mehrfachfehler im Rufzeichen (Levenshtein-Distanz ≥ 2)
+# ===========================================================================
+# Leitregel (ADR-0007): NIE CERTAIN bei Distanz ≥ 2, egal ob fuzzy=an
+
+@pytest.mark.parametrize("card_call,cand_call", [
+    ("DKBN3", "DK8NE"),  # 8→B und E→3 = Dist 2
+    ("DL8NO", "DK8NE"),  # K→L und E→O = Dist 2
+    ("DK0N3", "DK8NE"),  # 8→0 und E→3 = Dist 2
+    ("DL0NE", "DK8NE"),  # K→L und 8→0 = Dist 2
+    ("D00NE", "DK8NE"),  # K→0 (O/0-Verwechslung) und 8→0 = Dist 2
+])
+def test_double_ocr_error_callsign_is_never_certain(card_call, cand_call):
+    result = _match(_card(call_from=card_call), [_candidate(callsign=cand_call)], fuzzy=True)
+    assert result.result == MatchResult.NO_MATCH
+
+
+# ===========================================================================
+# Kategorie A+C: Matrix Fehlerklasse × DB-Zustand
+# ===========================================================================
+# Verschiedene Fehlerkombinationen gegen einen einzelnen Kandidaten
+
+@pytest.mark.parametrize("card_call,card_band,card_mode,expected", [
+    # Rufzeichen exakt, alle Felder vorhanden → sicher
+    ("DK8NE", "6m",  "FT8", MatchResult.CERTAIN),
+    # Rufzeichen 1 Verleser (Dist 1), alle Felder vorhanden → sicher (fuzzy on)
+    ("DK8NF", "6m",  "FT8", MatchResult.CERTAIN),
+    # Rufzeichen 2 Verleser (Dist 2), alle Felder → kein Match
+    ("DKBN3", "6m",  "FT8", MatchResult.NO_MATCH),
+    # Rufzeichen exakt, Band fehlt → unsicher
+    ("DK8NE", None,  "FT8", MatchResult.UNCERTAIN),
+    # Rufzeichen 1 Verleser, Band fehlt → unsicher (Kandidat passiert Rufzeichenfilter)
+    ("DK8NF", None,  "FT8", MatchResult.UNCERTAIN),
+    # Rufzeichen 2 Verleser, Band fehlt → kein Match (Kandidat kommt nicht durch Rufzeichenfilter)
+    ("DKBN3", None,  "FT8", MatchResult.NO_MATCH),
+])
+def test_error_class_db_state_matrix(card_call, card_band, card_mode, expected):
+    card = _card(call_from=card_call, band=card_band, mode=card_mode)
+    assert _match(card, [_candidate()]).result == expected
+
+
+# ===========================================================================
+# Kategorie C: DB-Kollisionsmuster
+# ===========================================================================
+
+class TestDbCollisions:
+
+    # ── C1: Gleiche Station, verschiedene Tage ──────────────────────────────
+
+    def test_same_station_different_days_only_correct_date_matches(self):
+        card = _card(date="2025-04-02")
+        c_prev  = _candidate(qsoid="prev",  date="2025-04-01")
+        c_match = _candidate(qsoid="match", date="2025-04-02")
+        c_next  = _candidate(qsoid="next",  date="2025-04-03")
+        result = _match(card, [c_prev, c_match, c_next])
+        assert result.result == MatchResult.CERTAIN
+        assert result.matched_qso.qsoid == "match"
+
+    def test_same_station_multiple_days_no_correct_date_is_no_match(self):
+        card = _card(date="2025-04-02")
+        c1 = _candidate(qsoid="a", date="2025-04-01")
+        c2 = _candidate(qsoid="b", date="2025-04-03")
+        assert _match(card, [c1, c2]).result == MatchResult.NO_MATCH
+
+    # ── C2: Gleiche Station, viele Bänder am selben Tag ─────────────────────
+
+    def test_same_station_many_bands_with_correct_band_certain(self):
+        card = _card(band="6m")
+        cands = [
+            _candidate(qsoid="b6m",  band="6m"),   # richtig
+            _candidate(qsoid="b2m",  band="2m"),
+            _candidate(qsoid="b40m", band="40m"),
+            _candidate(qsoid="b20m", band="20m"),
+        ]
+        result = _match(card, cands)
+        assert result.result == MatchResult.CERTAIN
+        assert result.matched_qso.qsoid == "b6m"
+
+    def test_same_station_many_bands_missing_band_on_card_is_uncertain(self):
+        card = _card(band=None)
+        cands = [_candidate(qsoid=f"b{i}", band=b) for i, b in enumerate(["6m", "2m", "40m"])]
+        assert _match(card, cands).result == MatchResult.UNCERTAIN
+
+    def test_same_station_single_band_in_db_missing_band_on_card_is_uncertain(self):
+        # Nur ein Kandidat, aber Band auf Karte unbekannt → unsicher
+        assert _match(_card(band=None), [_candidate(band="6m")]).result == MatchResult.UNCERTAIN
+
+    # ── C3: Zwei ähnliche Rufzeichen gleichzeitig in der DB ─────────────────
+
+    def test_exact_card_call_with_similar_fuzzy_candidate_in_db_is_uncertain(self):
+        # Karte "DK8NE" (exakt) — DB hat DK8NE UND DK8NF (Dist 1).
+        # Beide passieren den Fuzzy-Filter → 2 Kandidaten → UNCERTAIN.
+        # Dieses Verhalten ist korrekt: ohne externe Disambiguierung kann der Match
+        # nicht automatisch bestätigt werden (Leitregel ADR-0007).
+        card = _card(call_from="DK8NE")
+        cand_ne = _candidate(callsign="DK8NE", qsoid="ne")
+        cand_nf = _candidate(callsign="DK8NF", qsoid="nf")
+        result = _match(card, [cand_ne, cand_nf])
+        assert result.result == MatchResult.UNCERTAIN  # konservatives Verhalten
+
+    def test_single_ocr_error_matches_two_similar_db_entries_is_uncertain(self):
+        # "DK8N0" (E→0 oder F→0, Dist 1) matcht via Fuzzy: DK8NE (Dist 1) UND DK8NF (Dist 1)
+        # → zwei Kandidaten → UNCERTAIN: der kritische Falsch-Positiv-Schutztest (ADR-0007)
+        card = _card(call_from="DK8N0")
+        cand_ne = _candidate(callsign="DK8NE", qsoid="ne")
+        cand_nf = _candidate(callsign="DK8NF", qsoid="nf")
+        result = _match(card, [cand_ne, cand_nf], fuzzy=True)
+        assert result.result == MatchResult.UNCERTAIN
+        assert result.result != MatchResult.CERTAIN  # NIE falsch-positiv
+
+    def test_fuzzy_two_candidates_same_time_still_uncertain(self):
+        # Selbst wenn beide Kandidaten zur exakt gleichen Zeit eingetragen sind,
+        # kann der Zeit-Tie-Breaker nicht disambiguieren → UNCERTAIN
+        card = _card(call_from="DK8N0", time_utc="19:42")
+        cand_ne = _candidate(callsign="DK8NE", qsoid="ne", time_utc="19:42")
+        cand_nf = _candidate(callsign="DK8NF", qsoid="nf", time_utc="19:42")
+        result = _match(card, [cand_ne, cand_nf], fuzzy=True)
+        assert result.result == MatchResult.UNCERTAIN
+
+    def test_fuzzy_off_similar_calls_only_exact_matches(self):
+        # fuzzy=aus: "DK8N0" matcht weder DK8NE noch DK8NF → NO_MATCH
+        card = _card(call_from="DK8N0")
+        cand_ne = _candidate(callsign="DK8NE", qsoid="ne")
+        cand_nf = _candidate(callsign="DK8NF", qsoid="nf")
+        assert _match(card, [cand_ne, cand_nf], fuzzy=False).result == MatchResult.NO_MATCH
+
+    # ── C4: Verschiedene Stationen, gleiches Band/Datum ─────────────────────
+
+    def test_different_stations_same_band_date_callsign_discriminates(self):
+        # Rufzeichen mit Dist > 1 → wird nicht in matched aufgenommen
+        card = _card(call_from="DK8NE")
+        cand_correct = _candidate(callsign="DK8NE", qsoid="correct")
+        cand_other   = _candidate(callsign="DL1ABC", qsoid="other")  # Dist >> 1
+        result = _match(card, [cand_correct, cand_other])
+        assert result.result == MatchResult.CERTAIN
+        assert result.matched_qso.qsoid == "correct"
+
+    def test_three_stations_same_day_band_correct_call_only_match(self):
+        card = _card(call_from="DK8NE")
+        c1 = _candidate(callsign="DK8NE", qsoid="correct")
+        c2 = _candidate(callsign="DL1ABC", qsoid="other1")
+        c3 = _candidate(callsign="OE5XYZ", qsoid="other2")
+        result = _match(card, [c1, c2, c3])
+        assert result.result == MatchResult.CERTAIN
+        assert result.matched_qso.qsoid == "correct"
+
+
+# ===========================================================================
+# Kategorie C: Eigener Call (To-Feld) — Portabel-Varianten
+# ===========================================================================
+
+@pytest.mark.parametrize("call_to,expected", [
+    ("DH3KR/P",  MatchResult.CERTAIN),   # Portabel-Suffix beim eigenen Call
+    ("DO6KBO/P", MatchResult.CERTAIN),   # stationcallsign portabel
+    ("DL1XYZ/P", MatchResult.NO_MATCH),  # fremder portabler Call
+])
+def test_ownership_portable_variants(call_to, expected):
+    result = _match(_card(call_to=call_to), [_candidate()])
+    assert result.result == expected
+
+
+# ===========================================================================
+# Kategorie D: Doppelter Zusatz im Rufzeichen
+# ===========================================================================
+
+def test_double_modifier_prefix_and_suffix_is_never_certain():
+    # "SV9/DH3KR/P": decompose gibt "DH3KR/P" zurück (nicht None).
+    # "DH3KR/P" hat Dist 2 zu "DK8NE" → kein Match; zu "DH3KR" → Dist 2 → kein Match.
+    # Sicherheits-Eigenschaft: NIE CERTAIN (sicherer Ausgang).
+    result = _match(_card(call_from="SV9/DH3KR/P"), [_candidate(callsign="DH3KR")])
+    assert result.result != MatchResult.CERTAIN
+
+
+def test_double_modifier_suffix_twice_is_uncertain():
+    # "DH3KR/P/MM": decompose → Fall c (None) → from_base None → UNCERTAIN
+    result = _match(_card(call_from="DH3KR/P/MM"), [_candidate(callsign="DH3KR")])
+    assert result.result == MatchResult.UNCERTAIN
+
+
+# ===========================================================================
+# Kategorie D: Weitere ITU-Präfixe im Matching
+# ===========================================================================
+
+@pytest.mark.parametrize("card_call,cand_call", [
+    ("VK2/DK8NE", "DK8NE"),  # VK: Australien
+    ("JA1/DK8NE", "DK8NE"),  # JA: Japan
+    ("ON4/DK8NE", "DK8NE"),  # ON: Belgien
+    ("ZL2/DK8NE", "DK8NE"),  # ZL: Neuseeland
+])
+def test_additional_itu_prefix_matching_is_certain(card_call, cand_call):
+    card = _card(call_from=card_call)
+    cand = _candidate(callsign=cand_call)
+    assert _match(card, [cand]).result == MatchResult.CERTAIN
+
+
+# ===========================================================================
+# Zeit-Tie-Breaker Grenzfälle
+# ===========================================================================
+
+def test_tiebreaker_31_minutes_beyond_boundary_is_uncertain():
+    # 31 Minuten Abstand = außerhalb des ±30-min-Fensters (Grenzfall)
+    cand1 = _candidate(qsoid="close",  time_utc="19:00")
+    cand2 = _candidate(qsoid="remote", time_utc="22:00")
+    result = _match(_card(time_utc="19:31"), [cand1, cand2])
+    # |1171 - 1140| = 31 > 30 → cand1 außerhalb; cand2 weit entfernt → kein Fensterkandidat
+    assert result.result == MatchResult.UNCERTAIN
+
+
+def test_tiebreaker_many_candidates_single_winner():
+    # Fünf Kandidaten zu verschiedenen Zeiten; nur einer im ±30-min-Fenster
+    cands = [
+        _candidate(qsoid="a", time_utc="10:00"),
+        _candidate(qsoid="b", time_utc="11:00"),
+        _candidate(qsoid="c", time_utc="19:42"),  # nächster an 19:45
+        _candidate(qsoid="d", time_utc="22:00"),
+        _candidate(qsoid="e", time_utc="23:00"),
+    ]
+    result = _match(_card(time_utc="19:45"), cands)
+    assert result.result == MatchResult.CERTAIN
+    assert result.matched_qso.qsoid == "c"

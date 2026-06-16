@@ -141,6 +141,7 @@ def normalize_band(text: str) -> Optional[str]:
 _MODE_MAP: dict[str, str] = {
     "J3E": "SSB", "A3J": "SSB", "USB": "SSB", "LSB": "SSB", "PH": "SSB",
     "2×SSB": "SSB", "2xSSB": "SSB", "2XSSB": "SSB",
+    "BLU": "SSB",  # Französisch: Bande Latérale Unique (Oberes Seitenband = USB = SSB)
     "A1A": "CW",
     "A3E": "AM",
     "F3E": "FM",

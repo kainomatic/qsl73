@@ -153,6 +153,90 @@ def test_ocr_date_errors(ocr_date, expected):
     # Mehrdeutige Fuzzy-Treffer (Distanz 1 zu mehreren Modi) → None
     ("FT6", None),   # Distanz 1 zu FT8 UND zu FT4
     ("FT3", None),   # Distanz 1 zu FT4 UND zu FT8
+    ("FTG", None),   # Distanz 1 zu FT8 UND zu FT4 (G→8, G→4 je Dist 1)
+    ("FTW", None),   # Distanz 1 zu FT8 UND zu FT4 (W→8, W→4 je Dist 1)
 ])
 def test_ocr_mode_errors(ocr_mode, expected):
     assert normalize_mode(ocr_mode) == expected
+
+
+# ===========================================================================
+# Kategorie A: Mehrfachfehler (Distanz ≥ 2 in einem Feld)
+# ===========================================================================
+
+@pytest.mark.parametrize("text,expected", [
+    # Zwei OCR-Artefakte im Bandfeld → float-Parsing schlägt fehl → NIE ein falsches Band
+    ("l44.2SS",    None),   # l (kleines L) statt 1, SS keine Ziffern
+    ("5O.1OO",     None),   # O (Buchstabe) statt 0 — zweimal
+    ("44O.500",    None),   # O statt 0 in Megahertz-Stelle
+    ("l44.255 MHz", None),  # l statt 1 → kein gültiger Float
+    ("6rnn",       None),   # drei falsche Zeichen statt "6m"
+])
+def test_multiple_ocr_errors_band_is_always_none(text, expected):
+    assert normalize_band(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    # Levenshtein-Distanz ≥ 2 zu allen bekannten Modi → None — NIE ein falscher Mode
+    ("FTTB", None),  # Dist 2 zu FT8 (T→8, B→del) und FT4 (T→4, B→del)
+    ("XSX",  None),  # Dist 2 zu SSB (X→S, X→B), weit von allen anderen
+    ("CWXX", None),  # Dist 2 zu CW (zwei extra Zeichen)
+    ("XFTB", None),  # Dist 2 zu FT8 (X→del, B→8) und FT4 (X→del, B→4)
+])
+def test_multiple_ocr_errors_mode_is_always_none(text, expected):
+    assert normalize_mode(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    # Ergänzende Mehrfachfehler-Fälle im Datum (Buchstaben statt Ziffern)
+    ("02.04.O5",   None),  # O statt 0 im Jahr (Jahr-Feld nicht \d{2,4})
+    ("02/O4/25",   None),  # Schrägstrich + O statt 0 im Monat
+    ("OZ.O4.O5",   None),  # Drei Fehler: OZ im Tag, O im Monat, O im Jahr
+    ("O2.O4.2O25", None),  # Vier Buchstaben-statt-Ziffern-Fehler
+])
+def test_multiple_ocr_errors_date_is_always_none(text, expected):
+    assert normalize_date(text) == expected
+
+
+# ===========================================================================
+# Kategorie B: Sprach- / Schreibvarianten
+# ===========================================================================
+
+@pytest.mark.parametrize("text,expected", [
+    # Fachlich belegte Mappings: Fremdsprachige Bezeichnungen auf QSL-Karten
+    ("BLU",   "SSB"),   # Französisch „Bande Latérale Unique" = USB = SSB (häufig auf franz. Karten)
+    # Bekannte ITU-Codes (redundant zur Vollständigkeit; Regressions-Schutz)
+    ("J3E",   "SSB"),
+    ("USB",   "SSB"),
+    ("A1A",   "CW"),
+    # Nicht abbildbare Varianten → None (kein Raten; Manuelle Zuordnung greift)
+    ("PHONE", None),    # mehrdeutig: SSB, AM oder FM möglich
+    ("VOICE", None),    # nicht standardisiert
+])
+def test_mode_language_variants(text, expected):
+    assert normalize_mode(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    # Großbuchstaben-Monatsnamen → unterstützt (case-insensitiv via .lower())
+    ("23 APRIL 2025",   "2025-04-23"),
+    ("23 JANUARY 1995", "1995-01-23"),
+    # Nicht unterstützte Formate → None (sicher, kein Raten)
+    ("23-Apr-2025",  None),  # Bindestrich als Trenner, kein gültiges Muster
+    ("23Apr25",      None),  # 2-stelliges Jahr + Monatsname: Regex erwartet 4 Stellen
+    ("23 Apr. 2025", None),  # Punkt im Monatsnamen: außerhalb [A-Za-zäöüÄÖÜ]+
+])
+def test_date_writing_variants(text, expected):
+    assert normalize_date(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    # Fuzzy-Treffer: eindeutig (Distanz 1 zu genau einem bekannten Mode)
+    ("SBB",  "SSB"),   # S=S, B→S, B=B → Dist 1 nur zu SSB
+    ("CWW",  "CW"),    # extra W → Dist 1 nur zu CW
+    # Fuzzy-Treffer: mehrdeutig (Distanz 1 zu ZWEI bekannten Modi) → None
+    ("FT6",  None),    # Dist 1 zu FT8 UND FT4 (bereits in test_ocr_mode_errors)
+    ("SS8",  None),    # Dist 1 zu SSB (8→B) UND JS8 (S→J) → mehrdeutig → None
+])
+def test_mode_fuzzy_unique_vs_ambiguous(text, expected):
+    assert normalize_mode(text) == expected
