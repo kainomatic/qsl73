@@ -32,6 +32,12 @@ matching:
   # Fuzzy-Matching aktivieren (Toleranz: 1 Zeichen bei OCR-Verlesern)
   fuzzy_enabled: true
 
+confirm:
+  # Standard-Übertragungsweg (RV = "Received Via") für Papier-QSL-Bestätigungen.
+  # Optionen: "undefined" (Default), "bureau" (via Büro), "direct" (direkt zugeschickt)
+  # "electronic" wird bewusst nicht angeboten – das ist der Weg für LOTW/eQSL, nicht Papier.
+  qsl_route_default: "undefined"
+
 app:
   # Sprache der Benutzeroberfläche: "de" (Deutsch) oder "en" (English)
   language: "de"

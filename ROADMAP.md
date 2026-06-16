@@ -59,6 +59,8 @@ Ziel: Unbekannte an echten Daten klären, damit später nichts blind gebaut wird
 - **Review:** Akzeptanzkriterien §5/§7 (Abbruch-Test, Backup-Anzahl, Tag-nur-nach-DB).
   Nebenläufigkeit: SQLITE_BUSY-Handling, Änderungserkennung (data_version/Fallback),
   Pro-QSO-Gegenprüfung, Log4OM-Running-Warnung getestet.
+  Schema-Validierung (§3.3): Check beim Start und vor dem Schreiben; Schreibsperre bei
+  umbenannter/fehlender Tabelle oder nicht-parsebarem JSON; robustes Lesen ohne Crash.
 
 ## Schritt 6 — GUI
 - Hauptfenster + Log-Ausgabe, Ergebnis-Liste mit Filter, **manueller Zuordnungs-Bildschirm**

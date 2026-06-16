@@ -110,20 +110,33 @@ Beim Markieren eines QSOs als „Papier-QSL bestätigt" ist das `qsoconfirmation
 {"CT":"QSL","S":"No","R":"No","SV":"Electronic","RV":"Electronic"}
 ```
 
-**Nachher** (bestätigt, von QSL73 zu schreiben):
+**Nachher** (bestätigt, von QSL73 zu schreiben — Design-Entscheidung, empirisch noch zu bestätigen):
 ```json
-{"CT":"QSL","S":"No","R":"Yes","SV":"Electronic","RV":"Electronic","RD":"2026-06-16T00:00:00Z"}
+{"CT":"QSL","S":"No","R":"Yes","SV":"Electronic","RV":"<qsl_route_default>","RD":"2026-06-16T00:00:00Z"}
 ```
 
-**Ableitung:** Basiert auf dem beobachteten LOTW-Muster bei `R="Yes"` + `RD`-Datumsfeld. In der Test-DB gibt es **keine** QSOs mit `CT="QSL", R="Yes"` — das ist der noch nie gesetzte Zustand. Das Schreibformat ist daher aus der analogen Struktur von LOTW/EQSL/QRZCOM abgeleitet.
+**Design-Entscheidungen (festgeschrieben, Quelle: KONZEPT.md §3.3/§9):**
 
-**⚠️ Offene Frage (für Review):** Muss `RV` bei Papier-QSL auf `"Bureau"` oder `"Direct"` geändert werden (statt `"Electronic"`), oder akzeptiert Log4OM `"Electronic"` als Standardwert? Empfehlung: nach dem ersten echten Schreibvorgang prüfen, wie Log4OM die Anzeige interpretiert.
+| Feld | Wert | Begründung |
+|------|------|------------|
+| `R` | `"Yes"` | Papier-QSL empfangen/bestätigt. Nie `"V"` — das ist DXCC-Verifizierung durch den Nutzer selbst, setzt QSL73 nicht. |
+| `RD` | `"YYYY-MM-DDT00:00:00Z"` | Bestätigungsdatum UTC, ISO 8601 mit `T`-Trenner (analog SD/RD anderer CT-Typen). |
+| `RV` | Aus Config (`qsl_route_default`) | Pauschaler Standardwert: **Undefined** (Default), Bureau oder Direct. `"Electronic"` wird nicht angeboten — das ist der Weg für LOTW/eQSL, fachlich falsch für Papier. ADIF-Enum: Undefined/Bureau/Direct/Electronic (M=Manager nur Import). |
+| `SV` | Unverändert beibehalten | QSL73 bestätigt Empfang, nicht den Versand. `S`/`SV` bleiben wie vorgefunden. |
+
+**⚠️ Wartet auf Hand-Test:** Das exakte Format (insb. Groß-/Kleinschreibung von `RV`-Werten,
+ob Log4OM `"Undefined"` sauber akzeptiert/anzeigt, ob weitere Felder gesetzt werden) ist
+empirisch noch nicht bestätigt. Der Hand-Test durch DF1DS steht aus (Log4OM: 1–2 QSOs manuell
+als Papier-QSL bestätigen, je einmal Bureau und Direct, optional Undefined; dann Kopie ziehen
+und diesen Abschnitt aktualisieren).
+
+**Ableitung (bis Hand-Test):** Basiert auf dem beobachteten LOTW-Muster bei `R="Yes"` + `RD`-Datumsfeld. In der Test-DB gibt es **keine** QSOs mit `CT="QSL", R="Yes"`.
 
 ### Schreiboperation (Ablauf)
 
 1. `qsoconfirmations` aus der DB lesen und per `json.loads()` parsen.
 2. Eintrag mit `CT == "QSL"` suchen (immer vorhanden, da Log4OM alle 7 Typen anlegt).
-3. `R` auf `"Yes"` setzen, `RD` auf aktuelles UTC-Datum in Format `"YYYY-MM-DDT00:00:00Z"`.
+3. `R` auf `"Yes"` setzen (nie `"V"`); `RD` auf Bestätigungsdatum UTC (`"YYYY-MM-DDT00:00:00Z"`); `RV` auf konfigurierten `qsl_route_default`-Wert setzen.
 4. Array zurück in JSON serialisieren (`json.dumps()`).
 5. Spalte `qsoconfirmations` per UPDATE in der SQLite-DB schreiben.
 
@@ -158,9 +171,10 @@ Ausstehend:
 
 ## 6. Offene Fragen / Klärungsbedarfe
 
-| # | Frage | Priorität |
-|---|-------|-----------|
-| 1 | `RV`-Wert bei bestätigtem Papier-QSL: `"Electronic"` beibehalten oder `"Bureau"` / `"Direct"` setzen? | **Hoch** (vor Schreiblogik klären) |
-| 2 | Muss `S` auf `"Yes"` gesetzt werden (= QSL wurde abgeschickt), wenn Karte empfangen wird? | Mittel |
-| 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | Niedrig |
-| 4 | OCR-Qualität und Paperless-API-Details | Mittel (sobald Karten vorhanden) |
+| # | Frage | Status |
+|---|-------|--------|
+| 1 | `RV`-Wert bei bestätigtem Papier-QSL: welche Werte schreibt Log4OM exakt (Groß-/Kleinschreibung, akzeptiert Log4OM `"Undefined"`?) | **Wartet auf Hand-Test** durch DF1DS |
+| 2 | Muss `S` auf `"Yes"` gesetzt werden, wenn Karte empfangen wird? | **Entschieden:** Nein — `S`/`SV` bleiben unverändert; QSL73 bestätigt nur Empfang |
+| 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | Offen / Niedrig; →Schema-Validierung §3.3 fängt das ab |
+| 4 | OCR-Qualität und Paperless-API-Details | Offen (sobald Karten vorhanden) |
+| 5 | `R`-Wert `"V"` (DXCC-verifiziert) vs. `"Yes"`: setzt QSL73 „V"? | **Entschieden:** Nein — QSL73 setzt ausschließlich `"Yes"`. `"V"` vergibt der Nutzer selbst im Award-Checker. |

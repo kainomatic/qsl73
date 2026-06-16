@@ -57,13 +57,38 @@ Kernprinzipien:
   in Bilder rendern.
 - **Tag setzen/entfernen:** über das Document-Update-Endpoint (PATCH der Tag-Liste).
 
+### 3.3 Schema-Validierung (Schutz vor Log4OM-Strukturänderungen)
+
+Log4OM-Interna (Tabelle `Log`, Spalte `qsoconfirmations` als JSON mit CT/R/RD/RV) sind
+undokumentiert und können sich mit einem Log4OM-Update ändern. QSL73 darf dann **niemals
+blind schreiben**.
+
+- **Erwartetes Schema** ist in `docs/discovery.md` dokumentiert (maßgebliche Quelle für die
+  Implementierung).
+- **Schema-Check beim Start** und **direkt vor jedem Schreibvorgang:** Tabelle `Log`
+  vorhanden? Spalte `qsoconfirmations` vorhanden? JSON parsebar und CT/R/RD/RV wie erwartet?
+- **Bei Abweichung:** Schreiben gesperrt; Lesen/Anzeigen soweit möglich weiter erlaubt.
+  Klare Meldung: „Struktur der Log4OM-DB weicht vom erwarteten Format ab (evtl. Log4OM-
+  Update). QSL73 schreibt aus Sicherheitsgründen nicht. Bitte auf aktualisierte QSL73-
+  Version prüfen."
+- **Lesezugriff defensiv:** fehlende Tabelle oder Spalte → definierter Fehlerfall mit
+  verständlicher Meldung (kein Absturz); Diagnose-Log (`qsl73.log`) vermerkt exakt, was
+  abweicht.
+- **Abgrenzung zu §7:** §7 schützt vor DATEN-Änderungen während eines laufenden Durchgangs;
+  §3.3 schützt vor STRUKTUR-Änderungen durch Log4OM-Updates.
+
+**Akzeptanzkriterien:**
+- Umbenannte oder fehlende Tabelle/Spalte → Schreiben gesperrt, Meldung angezeigt, kein Crash.
+- Nicht-parsebares `qsoconfirmations`-JSON → Schreiben gesperrt + Eintrag in `qsl73.log`.
+- Intaktes, bekanntes Schema → normaler Betrieb ohne Verzögerung.
+
 ---
 
 ## 4. Konfiguration & Sicherheit
 
 - Config-Datei: `%APPDATA%\QSL73\config.yaml`. Enthält: Paperless-URL, Auth-Modus,
-  (verschluesselten) Token, Log4OM-DB-Pfad, Tag-Namen, Fuzzy an/aus, Sprache,
-  Update-Check an/aus, Backup-Anzahl.
+  (verschluesselten) Token, Log4OM-DB-Pfad, Tag-Namen, Fuzzy an/aus, QSL-Route-Default (RV),
+  Sprache, Update-Check an/aus, Backup-Anzahl.
 - **Token-Verschlüsselung:** Windows DPAPI (an Windows-Login gebunden), niemals Klartext.
 - `config.example.yaml` als Vorlage im Repo; echte Config nie ins Repo (`.gitignore`).
 - **Config-Migration:** beim ersten Start nach einem Update Pflicht – alte Config sauber
@@ -128,6 +153,9 @@ dry-run-Modus).
 ---
 
 ## 7. Schreibstrategie (Datensicherheit)
+
+> Schutz vor STRUKTUR-Änderungen durch Log4OM-Updates: → §3.3 (Schema-Validierung).
+> Dieser Abschnitt behandelt ausschließlich den Schutz vor DATEN-Änderungen zur Laufzeit.
 
 - **WAL-Modus** für technische Absturzsicherheit (selbstheilend bei Abbruch).
 - **Erst sammeln (inkl. Vorschau+Bestaetigung), dann gesammelt schreiben:** alle Aenderungen
@@ -212,6 +240,10 @@ ohne Annahme exklusiven Zugriffs. Log4OM kann parallel laufen und die DB veränd
   - Manuelle Zuordnung = wie Auto-Match: QSO markieren + Tag `qsl-bestätigt`.
 - **Fehler-Prompt:** verständliche Kurzmeldung mit **aufklappbarem Detailbereich** (Stacktrace).
 - **Setup-Assistent** beim ersten Start; alle Werte später in **Einstellungen** änderbar.
+- **Einstellungen — QSL-Route-Default (RV):** Standardwert für das Feld „Received Via"
+  bei Papier-QSL-Bestätigungen. Optionen: **Undefined** (Default), **Bureau**, **Direct**.
+  „Electronic" wird nicht angeboten (fachlich falsch für Papier-QSL; Electronic = LOTW/eQSL).
+  Wert gilt pauschal für alle von QSL73 gesetzten Bestätigungen (kein Pro-Karte-Override).
 - **Hilfe → „Über / Datenschutz"-Dialog:** listet die 3 Verbindungen, stellt klar dass keine
   Daten an den Entwickler gehen, nennt lokale Speicherorte, verlinkt das Repo; Buttons
   „Log-Ordner öffnen", „Backup-Ordner öffnen"; Kontakt: GitHub-Issues + QRZ-Link
