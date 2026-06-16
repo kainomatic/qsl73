@@ -8,6 +8,9 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Paperless-Client (`src/qsl73/paperless.py`): Auth (Token + Password→Token), Dokumente nach
+  Tag mit Paginierung, OCR-Text, Preview/Download/Thumb, Tag-Operationen (Name→ID, PATCH);
+  klare Fehlerklassen ohne Secrets in Fehlermeldungen; 56 Unit-Tests gegen Mocks (responses)
 - Config-Verwaltung (`src/qsl73/config.py`): Laden/Speichern aus `%APPDATA%\QSL73\config.yaml`,
   Validierung aller Felder mit verständlichen Fehlermeldungen, Defaults, Migrations-Gerüst
   mit `config_version`-Feld

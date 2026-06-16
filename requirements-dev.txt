@@ -1,5 +1,6 @@
 -r requirements.txt
 pytest>=7.4
+responses>=0.25
 
 # Windows-Entwicklung: DPAPI-Tests laufen nur mit pywin32 (sonst skip).
 # Für echte DPAPI-Tests auf Windows installieren:
