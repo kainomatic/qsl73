@@ -144,6 +144,18 @@ Für jede Karte werden Felder in dieser Reihenfolge bezogen — höhere Quelle s
 
 ### 6.2 QR-Code-Auswertung
 
+**Wichtig:** Der QR-Code-Inhalt ist **nicht** im Paperless-OCR-Textfeld (`content`)
+enthalten — Tesseract dekodiert QR-Codes nicht (empirisch bestätigt, Schritt 3b,
+→ `docs/discovery.md` §5.2). QSL73 muss den QR-Code **client-seitig aus dem
+Kartenbild/PDF dekodieren**.
+
+**Ablauf QR-Pfad:**
+1. Dokument-Bytes via `GET /api/documents/{id}/download/` (oder `/preview/`) holen.
+2. PDF-Seiten in Rasterbilder rendern (z. B. `pymupdf`).
+3. Im gerenderten Bild QR-Code suchen und dekodieren (z. B. `pyzbar`).
+4. Dekodierten Klartext parsen (strukturiertes Format, siehe unten).
+5. Schlägt Decoding fehl oder enthält das Bild keinen QR-Code → Fallback auf §6.3 (OCR).
+
 Moderne Karten (z. B. DARC-QSL-Service) tragen einen QR-Code mit QSO-Daten als
 strukturierten Klartext. Bekanntes Format (tolerant gegenüber Feldreihenfolge/Varianten):
 
@@ -155,8 +167,8 @@ Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RS
 - **From** = Rufzeichen der Gegenstation (Match-Schlüssel gegen Log4OM `callsign`).
 - **To** = eigener Call; wird gegen den konfigurierten eigenen Call (`log4om.own_callsign`)
   abgeglichen — stimmt er nicht überein, gehört die Karte nicht zu diesem Log.
-- **Date/Time** → normalisieren (siehe § 6.3).
-- **Band/Mode** → normalisieren (siehe § 6.3).
+- **Date/Time** → normalisieren (siehe §6.3).
+- **Band/Mode** → normalisieren (siehe §6.3); QR liefert Klartext-Band (`6m`), kein OCR-Artefakt.
 - Ein sauberer QR-Treffer (alle vier Pflichtfelder eindeutig) **darf auto-bestätigen**,
   wenn Rufzeichen + Datum + Band + Mode passen — identische Regel wie beim OCR-Match.
   Sicherheitsschleife bleibt die gemeinsame Vorschau + Bestätigung (Schreibmodell B).
@@ -164,7 +176,12 @@ Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RS
 
 ### 6.3 OCR-Normalisierung
 
-OCR-Text ist fehleranfällig. Vor dem Matching sind alle Felder zu normalisieren:
+OCR-Text ist fehleranfällig. Vor dem Matching sind alle Felder zu normalisieren.
+
+**Empirischer Befund (Schritt 3b, → `docs/discovery.md` §5.2):** Das Band-Feld ist das
+unzuverlässigste OCR-Feld (z. B. `"6m"` → `"tToemvem"`); handschriftliche Karten sind
+via OCR meist nicht matchbar. Im Alltag ist der manuelle Pfad (§6.4 / §9) daher häufig
+der einzig gangbare Weg für ältere oder handschriftliche Karten.
 
 **Datum:**
 - Erkannte Formate: `TT.MM.JJ` (`02.04.25`), `TT/MM/JJ` (`3/10/92`),
@@ -230,7 +247,8 @@ OCR-Text ist fehleranfällig. Vor dem Matching sind alle Felder zu normalisieren
 - „kein Match" ≠ „nicht bestätigt" (unterschiedliche Zustände, getrennt behandeln).
 
 **OCR-Quelle:** QSL73 nutzt die **Paperless-OCR** (`GET /api/documents/{id}/?fields=content`),
-nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; live zu verifizieren (→ Issue #2).
+nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
+`docs/discovery.md` §5.2 (Schritt 3b).
 
 **Akzeptanzkriterien:**
 - Ein QSO mit exakt passenden vier Feldern wird als „sicher" erkannt.
@@ -437,6 +455,12 @@ ohne Annahme exklusiven Zugriffs. Log4OM kann parallel laufen und die DB veränd
 
 Python 3.11+ (64-Bit), `requests` (Paperless), `sqlite3` (Log4OM, WAL), `rapidfuzz` (Fuzzy),
 `PyYAML` (Config), `tkinter` (GUI), `pywin32` (DPAPI), Bild-/PDF-Anzeige (`Pillow` + PDF-Render).
+
+**QR-Code-Pfad (§6.2):** `pyzbar` (QR-Decoding) + `pymupdf` (PDF→Bild-Rendering).
+`pyzbar` benötigt die **native zbar-Bibliothek** als Laufzeit-Abhängigkeit (DLL unter
+Windows: `libzbar-64.dll`). Das erfordert beim PyInstaller-Build explizites Mitbündeln der
+DLL → Packaging-Risiko für Schritt 9 (→ Issue #7).
+
 Build: **PyInstaller** → **Inno Setup**. Hinweis: unsignierte EXE löst SmartScreen-Warnung aus.
 
 ---
