@@ -4,5 +4,15 @@ pytest>=7.4
 # Windows-Entwicklung: DPAPI-Tests laufen nur mit pywin32 (sonst skip).
 # Für echte DPAPI-Tests auf Windows installieren:
 #   pip install pywin32>=306
-# CI (Linux) läuft ohne pywin32; DPAPI-Tests werden dort übersprungen.
+#
+# Stand Dev-Maschine (Windows Server 2025): pywin32 ist installiert.
+# → TestDpapiBackend und TestGetDefaultBackend::test_returns_usable_backend laufen real durch.
+# → Verbleibende Skips (3 Stück) sind ERWARTET und kein Fehlerzustand:
+#     - test_returns_null_backend_on_linux       → skip auf Windows (plattformbedingt, korrekt)
+#     - test_raises_on_windows_without_dpapi     → skip weil pywin32 vorhanden (korrekt)
+#     - test_raises_not_null_backend_on_...dpapi → skip weil pywin32 vorhanden (korrekt)
+#
+# CI (Linux, ohne pywin32): DPAPI-Round-Trip-Tests skippen erwartungsgemäß.
+# Der fail-closed-Sicherheitstest (test_raises_on_windows_without_dpapi) läuft im CI aktiv durch.
+#
 # Schritt 9 (Installer): pywin32 muss im finalen Windows-Bundle enthalten sein. → Issue #6

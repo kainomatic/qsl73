@@ -129,6 +129,19 @@ fertig, wenn seine Tests grün sind. → Details und Begründung: **ADR-0009**
   niemals gegen echte Daten; `docs/testdateien/` bleibt `.gitignore`-gesperrt
 - **CI-DB:** synthetische Minimal-DB (kein Zugriff auf `docs/testdateien/` im CI)
 
+### Erwartetes Skip-Muster (DPAPI-Tests) — kein Fehler
+
+| Umgebung | DPAPI-Round-Trip-Tests | fail-closed-Sicherheitstest |
+|----------|------------------------|------------------------------|
+| Windows-Dev **mit** pywin32 | **passed** (laufen real durch) | skipped (pywin32 vorhanden) |
+| Windows-Dev **ohne** pywin32 | skipped | **passed** |
+| CI (Linux, ohne pywin32) | skipped | **passed** |
+
+Skips in diesen Kombinationen sind **erwartet und kein Reparaturanlass**. Nur ein
+unerwarteter Skip (z. B. DPAPI-Test skippt obwohl pywin32 laut `pip list` installiert ist)
+wäre ein echtes Problem. Stand Dev-Maschine: pywin32 installiert → 3 Skips erwartet
+(Linux-only-Test + 2× "Windows-ohne-pywin32"-Sicherheitstests).
+
 ---
 
 ## Weiterführende Dokumente
