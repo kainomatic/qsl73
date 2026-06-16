@@ -8,6 +8,28 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- QR-Code-Auswertung (Schritt 4b):
+  - `src/qsl73/qr.py`: QR-Dekodierung aus PDF-Bytes (ADR-0011, ADR-0012, ADR-0017)
+    - `decode_qr_from_pdf(pdf_bytes)`: rendert alle PDF-Seiten (pymupdf, 300 dpi),
+      sucht QR-Codes (zxingcpp), gibt erstes gültiges `CardFields`-Objekt zurück;
+      keine Abstürze bei korrupten Eingaben, leerer Eingabe oder fehlenden Libs
+    - `parse_qr_text(text)`: parst `Key: Value`-Format; tolerant gegenüber Feldreihenfolge,
+      Extra-Leerzeichen/Zeilenumbrüchen, unbekannten Schlüsseln; ignoriert Werbe-QR ohne
+      Pflichtfelder (`From`, `To`, `Date`, `Band`, `Mode`)
+  - `normalize.py`: 60m-Band ergänzt (5.25–5.45 MHz, WRC-15/DARC; Direktname `60m`)
+  - ADR-0017: QR-Decoder-Wahl `zxingcpp` statt `pyzbar` (pyzbar scheitert an
+    DLL-Abhängigkeit auf Windows Server 2025, Issue #7 dokumentiert das)
+  - `tests/test_qr.py`: 23 Tests — Parser-Ebene (keine externen Abhängigkeiten) +
+    PDF-Decode-Pfad (mit selbst erzeugtem QR-Bild via qrcode, skippt ohne zxingcpp)
+  - `tests/acceptance/test_db_acceptance.py`: Abnahme-Tests A–E gegen echte
+    DB-KOPIE in `tmp_path` (Original-DB unverändert); marker `acceptance`;
+    CI-kompatibel (Tests skippen, wenn `docs/testdateien/` fehlt)
+    - A: DK8NE-Anker → CERTAIN (QR-Pfad → Matching)
+    - B: Anker gelöscht → NO_MATCH (korrekte Daten, QSO fehlt)
+    - C: Band-Widerspruch (DB sagt 2m, Karte 6m) → NO_MATCH
+    - D: Zwei DK8NE-QSOs gleicher Tag, Karte ohne Band → UNCERTAIN
+    - E: DG5MLA (60m/FT8) + OE6DRG (20m/FT8) → CERTAIN
+
 - Matching-/Normalisierungs-Logik (Schritt 4a):
   - `src/qsl73/normalize.py`: Datum-Normalisierung (alle §6.3-Formate, mehrdeutig/unbekannt → None),
     Band-Normalisierung (Direktname + Frequenz → Band, 12 Bänder), Mode-Normalisierung

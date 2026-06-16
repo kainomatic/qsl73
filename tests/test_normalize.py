@@ -66,12 +66,16 @@ def test_normalize_date(text, expected):
     # Komma-Dezimaltrenner
     ("14,200", "20m"),
     ("7,050", "40m"),
+    # 60m-Band (5.25–5.45 MHz, WRC-15/DARC)
+    ("60m", "60m"),
+    ("60M", "60m"),
+    ("5.357", "60m"),
+    ("5.250", "60m"),
     # Zerstört → None
     ("tToemvem", None),
     ("6n", None),
     ("", None),
     ("???", None),
-    ("5.357", None),
     ("500", None),
 ])
 def test_normalize_band(text, expected):
@@ -121,7 +125,6 @@ def test_normalize_mode(text, expected):
 
 @pytest.mark.parametrize("ocr_band,expected", [
     # Ziffern-/Buchstaben-Verwechslungen im Bandfeld (nicht in test_normalize_band)
-    ("60m", None),     # Ziffer 6 statt 6m – keine gültige Bandbezeichnung mit Tausenderstelle
     ("6rn", None),     # rn statt m
     ("4Om", None),     # O (Buchstabe) statt 0
     ("2rn", None),     # rn statt m

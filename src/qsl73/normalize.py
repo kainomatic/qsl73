@@ -89,6 +89,7 @@ def normalize_date(text: str) -> Optional[str]:
 _FREQ_TO_BAND: list[tuple[float, float, str]] = [
     (1.8,    2.0,    "160m"),
     (3.5,    4.0,    "80m"),
+    (5.25,   5.45,   "60m"),
     (7.0,    7.3,    "40m"),
     (10.1,   10.15,  "30m"),
     (14.0,   14.35,  "20m"),
@@ -102,7 +103,7 @@ _FREQ_TO_BAND: list[tuple[float, float, str]] = [
 ]
 
 _BAND_NAMES: frozenset[str] = frozenset({
-    "160m", "80m", "40m", "30m", "20m", "17m",
+    "160m", "80m", "60m", "40m", "30m", "20m", "17m",
     "15m", "12m", "10m", "6m", "2m", "70cm",
 })
 

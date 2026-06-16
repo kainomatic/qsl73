@@ -1,6 +1,7 @@
 -r requirements.txt
 pytest>=7.4
 responses>=0.25
+qrcode[pil]>=8.0   # QR-Bild für Decode-Tests generieren (test_qr.py)
 
 # Windows-Entwicklung: DPAPI-Tests laufen nur mit pywin32 (sonst skip).
 # Für echte DPAPI-Tests auf Windows installieren:
