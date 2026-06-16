@@ -262,3 +262,27 @@ class TestLoadErrors:
         msg = str(exc_info.value)
         assert "auth_mode" in msg
         assert "language" in msg
+
+
+def test_matching_config_has_portable_suffixes_default():
+    from qsl73.config import MatchingConfig
+    mc = MatchingConfig()
+    assert mc.portable_suffixes == ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
+
+
+def test_load_config_with_portable_suffixes(config_path, null_crypto):
+    import yaml
+    from qsl73.config import load_config
+    data = {"config_version": 1, "matching": {"fuzzy_enabled": True, "portable_suffixes": ["P", "QRP"]}}
+    config_path.write_text(yaml.dump(data), encoding="utf-8")
+    cfg = load_config(config_path)
+    assert cfg.matching.portable_suffixes == ["P", "QRP"]
+
+
+def test_load_config_portable_suffixes_default(config_path):
+    import yaml
+    from qsl73.config import load_config
+    data = {"config_version": 1}
+    config_path.write_text(yaml.dump(data), encoding="utf-8")
+    cfg = load_config(config_path)
+    assert cfg.matching.portable_suffixes == ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]

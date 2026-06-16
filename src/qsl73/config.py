@@ -40,6 +40,7 @@ class TagsConfig:
 @dataclass
 class MatchingConfig:
     fuzzy_enabled: bool = True
+    portable_suffixes: list = field(default_factory=lambda: ["P", "M", "MM", "AM", "QRP", "A", "R", "T"])
 
 
 @dataclass
@@ -104,6 +105,9 @@ def validate_config(data: dict) -> list[str]:
         fuzzy = matching.get("fuzzy_enabled", True)
         if not isinstance(fuzzy, bool):
             errors.append("matching.fuzzy_enabled: muss true oder false sein")
+        ps = matching.get("portable_suffixes", [])
+        if not isinstance(ps, list):
+            errors.append("matching.portable_suffixes: muss eine Liste sein")
 
     confirm = data.get("confirm", {})
     if not isinstance(confirm, dict):
@@ -172,6 +176,7 @@ def _dict_to_config(data: dict) -> Config:
         ),
         matching=MatchingConfig(
             fuzzy_enabled=m.get("fuzzy_enabled", True),
+            portable_suffixes=m.get("portable_suffixes", ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]),
         ),
         confirm=ConfirmConfig(
             qsl_route_default=c.get("qsl_route_default", "undefined"),
@@ -203,6 +208,7 @@ def _config_to_dict(config: Config) -> dict:
         },
         "matching": {
             "fuzzy_enabled": config.matching.fuzzy_enabled,
+            "portable_suffixes": config.matching.portable_suffixes,
         },
         "confirm": {
             "qsl_route_default": config.confirm.qsl_route_default,
