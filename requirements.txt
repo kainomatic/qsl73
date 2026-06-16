@@ -1,0 +1,3 @@
+PyYAML>=6.0
+# Windows only (DPAPI-Verschlüsselung) — separat installieren:
+# pywin32>=306
