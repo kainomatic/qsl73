@@ -232,8 +232,14 @@ der einzig gangbare Weg für ältere oder handschriftliche Karten.
 | 24.89 – 24.99 | 12m |
 | 28.0 – 29.7 | 10m |
 | 50.0 – 54.0 | 6m |
+| 70.0 – 70.5 | 4m |
 | 144.0 – 148.0 | 2m |
 | 430.0 – 440.0 | 70cm |
+| 1240.0 – 1300.0 | 23cm |
+
+Höhere Mikrowellenbänder (9cm, 6cm, 3cm, …) werden **bewusst nicht** abgedeckt —
+unbekanntes Band → `None` → Einstufung **unsicher** → manueller Pfad (§9). Lieber
+„nicht erkennbar" als ein fehleranfälliges Mapping auf Exoten-Bänder.
 
 - OCR-Fehler im Bandfeld (z. B. `"tToemvem"` statt `"6m"`) → kein Mapping möglich → Feld
   als fehlend markieren → Karte landet bei **kein Match** oder **unsicher**.

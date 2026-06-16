@@ -71,6 +71,24 @@ def test_normalize_date(text, expected):
     ("60M", "60m"),
     ("5.357", "60m"),
     ("5.250", "60m"),
+    # 4m-Band (70.0–70.5 MHz, DL/Region 1)
+    ("4m", "4m"),
+    ("4M", "4m"),
+    ("70.200", "4m"),
+    ("70.200 MHz", "4m"),
+    ("70.000", "4m"),
+    ("70.500", "4m"),
+    ("70.501", None),    # knapp außerhalb oben
+    ("69.999", None),    # knapp außerhalb unten
+    # 23cm-Band (1240–1300 MHz)
+    ("23cm", "23cm"),
+    ("23CM", "23cm"),
+    ("1296", "23cm"),
+    ("1296 MHz", "23cm"),
+    ("1240.000", "23cm"),
+    ("1300.000", "23cm"),
+    ("1239.999", None),  # knapp außerhalb unten
+    ("1301", None),      # knapp außerhalb oben
     # Zerstört → None
     ("tToemvem", None),
     ("6n", None),

@@ -97,14 +97,16 @@ _FREQ_TO_BAND: list[tuple[float, float, str]] = [
     (21.0,   21.45,  "15m"),
     (24.89,  24.99,  "12m"),
     (28.0,   29.7,   "10m"),
-    (50.0,   54.0,   "6m"),
-    (144.0,  148.0,  "2m"),
-    (430.0,  440.0,  "70cm"),
+    (50.0,    54.0,    "6m"),
+    (70.0,    70.5,    "4m"),
+    (144.0,   148.0,   "2m"),
+    (430.0,   440.0,   "70cm"),
+    (1240.0,  1300.0,  "23cm"),
 ]
 
 _BAND_NAMES: frozenset[str] = frozenset({
     "160m", "80m", "60m", "40m", "30m", "20m", "17m",
-    "15m", "12m", "10m", "6m", "2m", "70cm",
+    "15m", "12m", "10m", "6m", "4m", "2m", "70cm", "23cm",
 })
 
 
@@ -128,12 +130,16 @@ def normalize_band(text: str) -> Optional[str]:
     except ValueError:
         return None
 
-    # kHz → MHz-Umrechnung (> 1000 MHz wäre unrealistisch)
-    if freq > 1000:
-        freq /= 1000
-
+    # Erst direkt als MHz prüfen; falls kein Treffer, als kHz (÷1000) nochmal prüfen.
+    # Zwei-Pass-Ansatz, weil 23cm-Frequenzen (1240–1300 MHz) > 1000 sind — ein einfacher
+    # ">1000 → kHz"-Schwellwert würde 1296 MHz fälschlich zu 1.296 MHz umrechnen.
     for lo, hi, band in _FREQ_TO_BAND:
         if lo <= freq <= hi:
+            return band
+
+    freq_as_khz = freq / 1000
+    for lo, hi, band in _FREQ_TO_BAND:
+        if lo <= freq_as_khz <= hi:
             return band
 
     return None
