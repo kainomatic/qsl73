@@ -694,3 +694,52 @@ def test_suffix_differ_with_missing_band_is_uncertain():
     card = _card(call_from="DL1EJD", band=None)
     cand = _candidate(callsign="DL1EJD/P")
     assert _match(card, [cand]).result == MatchResult.UNCERTAIN
+
+
+# ===========================================================================
+# Normalisierter Mode-/Band-Vergleich: normalisiert-gegen-normalisiert (§6.3/§6.4)
+# ===========================================================================
+# Log4OM speichert Modi teils als "USB"/"LSB" statt "SSB". Karte und DB-Kandidat
+# werden je im Speicher durch dieselbe Normalisierungsfunktion geschickt, dann verglichen.
+# Kein DB-Write; rein lesende In-Memory-Operation.
+
+
+@pytest.mark.parametrize("card_mode,cand_mode,expected", [
+    # Hauptfall: DB enthält USB/LSB-Rohwert, normalisiert → SSB
+    ("SSB", "USB",  MatchResult.CERTAIN),   # DB "USB" → SSB; Karte SSB → match
+    ("SSB", "LSB",  MatchResult.CERTAIN),   # DB "LSB" → SSB; Karte SSB → match
+    # Umgekehrt: Karte trägt USB/LSB (z. B. aus QR-Code ohne Vor-Normalisierung)
+    ("USB", "SSB",  MatchResult.CERTAIN),   # Karte USB → SSB; DB SSB → match
+    ("USB", "USB",  MatchResult.CERTAIN),   # beide → SSB → match
+    # Gegenprobe: wirklich verschiedener Mode → kein Match
+    ("CW",  "USB",  MatchResult.NO_MATCH),  # CW ≠ SSB → kein Match
+    ("FT8", "USB",  MatchResult.NO_MATCH),  # FT8 ≠ SSB → kein Match
+    # Sanity: gleiche normalisierte Werte → unverändert sicher
+    ("FT8", "FT8",  MatchResult.CERTAIN),
+    ("SSB", "SSB",  MatchResult.CERTAIN),
+    ("CW",  "A1A",  MatchResult.CERTAIN),   # A1A → CW (Mapping)
+])
+def test_mode_normalized_both_sides(card_mode, cand_mode, expected):
+    # normalisiert-gegen-normalisiert: DB-Rohwert USB/LSB matcht korrekt gegen SSB
+    result = _match(_card(mode=card_mode), [_candidate(mode=cand_mode)])
+    assert result.result == expected
+
+
+def test_non_normalizable_cand_mode_is_no_match():
+    # DB-Rohwert nicht normalisierbar → None → zählt NICHT als Übereinstimmung → KEIN MATCH
+    result = _match(_card(mode="SSB"), [_candidate(mode="UNKNOWNMODE")])
+    assert result.result == MatchResult.NO_MATCH
+
+
+def test_db_date_with_time_suffix_matches_card_date():
+    # DB-Datum enthält Zeitanteil ('YYYY-MM-DD HH:MM:SSZ') → nur Tag wird verglichen
+    card = _card(date="2025-04-02")
+    cand = _candidate(date="2025-04-02 19:42:00Z")
+    assert _match(card, [cand]).result == MatchResult.CERTAIN
+
+
+def test_db_date_with_time_suffix_different_day_is_no_match():
+    # DB-Datum mit Zeitanteil, aber anderer Tag → KEIN MATCH
+    card = _card(date="2025-04-02")
+    cand = _candidate(date="2025-04-03 19:42:00Z")
+    assert _match(card, [cand]).result == MatchResult.NO_MATCH

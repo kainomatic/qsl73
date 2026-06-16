@@ -254,6 +254,22 @@ der einzig gangbare Weg für ältere oder handschriftliche Karten.
 
 - Unbekannte Mode-Bezeichnung → Fuzzy-Match gegen bekannte Modi; kein Treffer → **unsicher**.
 
+**Normalisierung beim Vergleich — normalisiert-gegen-normalisiert:**
+
+Beim Matching werden Kartenwert **und** der frisch aus der DB gelesene Kandidatenwert
+jeweils im Speicher durch dieselbe Normalisierungsfunktion (`normalize_band` /
+`normalize_mode`) geschickt, bevor sie verglichen werden. Damit matchen äquivalente
+Schreibweisen korrekt: z. B. Log4OM-DB-Wert `USB` oder `LSB` gegen Karte `SSB`
+(alle → `SSB`); oder DB-Wert `A1A` gegen Karte `CW`.
+
+Diese Normalisierung ist eine **rein lesende In-Memory-Operation** auf einer Kopie
+des gelesenen Werts — der DB-Rohwert wird NICHT zurückgeschrieben.
+Ein nicht normalisierbarer DB-Wert (ergibt `None`) zählt als Widerspruch und schließt
+den Kandidaten aus (kein falscher Treffer durch unbekannte DB-Schreibweisen).
+
+Das DB-Datum (`qsodate`-Format: `'YYYY-MM-DD HH:MM:SSZ'`, siehe `docs/discovery.md`)
+wird für den Tagesvergleich im Speicher auf `YYYY-MM-DD` reduziert; kein DB-Write.
+
 **Rufzeichen — Stammrufzeichen-Zerlegung:**
 
 Rufzeichen mit `/` werden zerlegt. Reihenfolge (Kurzschluss nach erstem Treffer):
@@ -291,8 +307,10 @@ Log `DL1EJD/P`, oder umgekehrt):
   - Hinweis: Der Match-Schlüssel für das QSO-Matching bleibt `From` ↔ `callsign`;
     `To` dient ausschließlich der Zugehörigkeitsprüfung.
 - Rufzeichen case-insensitiv; Fuzzy-Toleranz 1 Zeichen (Levenshtein) bei Fuzzy=an (gegen OCR-Verleser).
-- Band und Mode werden **exakt** verglichen (nach Normalisierung, case-insensitiv);
-  kein Fuzzy — 1 Zeichen Unterschied ist nach Normalisierung ein echter Wertunterschied.
+- Band und Mode werden **normalisiert-gegen-normalisiert** verglichen (kein Fuzzy);
+  beide Seiten (Karte und gelesener DB-Wert) laufen im Speicher durch dieselbe Normalisierungsfunktion,
+  dann Exakt-Vergleich. Damit matchen z. B. DB-Wert `USB` oder `LSB` korrekt gegen Karte `SSB`.
+  Ein nicht normalisierbarer DB-Wert (→ `None`) schließt den Kandidaten aus (kein falscher Treffer).
 
 ### 6.4 Match-Ergebnis
 

@@ -3,6 +3,11 @@
 Leitregel (ADR-0007): Im Zweifel lieber „unsicher" als falsch auto-bestätigen.
 Matching-Modell (ADR-0016): Drei Feldzustände (stimmt/fehlt/widerspricht);
 3-von-4-Schwelle für „sicher"; fehlende Felder neutral, widersprechende schließen aus.
+
+Vergleichsprinzip: Band und Mode werden normalisiert-gegen-normalisiert verglichen —
+Kartenwert UND gelesener DB-Kandidatenwert werden im Speicher durch dieselbe
+Normalisierungsfunktion geschickt, dann verglichen. Kein DB-Write, rein lesend.
+Damit matchen äquivalente Schreibweisen (z. B. DB „USB"/„LSB" ↔ Karte „SSB") korrekt.
 """
 from __future__ import annotations
 
@@ -13,6 +18,7 @@ from typing import Optional
 from rapidfuzz.distance import Levenshtein
 
 from qsl73.callsign import decompose_callsign, is_own_call
+from qsl73.normalize import normalize_band, normalize_mode
 
 
 TIME_TOLERANCE_MINUTES: int = 30
@@ -60,10 +66,6 @@ def _fuzzy_equal(a: str, b: str, fuzzy: bool) -> bool:
     return False
 
 
-def _exact_equal(a: str, b: str) -> bool:
-    return a.upper() == b.upper()
-
-
 def _time_to_minutes(hhmm: str) -> Optional[int]:
     try:
         parts = hhmm.split(":")
@@ -72,14 +74,36 @@ def _time_to_minutes(hhmm: str) -> Optional[int]:
         return None
 
 
+def _cand_date_day(cand_date: str) -> str:
+    """Schneidet Zeitanteil aus DB-Datum: 'YYYY-MM-DD HH:MM:SSZ' → 'YYYY-MM-DD'."""
+    return cand_date[:10] if cand_date else ""
+
+
+def _norm_bands_equal(card_band: str, cand_band: str) -> bool:
+    """Normalisiert beide Werte im Speicher, dann Vergleich. None (unbekannt) → kein Match."""
+    n_card = normalize_band(card_band)
+    n_cand = normalize_band(cand_band)
+    return n_card is not None and n_cand is not None and n_card == n_cand
+
+
+def _norm_modes_equal(card_mode: str, cand_mode: str) -> bool:
+    """Normalisiert beide Werte im Speicher, dann Vergleich. None (unbekannt) → kein Match."""
+    n_card = normalize_mode(card_mode)
+    n_cand = normalize_mode(cand_mode)
+    return n_card is not None and n_cand is not None and n_card == n_cand
+
+
 def _count_positive_fields(card: CardFields, cand: QsoCandidate) -> int:
-    """Zählt positive Übereinstimmungen: Rufzeichen (immer 1) + lesbare, passende Felder."""
+    """Zählt positive Übereinstimmungen: Rufzeichen (immer 1) + lesbare, passende Felder.
+
+    Alle Vergleiche normalisiert-gegen-normalisiert (In-Memory, kein DB-Write).
+    """
     count = 1  # Rufzeichen: per Konstruktion übereinstimmend (Kandidatenfilter-Voraussetzung)
-    if card.date is not None and card.date == cand.date:
+    if card.date is not None and card.date == _cand_date_day(cand.date):
         count += 1
-    if card.band is not None and _exact_equal(card.band, cand.band):
+    if card.band is not None and _norm_bands_equal(card.band, cand.band):
         count += 1
-    if card.mode is not None and _exact_equal(card.mode, cand.mode):
+    if card.mode is not None and _norm_modes_equal(card.mode, cand.mode):
         count += 1
     return count
 
@@ -100,11 +124,11 @@ def _check_single_candidate(
     if suffix_differs:
         # Suffix-Unterschied-Regel (§6.3): Datum + Band + Mode müssen alle drei
         # explizit übereinstimmen — strenger als 3-von-4, weil die Call-Identität
-        # schon unsicher ist.
+        # schon unsicher ist. Vergleiche ebenfalls normalisiert-gegen-normalisiert.
         fields_all_exact = (
-            card.date is not None and card.date == cand.date
-            and card.band is not None and _exact_equal(card.band, cand.band)
-            and card.mode is not None and _exact_equal(card.mode, cand.mode)
+            card.date is not None and card.date == _cand_date_day(cand.date)
+            and card.band is not None and _norm_bands_equal(card.band, cand.band)
+            and card.mode is not None and _norm_modes_equal(card.mode, cand.mode)
         )
         if fields_all_exact:
             return MatchOutcome(MatchResult.CERTAIN, cand, matched)
@@ -142,16 +166,18 @@ def match_card(
     # 3. Kandidaten einschränken: Rufzeichen muss passen (exakt oder fuzzy-1);
     #    für jedes weitere lesbare Kartenfeld: Kandidaten mit Widerspruch ausschließen.
     #    Fehlende Felder (None) sind neutral — sie grenzen nicht ein.
+    #    Band/Mode: normalisiert-gegen-normalisiert (In-Memory, kein DB-Write).
+    #    Datum: Zeitanteil des DB-Werts wird im Speicher abgeschnitten (Tagesvergleich).
     matched: list[QsoCandidate] = []
     for cand in candidates:
         cand_base = decompose_callsign(cand.callsign, portable_suffixes) or cand.callsign.upper()
         if not _fuzzy_equal(from_base, cand_base, fuzzy_enabled):
             continue
-        if card.date is not None and card.date != cand.date:
+        if card.date is not None and card.date != _cand_date_day(cand.date):
             continue
-        if card.band is not None and not _exact_equal(card.band, cand.band):
+        if card.band is not None and not _norm_bands_equal(card.band, cand.band):
             continue
-        if card.mode is not None and not _exact_equal(card.mode, cand.mode):
+        if card.mode is not None and not _norm_modes_equal(card.mode, cand.mode):
             continue
         matched.append(cand)
 
