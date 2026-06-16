@@ -12,6 +12,23 @@ Log4OM-Logbuch abgleicht und Papier-QSL bestätigt. → Details: **KONZEPT.md**
 
 ---
 
+## Onboarding für neue Sessions
+
+**Der Chatverlauf ist flüchtig. Das Repo ist die maßgebliche Wahrheit.**
+
+Zu Beginn jeder neuen Session diese Dateien in dieser Reihenfolge lesen:
+
+1. `CLAUDE.md` — Arbeitsvorgehen (dieses Dokument)
+2. `ROADMAP.md` — aktueller Schritt und Review-Stand
+3. `KONZEPT.md` — Spezifikation (bei Bedarf; bei Codearbeit immer)
+4. `docs/adr/` — getroffene Designentscheidungen
+5. `docs/discovery.md` — Log4OM-DB-Befunde (bei DB-naher Arbeit)
+
+Gilt für beide Claude-Instanzen: Claude Code liest `CLAUDE.md` automatisch beim Start;
+Claude Desktop wird über seine Projekt-Anweisungen hierher verwiesen.
+
+---
+
 ## Rollenmodell
 
 | Rolle | Wer | Aufgabe |
@@ -57,13 +74,27 @@ Desktop spezifiziert Auftrag (Kontext + Aufgabe + Akzeptanzkriterien)
 
 ## Entscheidungen und Aufgaben festhalten
 
+### ADR-Pflicht (verbindlich)
+
+Jede **Design- oder Grundentscheidung** — Architektur, Datenformat, Konfliktverhalten,
+Sicherheitsmodell, Verhaltensregel — **muss** als ADR in `docs/adr/` festgehalten werden.
+
+**Auslöser:** Fällt im Planungsgespräch eine solche Entscheidung, enthält der zugehörige
+oder nächste Auftrag an Claude Code standardmäßig den Punkt „dazu ein ADR anlegen".
+ADR-Erstellung ist **Standard**, nicht Ausnahme.
+
+**Nicht als ADR:** Tippfehler, Kosmetik, einzelne Aufgaben → das sind GitHub Issues.
+
+**ADR-Lebenszyklus:** Status `Accepted` beim Anlegen; bei Revision auf `Superseded by ADR-XXXX`
+setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
+
+### Aufgaben und Bugs
+
 | Was | Wo | Wann |
 |-----|----|------|
-| Designentscheidung (Warum?) | ADR in `docs/adr/` | Bei jeder neuen Grundentscheidung |
+| Design-/Grundentscheidung | ADR in `docs/adr/` | Standardmäßig bei jeder Entscheidung |
 | Offene Aufgabe / Bug | GitHub Issue (sinnvoll labeln) | Sofort bei Entdeckung |
 | Aufgabe erledigt | Issue schließen | Per `Fixes #N` im Commit |
-
-Format und Nummerierungsschema → `docs/adr/README.md`
 
 ---
 
