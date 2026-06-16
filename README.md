@@ -34,3 +34,10 @@ MIT — siehe [LICENSE](LICENSE).
 ## Konfiguration
 
 Kopiere `config.example.yaml` nach `%APPDATA%\QSL73\config.yaml` und trage deine Werte ein. Echte Konfigurationsdateien (mit Token/Pfad) gehören **nicht ins Repo**.
+
+## Entwicklungs-Doku
+
+- Designentscheidungen: [`docs/adr/`](docs/adr/) (Architecture Decision Records)
+- Technische Spezifikation: [`KONZEPT.md`](KONZEPT.md)
+- Bau-Reihenfolge & Reviews: [`ROADMAP.md`](ROADMAP.md)
+- Offene Aufgaben: [GitHub Issues](https://github.com/kainomatic/qsl73/issues)
