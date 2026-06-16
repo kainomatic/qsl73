@@ -57,6 +57,24 @@ verwenden bedeutet: Reviewer kann nicht reviewen.
 
 ---
 
+## Sessions / Clear
+
+**Claude Desktop entscheidet**, ob ein Auftrag eine neue Session erfordert. Steht am Anfang
+des Auftrags der Hinweis „NEUE SESSION: ja", führt Claude Code vor der Arbeit `/clear` aus.
+
+**Faustregel:**
+- **Neue Session:** beim Start eines neuen, thematisch eigenständigen Bau-Schritts
+  (z. B. ROADMAP-Schritt-Grenzen wie „jetzt Schritt 3").
+- **Session fortführen:** bei Folge-Korrekturen oder Ergänzungen innerhalb desselben Themas
+  (z. B. Review-Feedback zum laufenden Schritt, kleine Doku-Nachbesserungen).
+
+**Begründung:** hält den Kontext fokussiert und vermeidet Kontextverschmutzung durch
+ältere Zwischenstände. Gefahrlos, weil der maßgebliche Stand vollständig im Repo liegt
+(`CLAUDE.md`, `KONZEPT.md`, `ROADMAP.md`, `docs/adr/`, GitHub-Issues) und nach einem Clear
+über das Onboarding-Verfahren (→ Abschnitt „Onboarding für neue Sessions") neu eingelesen wird.
+
+---
+
 ## Arbeits- und Review-Schleife
 
 ```
