@@ -113,7 +113,10 @@ dry-run-Modus).
 4. Matchen (siehe §6): pro Karte Ergebnis sicher / unsicher / kein Match.
 5. Vorschau anzeigen: Geplante Bestaetigungen (sichere Auto-Treffer) sowie die unsicheren
    und kein-Match-Karten werden angezeigt; Zusammenfassung z. B. '12 wuerden bestaetigt,
-   5 unsicher, 3 kein Match'. Noch nichts geschrieben.
+   5 unsicher, 3 kein Match'. Pro Karte/QSO werden zudem bereits vorhandene Bestätigungen
+   (Typen mit R="Yes", z. B. EQSL, LOTW) angezeigt, sofern vorhanden — als Kontext, damit
+   der Nutzer versehentlich getaggte eQSL-/LoTW-Ausdrucke erkennt, bevor er „Jetzt schreiben"
+   klickt. Diese Anzeige ändert die Einstufung nicht (→ §6.4). Noch nichts geschrieben.
 6. Manuell ergaenzen (optional): Im selben Durchgang kann der Nutzer unsichere Karten ueber
    den manuellen Zuordnungs-Bildschirm zuordnen (§9). Diese manuellen Zuordnungen kommen in
    denselben Korb geplanter Aenderungen wie die automatischen sicheren Treffer.
@@ -321,6 +324,19 @@ Log `DL1EJD/P`, oder umgekehrt):
   - Kein Kandidat im Fenster, oder mehrere Kandidaten auch nach Uhrzeit-Filterung → **unsicher**.
 - Hinweis: Der genaue Toleranzwert (± 30 min) wird in Schritt 4 empirisch überprüft.
 
+**Vorhandene Bestätigungen als Zusatzinfo:**
+Beim Matchen eines QSOs werden alle Bestätigungstypen mit R="Yes" aus dem `qsoconfirmations`-
+Feld ausgelesen (EQSL, LOTW, QRZCOM usw.), ausgenommen das Papier-QSL-Feld selbst. Diese
+Information wird als Zusatzfeld an das Match-Ergebnis angehängt und in der Vorschau (§5, §9)
+pro Karte angezeigt (z. B. „bereits bestätigt via: EQSL, LOTW"), sofern Bestätigungen vorliegen.
+
+Die Einstufung sicher/unsicher/kein Match wird dadurch **nicht** verändert — kein Blockieren,
+keine automatische Herabstufung. Begründung: Ein vorhandener eQSL-Eintrag ist kein
+zuverlässiger Indikator dafür, dass die eingescannte Karte eine eQSL ist — Doppelbestätigungen
+(eQSL + Papierkarte für dasselbe QSO) sind unter Funkamateuren häufig und legitim.
+Die Anzeige soll dem Nutzer helfen, versehentlich mit `qsl-card` getaggte eQSL-/LoTW-Ausdrucke
+selbst zu erkennen, bevor er „Jetzt schreiben" klickt (Transparenz statt Filterlogik; ADR-0015).
+
 **OCR-Quelle:** QSL73 nutzt die **Paperless-OCR** (`GET /api/documents/{id}/?fields=content`),
 nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
 `docs/discovery.md` §5.2 (Schritt 3b).
@@ -426,6 +442,18 @@ ohne Annahme exklusiven Zugriffs. Log4OM kann parallel laufen und die DB veränd
 - kein Status-Tag → bei „kein Match" (Wiedervorlage).
 - Tag-Namen im Setup frei wählbar (für bestehende Paperless-Installationen).
 
+**Nutzungs-Voraussetzung — Tagging-Disziplin:**
+QSL73 verarbeitet alle Dokumente mit dem `qsl-card`-Tag und behandelt sie ausnahmslos als
+**echte Papierkarten**. Nur physische QSL-Karten sollten diesen Tag erhalten.
+eQSL-/LoTW-Ausdrucke sind keine Papierkarten und gehören nicht in diese Kategorie.
+QSL73 kann ausgedruckte eQSLs nicht per Bildanalyse von echten Papierkarten unterscheiden —
+das wäre unzuverlässig (ADR-0015). Stattdessen zeigt QSL73 vorhandene Bestätigungen in der
+Vorschau an, damit der Nutzer Fehltaggings selbst erkennen und korrigieren kann.
+
+Wenn Paperless automatische Tag-Vergabe (KI) nutzt, sollte der Nutzer sicherstellen, dass
+`qsl-card` nicht unbeabsichtigt an eQSL-/LoTW-Ausdrucke vergeben wird. Die Verantwortung
+für korrekte Verschlagwortung liegt beim Nutzer.
+
 ---
 
 ## 9. GUI (tkinter)
@@ -436,8 +464,10 @@ ohne Annahme exklusiven Zugriffs. Log4OM kann parallel laufen und die DB veränd
 - **Hauptbereich:** Lauf starten; laufende Konsolen-/Log-Ausgabe inkl. Netzwerkaktionen
   live; nach dem Matchen Vorschau der geplanten Aenderungen + Buttons 'Jetzt schreiben' /
   'Abbrechen'.
-- **Ergebnis-Liste:** lightweight Filter „unsicher" / „kein Match" / „beides". Muss mit
-  sehr vielen Einträgen flüssig bleiben.
+- **Ergebnis-Liste:** lightweight Filter „unsicher" / „kein Match" / „beides". Pro Eintrag
+  werden — sofern vorhanden — bereits bestätigte Typen angezeigt (z. B. „bereits: EQSL,
+  LOTW"), als Kontext für die Nutzer-Entscheidung. Keine Sperrlogik; reine Information
+  (→ §6.4, ADR-0015). Muss mit sehr vielen Einträgen flüssig bleiben.
 - **Manueller Zuordnungs-Bildschirm (Kern-Feature):**
   - Karten-Bild (Vorder-/Rückseite), **erst beim Anklicken** der Karte nachladen.
   - Eingabefelder daneben, mit OCR-Vorschlag vorbefüllt (z. B. Rufzeichen).
