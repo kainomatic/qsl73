@@ -19,6 +19,9 @@ paperless:
 log4om:
   # Absoluter Pfad zur Log4OM-SQLite-Datenbankdatei
   db_path: "C:\\Users\\DEIN_NAME\\Documents\\Log4OM2\\log4om.db"
+  # Eigenes Rufzeichen (für From/To-Unterscheidung beim QR-Code/OCR-Parsing)
+  # Muss mit dem Rufzeichen auf den Karten übereinstimmen (To-Feld)
+  own_callsign: "DF1DS"
 
 tags:
   # Name des Paperless-Tags, der zu verarbeitende QSL-Karten markiert

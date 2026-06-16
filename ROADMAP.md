@@ -50,7 +50,10 @@ Ziel: Unbekannte an echten Daten klären, damit später nichts blind gebaut wird
 ## Schritt 4 — Log4OM-Zugriff (read) + Matching
 - DB lesen (WAL), Vorfilter (nur offene Papier-QSL), Parser (Call/Datum/Band/Mode),
   Matching mit Fuzzy=1, Ergebnis sicher/unsicher/kein Match. Noch **kein Schreiben**.
+  QR-Code-Pfad (Priorität 1), OCR-Normalisierung (Datum/Band/Mode/From-To, Priorität 2).
 - **Review:** Akzeptanzkriterien §6 (sicher/unsicher/kein Match, Fuzzy an/aus).
+  QR-Code-Pfad + OCR-Normalisierung (Datum/Band/Mode/From-To) getestet;
+  Priorität QR → OCR → manuell greift korrekt; Band-Umrechnung und Mode-Mapping geprüft.
 
 ## Schritt 5 — Schreiblogik (commit) + Backup
 - Sammeln→Vorschau→Bestaetigung("Jetzt schreiben")→eine Transaktion→Tags; Vor-Backup nur

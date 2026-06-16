@@ -157,15 +157,42 @@ und diesen Abschnitt aktualisieren).
 
 ## 5. Paperless-ngx / OCR-Befund
 
-**Status: noch offen** — keine Test-QSL-Karten in Paperless-ngx verfügbar.
+### 5.1 Karten-Analyse (echte Karten, read-only durch Claude Desktop, 2026-06-16)
 
-Ausstehend:
-- OCR-Textqualität bei gedruckten vs. handschriftlichen QSL-Karten
-- Aufbau Vorder-/Rückseite (zweiseitiges PDF)
+**Getestetes Material:** 2 echte QSL-Karten (DH3KR-Sammlung).
+
+**Befund QR-Code (moderne Karte, DARC-QSL-Service):**
+- Karte trägt QR-Code mit sauberem, strukturiertem Klartext-Format:
+  ```
+  From: DK8NE  To: DH3KR
+  Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RST: -24  QSL: TNX
+  ```
+- Felder: `From` (Gegenstation), `To` (eigener Call), `Date`, `Time`, `Band`, `Mode`, `RST`.
+- Datum-Format: `TT.MM.JJ` (zweistelliges Jahr).
+- Liefert alle vier Match-Felder fehlerfrei — löst OCR-Probleme vollständig für diese Karten.
+
+**Befund OCR (PDF-interne OCR, Sichtprüfung):**
+- Gedruckte Karte (DK8NE): Band `"6m"` wurde von der OCR zu `"tToemvem"` zerstört.
+  Tabellen-Layout wird im OCR-Textfluss zerrissen; andere Felder partiell erkennbar.
+- Handschriftliche Karte (G7JVJ, 1992): liefert kaum brauchbaren OCR-Text;
+  Datum `"3/10/92"` (Format TT/MM/JJ, 2-stellig), handschriftliche Felder nicht erkannt.
+- **Wichtig:** Die sichtgeprüfte OCR ist die **PDF-interne** OCR, NICHT die Paperless-OCR.
+  QSL73 nutzt `GET /api/documents/{id}/?fields=content` (Paperless-OCR), die abweichen kann.
+  Qualitätsvergleich Paperless-OCR vs. PDF-OCR: **live zu verifizieren (→ Issue #2)**.
+
+**Normalisierungsbedarf (empirisch bestätigt):**
+- Datum: `TT.MM.JJ`, `TT/MM/JJ` → ISO; Zweideutigkeit → „unsicher" statt falsch matchen.
+- Band: Frequenzangabe oder Bandname; OCR fehleranfällig → Umrechnung + Fehlertoleranz nötig.
+- Mode: ältere ITU-Bezeichnungen (`J3E` → SSB) vorhanden; Mapping-Tabelle nötig.
+- From/To: explizit trennbar bei QR-Code; bei OCR schwieriger → eigener Call als Anker.
+
+### 5.2 Paperless-API (noch offen)
+
+Ausstehend (wartet auf Karten mit Tag `qsl-card` in Paperless, → Issue #2):
+- Paperless-OCR-Qualität im Vergleich zur PDF-internen OCR
+- Aufbau Vorder-/Rückseite (wird als zweiseitiges PDF geliefert?)
 - Bild-Endpunkte: `preview/`, `download/`, `thumb/`
 - API-Paginierung bei Tag-Filter `qsl-card`
-
-→ Wird nachgepflegt, sobald echte Karten in Paperless vorhanden sind.
 
 ---
 
@@ -176,5 +203,5 @@ Ausstehend:
 | 1 | `RV`-Wert bei bestätigtem Papier-QSL: welche Werte schreibt Log4OM exakt (Groß-/Kleinschreibung, akzeptiert Log4OM `"Undefined"`?) | **Wartet auf Hand-Test** durch DF1DS |
 | 2 | Muss `S` auf `"Yes"` gesetzt werden, wenn Karte empfangen wird? | **Entschieden:** Nein — `S`/`SV` bleiben unverändert; QSL73 bestätigt nur Empfang |
 | 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | Offen / Niedrig; →Schema-Validierung §3.3 fängt das ab |
-| 4 | OCR-Qualität und Paperless-API-Details | Offen (sobald Karten vorhanden) |
+| 4 | OCR-Qualität (Paperless-OCR) und Paperless-API-Details | Offen → Issue #2 (Karten in Paperless taggen) |
 | 5 | `R`-Wert `"V"` (DXCC-verifiziert) vs. `"Yes"`: setzt QSL73 „V"? | **Entschieden:** Nein — QSL73 setzt ausschließlich `"Yes"`. `"V"` vergibt der Nutzer selbst im Award-Checker. |

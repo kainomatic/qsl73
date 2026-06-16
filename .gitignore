@@ -41,6 +41,9 @@ docs/testdateien/
 # Interne Planungsdateien (Claude Code superpowers)
 docs/superpowers/
 
+# Claude Code – lokale Einstellungen (nicht teilen)
+.claude/settings.local.json
+
 # IDE
 .idea/
 .vscode/

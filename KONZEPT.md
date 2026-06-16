@@ -134,21 +134,114 @@ dry-run-Modus).
 
 ## 6. Matching-Logik
 
+### 6.1 Datenquellen-Priorität pro Karte
+
+Für jede Karte werden Felder in dieser Reihenfolge bezogen — höhere Quelle schlägt niedrigere:
+
+1. **QR-Code** (beste Qualität; nur auf modernen Karten vorhanden)
+2. **OCR-Text** (Paperless-OCR; unzuverlässig, braucht Normalisierung)
+3. **Manueller Zuordnungs-Bildschirm** (Fallback wenn QR und OCR versagen; § 9)
+
+### 6.2 QR-Code-Auswertung
+
+Moderne Karten (z. B. DARC-QSL-Service) tragen einen QR-Code mit QSO-Daten als
+strukturierten Klartext. Bekanntes Format (tolerant gegenüber Feldreihenfolge/Varianten):
+
+```
+From: DK8NE  To: DH3KR
+Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RST: -24  QSL: TNX
+```
+
+- **From** = Rufzeichen der Gegenstation (Match-Schlüssel gegen Log4OM `callsign`).
+- **To** = eigener Call; wird gegen den konfigurierten eigenen Call (`log4om.own_callsign`)
+  abgeglichen — stimmt er nicht überein, gehört die Karte nicht zu diesem Log.
+- **Date/Time** → normalisieren (siehe § 6.3).
+- **Band/Mode** → normalisieren (siehe § 6.3).
+- Ein sauberer QR-Treffer (alle vier Pflichtfelder eindeutig) **darf auto-bestätigen**,
+  wenn Rufzeichen + Datum + Band + Mode passen — identische Regel wie beim OCR-Match.
+  Sicherheitsschleife bleibt die gemeinsame Vorschau + Bestätigung (Schreibmodell B).
+- Nicht jede Karte hat einen QR-Code; QR ist ein Bonus, kein Universalersatz.
+
+### 6.3 OCR-Normalisierung
+
+OCR-Text ist fehleranfällig. Vor dem Matching sind alle Felder zu normalisieren:
+
+**Datum:**
+- Erkannte Formate: `TT.MM.JJ` (`02.04.25`), `TT/MM/JJ` (`3/10/92`),
+  `YYYY-MM-DD`, sowie evtl. US-Schreibweise `MM/DD/YY`.
+- Zweistellige Jahreszahl: `>= 30` → 19xx, `< 30` → 20xx (Heuristik, kann falsch sein).
+- Mehrdeutige Formate (z. B. `03/04/25` — Tag/Monat oder Monat/Tag?) → Ergebnis als
+  **unsicher** einstufen statt falsch zu matchen.
+- Ziel: ISO-Datum `YYYY-MM-DD` für Vergleich mit `qsodate`.
+
+**Band (OCR-unzuverlässigstes Feld):**
+- Bandname direkt: `6m`, `2m`, `40m` etc. → direkt übernehmen.
+- Frequenz → Band-Umrechnung (Mindesttabelle):
+
+| Frequenzbereich (MHz) | Band |
+|-----------------------|------|
+| 1.8 – 2.0 | 160m |
+| 3.5 – 4.0 | 80m |
+| 7.0 – 7.3 | 40m |
+| 10.1 – 10.15 | 30m |
+| 14.0 – 14.35 | 20m |
+| 18.068 – 18.168 | 17m |
+| 21.0 – 21.45 | 15m |
+| 24.89 – 24.99 | 12m |
+| 28.0 – 29.7 | 10m |
+| 50.0 – 54.0 | 6m |
+| 144.0 – 148.0 | 2m |
+| 430.0 – 440.0 | 70cm |
+
+- OCR-Fehler im Bandfeld (z. B. `"tToemvem"` statt `"6m"`) → kein Mapping möglich → Feld
+  als fehlend markieren → Karte landet bei **kein Match** oder **unsicher**.
+
+**Mode:**
+- Moderne Bezeichnung direkt: `FT8`, `SSB`, `CW`, `AM`, `FM`, `RTTY` etc. → direkt übernehmen.
+- Ältere/alternative Bezeichnungen (Mapping-Tabelle, mind.):
+
+| OCR-Wert | Normalisiert |
+|----------|-------------|
+| `J3E`, `A3J`, `USB`, `LSB`, `PH` | `SSB` |
+| `A1A` | `CW` |
+| `A3E` | `AM` |
+| `F3E` | `FM` |
+| `F1B`, `RTTY` | `RTTY` |
+| `JT65`, `JT9` | jeweiliger Wert |
+
+- Unbekannte Mode-Bezeichnung → Fuzzy-Match gegen bekannte Modi; kein Treffer → **unsicher**.
+
+**Rufzeichen / From-To-Logik:**
+- `From` (QR) bzw. das führende Rufzeichen im OCR = Gegenstation = Match-Schlüssel.
+- `To` (QR) bzw. `"To Radio:"` o. ä. (OCR) = eigener Call; muss gegen
+  `log4om.own_callsign` passen, sonst wird die Karte übersprungen.
+- Rufzeichen case-insensitiv; Fuzzy-Toleranz 1 Zeichen bei Fuzzy=an (gegen OCR-Verleser).
+
+### 6.4 Match-Ergebnis
+
 - **Auto-Bestätigung nur**, wenn **Rufzeichen + Datum + Band + Mode** übereinstimmen.
-- **Datum exakt.** Rufzeichen/Band/Mode mit **Fuzzy-Toleranz von 1 Zeichen** (gegen
-  OCR-Verleser); Fuzzy in den Einstellungen abschaltbar.
+- **Datum exakt** (nach Normalisierung). Rufzeichen/Band/Mode mit **Fuzzy-Toleranz von
+  1 Zeichen** (Einstellung); Fuzzy in den Einstellungen abschaltbar.
 - Ergebnis je Karte:
   - **sicher** = genau ein Kandidat erfüllt alle vier Felder → bestätigen.
-  - **unsicher** = ein oder mehrere Kandidaten vorhanden, aber nicht eindeutig (z. B.
-    nur teilweise Übereinstimmung, mehrere mögliche QSOs) → Tag `qsl-nicht-bestätigt`.
+  - **unsicher** = ein oder mehrere Kandidaten, aber nicht eindeutig (z. B. mehrdeutiges
+    Datum, mehrere mögliche QSOs, Band nicht normalisierbar) → Tag `qsl-nicht-bestätigt`.
   - **kein Match** = kein plausibler Kandidat → **kein Status-Tag** (Wiedervorlage).
-- "kein Match" ≠ "nicht bestätigt" (unterschiedliche Zustände, getrennt behandeln).
+- „kein Match" ≠ „nicht bestätigt" (unterschiedliche Zustände, getrennt behandeln).
+
+**OCR-Quelle:** QSL73 nutzt die **Paperless-OCR** (`GET /api/documents/{id}/?fields=content`),
+nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; live zu verifizieren (→ Issue #2).
 
 **Akzeptanzkriterien:**
 - Ein QSO mit exakt passenden vier Feldern wird als „sicher" erkannt.
 - Ein um 1 Zeichen abweichendes Rufzeichen (bei sonst exakter Übereinstimmung) matcht bei
   Fuzzy=an als „sicher", bei Fuzzy=aus als „unsicher" oder „kein Match".
 - Zwei gleich gut passende Kandidaten ergeben „unsicher", nie eine Auto-Bestätigung.
+- Karte mit gültigem QR-Code → Felder werden aus QR extrahiert und bevorzugt genutzt.
+- Karte ohne QR → Fallback auf OCR-Normalisierung.
+- `"6m"` und `"50.100 MHz"` ergeben dasselbe Band; `"144.255 MHz"` → `"2m"`.
+- `"J3E"`, `"USB"`, `"LSB"` → `"SSB"`.
+- `From`/`To` korrekt unterschieden; `To` ≠ `log4om.own_callsign` → Karte übersprungen.
 
 ---
 
