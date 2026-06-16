@@ -57,6 +57,8 @@ Ziel: Unbekannte an echten Daten klären, damit später nichts blind gebaut wird
   beim tatsaechlichen Schreiben, Aufbewahrung Default 5. Reihenfolge DB-dann-Tags strikt.
   Auto-Treffer + manuelle Zuordnungen gemeinsam in EINER Transaktion.
 - **Review:** Akzeptanzkriterien §5/§7 (Abbruch-Test, Backup-Anzahl, Tag-nur-nach-DB).
+  Nebenläufigkeit: SQLITE_BUSY-Handling, Änderungserkennung (data_version/Fallback),
+  Pro-QSO-Gegenprüfung, Log4OM-Running-Warnung getestet.
 
 ## Schritt 6 — GUI
 - Hauptfenster + Log-Ausgabe, Ergebnis-Liste mit Filter, **manueller Zuordnungs-Bildschirm**

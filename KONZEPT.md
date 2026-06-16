@@ -143,10 +143,44 @@ dry-run-Modus).
 - **Backup-Aufbewahrung:** konfigurierbar, **Default 5**, ältere automatisch löschen.
   Einstellungen zeigen Hinweis + Live-Speicheranzeige der Backups + „Backup-Ordner öffnen".
 
+### Nebenläufigkeit & DB-Änderungsschutz
+
+Log4OM ist der **Eigentümer** der SQLite-DB; QSL73 schreibt als **Gast**, defensiv und
+ohne Annahme exklusiven Zugriffs. Log4OM kann parallel laufen und die DB verändern.
+
+- **SQLITE_BUSY abfangen:** Scheitert eine Schreiboperation wegen eines gesperrten Locks
+  (`SQLITE_BUSY`), kurz warten und begrenzt wiederholen (z. B. 3 Versuche, ~300 ms Pause).
+  Bleibt die DB gesperrt, sauberer Abbruch mit klarer Meldung an den Nutzer — kein Crash,
+  kein unvollständig geschriebener Zustand.
+- **Änderungserkennung (time-of-check/time-of-use):** Beim Sammeln einen DB-Zustand-
+  Fingerabdruck speichern: bevorzugt `PRAGMA data_version` (SQLite-eigener Änderungszähler),
+  als Fallback `mtime + Dateigröße`. Direkt **vor dem Schreiben** (nach Klick „Jetzt
+  schreiben") erneut prüfen — hat sich der Fingerabdruck verändert, gilt die gesammelte
+  Vorschau als veraltet.
+- **Pro-QSO-Gegenprüfung (optimistic locking):** Innerhalb der Schreib-Transaktion für
+  jedes QSO kurz verifizieren, dass es noch im erwarteten Zustand ist: Papier-QSL-Feld
+  noch offen, Call/Datum/Band/Mode unverändert. Nur dann schreiben.
+- **Reaktionsmodell (kombiniert):**
+  - Einzelne zwischenzeitlich veränderte QSOs werden **übersprungen** und im `audit.log`
+    vermerkt (Rufzeichen, Änderungsgrund); der Rest der Transaktion läuft normal durch.
+  - Hat sich der **DB-Gesamtzustand** grundlegend geändert (Fingerabdruck-Abweichung),
+    wird der gesamte Schreibvorgang **abgebrochen** und dem Nutzer angeboten, neu einzulesen.
+- **Log4OM-Running-Erkennung:** Vor dem Schreiben aktiv prüfen, ob der Log4OM-Prozess
+  läuft. Wenn ja: **nicht blockierende Warnung** zeigen — „Log4OM scheint zu laufen.
+  Zum sichersten Schreiben Log4OM kurz schließen. Trotzdem fortfahren?" — Nutzer entscheidet,
+  kein Zwangs-Stopp.
+- **Verknüpfung Cloud-/Netzwerk-Warnung:** WAL-Modus erfordert lokales Dateisystem;
+  liegt die DB in einem Cloud-Sync-Ordner (OneDrive/Dropbox), gelten beide Warnungen
+  (Cloud-Warnung aus §3.1 und Nebenläufigkeits-Warnung) kumulativ.
+
 **Akzeptanzkriterien:**
 - Simulierter Abbruch mitten im Schreiben → DB bleibt im Zustand vor dem Lauf (Transaktion).
 - Nach erfolgreichem commit existiert genau ein neues Vor-Backup; Anzahl respektiert das Limit.
 - Tags werden nie gesetzt, wenn die DB-Transaktion fehlgeschlagen ist.
+- Simulierte DB-Änderung zwischen Sammeln und Schreiben → betroffene QSOs werden übersprungen
+  und im audit.log vermerkt; bei umfangreicher Gesamtänderung bricht der Lauf sauber ab.
+- `SQLITE_BUSY` führt zu Retry + klarer Meldung, nie zum Absturz.
+- Bei laufendem Log4OM-Prozess erscheint die nicht-blockierende Warnung vor dem Schreiben.
 
 ---
 
