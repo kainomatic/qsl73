@@ -2,11 +2,11 @@
 
 **Status: in Entwicklung (pre-release)**
 
-QSL73 ist ein Windows-Desktop-Tool (installierbare .exe), das gescannte **QSL-Karten aus Paperless-ngx** automatisch mit den **QSOs im Log4OM-Logbuch** abgleicht und bei sicherem Treffer das QSO als Papier-QSL bestätigt markiert. Zweifelfälle löst der Nutzer über einen manuellen Zuordnungs-Bildschirm mit Kartenanzeige.
+QSL73 ist ein Windows-Desktop-Tool (installierbare .exe), das gescannte **QSL-Karten aus Paperless-ngx** automatisch mit den **QSOs im Log4OM-Logbuch** abgleicht und bei sicherem Treffer das QSO als Papier-QSL bestätigt markiert. Zweifelsfälle löst der Nutzer über einen manuellen Zuordnungs-Bildschirm mit Kartenanzeige.
 
 ## Zweck
 
-Funkamateure sammeln QSL-Karten als Belegbelege für ihre Verbindungen. QSL73 schließt die Lücke zwischen dem Papierstapel (eingescannt in Paperless-ngx) und dem digitalen Logbuch (Log4OM), ohne dass jede Karte manuell nachgetragen werden muss.
+Funkamateure sammeln QSL-Karten als Belege für ihre Verbindungen. QSL73 schließt die Lücke zwischen dem Papierstapel (eingescannt in Paperless-ngx) und dem digitalen Logbuch (Log4OM), ohne dass jede Karte manuell nachgetragen werden muss.
 
 ## Kernprinzipien
 

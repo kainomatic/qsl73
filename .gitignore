@@ -28,9 +28,18 @@ logs/
 # Datenbank-Backups
 backups/
 
-# SQLite WAL-Dateien
+# SQLite-Dateien – niemals ins Repo (inkl. echte Log4OM-DB in testdateien/)
+*.db
+*.sqlite
+*.sqlite3
 *.db-shm
 *.db-wal
+
+# Testdateien (echte DB + QSL-Karten) – NIE ins Repo
+docs/testdateien/
+
+# Interne Planungsdateien (Claude Code superpowers)
+docs/superpowers/
 
 # IDE
 .idea/

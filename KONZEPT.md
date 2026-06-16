@@ -267,7 +267,7 @@ dry-run-Modus).
 - Keine Secrets im Repo: `.gitignore` + `config.example.yaml`.
 - **Lizenz MIT** (`LICENSE`-Datei). Inhaber-Infos (DF1DS, kainomatic, QRZ-Link) im
   „Über"-Dialog, EXE-Metadaten, `LICENSE`, `README`.
-- **Logo/Icon:** Originaldatei `qsl73logo.png` in `qsl73-assets/`. Freistellen +
+- **Logo/Icon:** Originaldatei `qsl73logo.png` in `assets/` (im Repo). Freistellen +
   `.ico`-Erzeugung (alle Größen; 16/24/32px ggf. vereinfachtes Motiv aus Pfeilen+Haken,
   ab 48px volles Logo) durch Claude Code mit geeignetem Tool – nicht per Skript-Threshold
   (erzeugt Halos). Farben: Blau ~#3A78A6, Grün ~#4FA75E.
