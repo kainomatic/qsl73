@@ -118,6 +118,19 @@ setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
 
 ---
 
+## Testen
+
+**Ab Schritt 2 (erster Anwendungscode) sind Unit-Tests Pflicht** — ein Schritt ist erst
+fertig, wenn seine Tests grün sind. → Details und Begründung: **ADR-0009**
+
+- **Framework:** `pytest`
+- **CI:** GitHub Actions läuft bei jedem Push auf `dev` und `main` automatisch
+- **Schreibtests:** ausschließlich gegen eine temporäre Wegwerf-Kopie der Test-DB —
+  niemals gegen echte Daten; `docs/testdateien/` bleibt `.gitignore`-gesperrt
+- **CI-DB:** synthetische Minimal-DB (kein Zugriff auf `docs/testdateien/` im CI)
+
+---
+
 ## Weiterführende Dokumente
 
 | Dokument | Inhalt |

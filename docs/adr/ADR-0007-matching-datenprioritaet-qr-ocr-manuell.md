@@ -1,4 +1,4 @@
-# ADR-0007: Matching-Datenpriorität — QR-Code → OCR → manuell
+# ADR-0007: Matching-Strategie — Datenpriorität, Normalisierung, Leitregel
 
 **Status:** Accepted
 
@@ -11,9 +11,12 @@ Echte QSL-Karten zeigen drei verschiedene Datenqualitäten:
    (Beispiel: `"6m"` → `"tToemvem"`); handschriftliche Karten kaum brauchbar.
 3. **Manueller Zuordnungs-Bildschirm** (§ 9): Fallback wenn QR und OCR versagen.
 
-Nicht jede Karte hat einen QR-Code. OCR ist kein Universalersatz.
+OCR-Ausgaben enthalten inhomogene Datumsformate, Frequenzangaben statt Bandnamen und
+veraltete ITU-Modekürzel — eine Normalisierung vor dem Matching ist zwingend.
 
 ## Entscheidung
+
+### Datenpriorität
 
 Für jede Karte werden Felder in dieser Priorität bezogen:
 
@@ -26,13 +29,41 @@ Für jede Karte werden Felder in dieser Priorität bezogen:
   Vorschau + Bestätigung (Schreibmodell B, ADR-0002).
 - `To`-Feld im QR-Code wird gegen `log4om.own_callsign` (Config) abgeglichen; Abweichung
   → Karte gehört nicht zu diesem Log → überspringen.
-- OCR-Text erfordert Normalisierung (Datum-Formate, Frequenz→Band, Mode-Mapping,
-  From/To-Logik); mehrdeutige Fälle → „unsicher" statt raten.
+
+### Normalisierung (OCR-Pfad)
+
+OCR-Ausgaben müssen vor dem Matching normalisiert werden:
+
+**Datum:** Erkannte Formate: `TT.MM.JJ`, `TT/MM/JJ`, `YYYY-MM-DD`, evtl. `MM/DD/YY`.
+Zweistellige Jahre: `>= 30` → 19xx, `< 30` → 20xx (Heuristik). Mehrdeutige Formate
+(z. B. `03/04/25`) → Ergebnis als **unsicher** einstufen.
+
+**Band:** Frequenzangaben (z. B. `144.255 MHz`, `50.100 MHz`) werden per Frequenzbereich
+in Bandnamen (`2m`, `6m` …) umgerechnet. Nicht zuordnenbare OCR-Fetzen → Feld fehlend
+→ **kein Match** oder **unsicher**.
+
+**Mode:** Ältere ITU-Bezeichnungen werden auf moderne gängige Namen gemappt:
+`J3E` / `A3J` / `USB` / `LSB` / `PH` → `SSB`; `A1A` → `CW`; `A3E` → `AM`;
+`F3E` → `FM`; `F1B` → `RTTY`. Unbekannte Bezeichnungen → Fuzzy-Versuch, sonst **unsicher**.
+
+**From/To-Logik:** `From` (QR) bzw. führendes Rufzeichen (OCR) = Gegenstation =
+Match-Schlüssel. `To` (QR) bzw. `"To Radio:"` o. ä. (OCR) = eigener Call → Abgleich
+gegen `log4om.own_callsign`.
+
+### Leitregel
+
+> **Im Zweifel lieber „unsicher" als falsch auto-bestätigen.**
+
+Bei Mehrdeutigkeit (ambiges Datum, nicht erkanntes Band, unbekannter Mode) wird das
+Ergebnis als **unsicher** eingestuft und landet im manuellen Zuordnungs-Bildschirm —
+niemals wird geraten oder ein falsches QSO bestätigt.
 
 ## Konsequenzen
 
 - Karten mit QR-Code werden zuverlässiger und schneller gematcht als per OCR.
-- OCR-Normalisierung ist komplexer (Datum-Heuristiken, Band-Umrechnung, Mode-Tabelle),
+- OCR-Normalisierung ist komplexer (Datum-Heuristiken, Band-Tabelle, Mode-Mapping),
   aber unerlässlich für ältere/handschriftliche Karten.
 - Konfigurationsfeld `log4om.own_callsign` wird Pflicht für QR/OCR-Parsing.
 - Manuelle Zuordnung bleibt der zuverlässige Fallback für unleserliche Karten.
+- Die Leitregel schützt vor Falschbestätigungen auf Kosten einer höheren „unsicher"-Rate;
+  das ist bewusst so gewählt.

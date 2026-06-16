@@ -15,6 +15,9 @@
 → User überbringt → Claude Code baut & committet → Desktop liest Repo & reviewt →
 Korrektur-Auftrag oder Freigabe → nächster Schritt.
 
+**Tests ab Schritt 2:** Jeder Bau-Schritt (2–9) liefert Unit-Tests mit. Ein Schritt gilt
+erst als fertig, wenn pytest grün ist und CI (GitHub Actions) durchläuft. → ADR-0009
+
 **Voraussetzung Review-Lesezugriff:** Repo liegt unter `C:\Entwicklung\` (freigegeben),
 z. B. `C:\Entwicklung\qsl73`.
 
@@ -40,12 +43,14 @@ Ziel: Unbekannte an echten Daten klären, damit später nichts blind gebaut wird
 ## Schritt 2 — Config & Setup-Grundlagen
 - Config-Load/Save (`%APPDATA%\QSL73\config.yaml`), DPAPI-Token, Schema-Versionsfeld +
   Migrationsgerüst. Setup-Assistent (Minimalfassung).
-- **Review:** Token nur verschlüsselt; fehlende Config → Assistent; Migrationsstub vorhanden.
+  **pytest-Gerüst + GitHub-Actions-CI (`/.github/workflows/ci.yml`) werden hier eingerichtet.**
+- **Review:** Token nur verschlüsselt; fehlende Config → Assistent; Migrationsstub vorhanden;
+  pytest läuft lokal grün; CI-Workflow vorhanden und grün.
 
 ## Schritt 3 — Paperless-Client
 - Auth (Token & User/PW→Token), Dokumente nach Tag holen, OCR-Text, Bild/Preview, Tag PATCH.
 - **Review:** liest echte Karten, Bildabruf funktioniert, Fehler bei nicht erreichbarem
-  Server werden sauber abgefangen (klare Meldung, kein Crash).
+  Server werden sauber abgefangen (klare Meldung, kein Crash); pytest grün, CI grün.
 
 ## Schritt 4 — Log4OM-Zugriff (read) + Matching
 - DB lesen (WAL), Vorfilter (nur offene Papier-QSL), Parser (Call/Datum/Band/Mode),
@@ -53,7 +58,8 @@ Ziel: Unbekannte an echten Daten klären, damit später nichts blind gebaut wird
   QR-Code-Pfad (Priorität 1), OCR-Normalisierung (Datum/Band/Mode/From-To, Priorität 2).
 - **Review:** Akzeptanzkriterien §6 (sicher/unsicher/kein Match, Fuzzy an/aus).
   QR-Code-Pfad + OCR-Normalisierung (Datum/Band/Mode/From-To) getestet;
-  Priorität QR → OCR → manuell greift korrekt; Band-Umrechnung und Mode-Mapping geprüft.
+  Priorität QR → OCR → manuell greift korrekt; Band-Umrechnung und Mode-Mapping geprüft;
+  pytest grün, CI grün.
 
 ## Schritt 5 — Schreiblogik (commit) + Backup
 - Sammeln→Vorschau→Bestaetigung("Jetzt schreiben")→eine Transaktion→Tags; Vor-Backup nur
@@ -63,22 +69,23 @@ Ziel: Unbekannte an echten Daten klären, damit später nichts blind gebaut wird
   Nebenläufigkeit: SQLITE_BUSY-Handling, Änderungserkennung (data_version/Fallback),
   Pro-QSO-Gegenprüfung, Log4OM-Running-Warnung getestet.
   Schema-Validierung (§3.3): Check beim Start und vor dem Schreiben; Schreibsperre bei
-  umbenannter/fehlender Tabelle oder nicht-parsebarem JSON; robustes Lesen ohne Crash.
+  umbenannter/fehlender Tabelle oder nicht-parsebarem JSON; robustes Lesen ohne Crash;
+  pytest grün, CI grün.
 
 ## Schritt 6 — GUI
 - Hauptfenster + Log-Ausgabe, Ergebnis-Liste mit Filter, **manueller Zuordnungs-Bildschirm**
   (Kartenanzeige on click, Live-Suche), Fehler-Prompt (aufklappbar), Einstellungen,
   Über/Datenschutz-Dialog, Single-Instance, Icon einbinden.
-- **Review:** Akzeptanzkriterien §9; flüssige Liste bei vielen Einträgen.
+- **Review:** Akzeptanzkriterien §9; flüssige Liste bei vielen Einträgen; pytest grün, CI grün.
 
 ## Schritt 7 — Logging & Fehler-Reporting
 - audit.log/qsl73.log + Rotation; On-demand-Bericht (GitHub-Issue / lokal), bereinigt.
-- **Review:** Akzeptanzkriterien §10 (Bericht ohne Secrets).
+- **Review:** Akzeptanzkriterien §10 (Bericht ohne Secrets); pytest grün, CI grün.
 
 ## Schritt 8 — Update-Lifecycle + Installer/Deinstaller
 - GitHub-Releases-Check, Updater, Inno-Installer (still, aufräumend), Deinstaller mit
   Nutzerdaten-Abfrage, Config-Migration scharf schalten.
-- **Review:** Akzeptanzkriterien §12/§13.
+- **Review:** Akzeptanzkriterien §12/§13; pytest grün, CI grün.
 
 ## Schritt 9 — Build, Test, erstes Release
 - PyInstaller-Build (64-Bit), Inno-Setup-Paket, Test auf Win10/11. Versionspflege + CHANGELOG,
