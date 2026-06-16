@@ -1,0 +1,41 @@
+# QSL73 – Konfigurationsvorlage
+# Kopiere diese Datei nach %APPDATA%\QSL73\config.yaml und fülle die Felder aus.
+# Niemals echte Werte (Tokens, Passwörter, Pfade mit Nutzernamen) ins Repo einchecken.
+
+config_version: 1
+
+paperless:
+  # Vollständige Basis-URL deiner Paperless-ngx-Instanz (inkl. http/https, ohne abschließenden /)
+  url: "https://paperless.example.com"
+
+  # Authentifizierungsmodus: "token" oder "password"
+  # Bei "password": Benutzername/Passwort werden im Setup-Assistenten eingegeben,
+  # das Programm holt einen Token und speichert NUR diesen (DPAPI-verschlüsselt).
+  auth_mode: "token"
+
+  # DPAPI-verschlüsselter Token – wird vom Programm gesetzt, hier leer lassen.
+  token: ""
+
+log4om:
+  # Absoluter Pfad zur Log4OM-SQLite-Datenbankdatei
+  db_path: "C:\\Users\\DEIN_NAME\\Documents\\Log4OM2\\log4om.db"
+
+tags:
+  # Name des Paperless-Tags, der zu verarbeitende QSL-Karten markiert
+  input: "qsl-card"
+  # Name des Paperless-Tags für bestätigte Karten (sicherer Match oder manuell zugeordnet)
+  confirmed: "qsl-bestätigt"
+  # Name des Paperless-Tags für unsichere/mehrdeutige Treffer
+  uncertain: "qsl-nicht-bestätigt"
+
+matching:
+  # Fuzzy-Matching aktivieren (Toleranz: 1 Zeichen bei OCR-Verlesern)
+  fuzzy_enabled: true
+
+app:
+  # Sprache der Benutzeroberfläche: "de" (Deutsch) oder "en" (English)
+  language: "de"
+  # Anzahl aufzubewahrender Vor-Backups der Log4OM-DB (Default: 5)
+  backup_count: 5
+  # Automatische Update-Prüfung beim Programmstart (abschaltbar)
+  update_check: true

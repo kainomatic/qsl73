@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+
+# PyInstaller
+*.spec
+
+# Secrets / Config – niemals ins Repo
+config.yaml
+*.token
+*.key
+
+# Logs
+*.log
+logs/
+
+# Datenbank-Backups
+backups/
+
+# SQLite WAL-Dateien
+*.db-shm
+*.db-wal
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
