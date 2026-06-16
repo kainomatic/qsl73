@@ -28,6 +28,23 @@ Argument. Ohne Backend bleibt der Token-Wert unverändert (z. B. leer bei erstma
 **`pywin32`** bleibt optionale Abhängigkeit (`[windows]` extra in `pyproject.toml`); CI
 installiert sie nicht.
 
+## Fail-Closed-Entscheidung (Sicherheits-Leitregel)
+
+> **Auf Windows kein Fallback auf unsicheres Backend: lieber abbrechen als Token unsicher speichern.**
+
+Konkret:
+
+- `get_default_backend()` wirft `CryptoUnavailableError` auf Windows wenn `pywin32`/`win32crypt`
+  nicht importierbar ist — anstatt still auf `NullBackend` zurückzufallen.
+- `save_config()` wirft `ConfigError` wenn ein Token gesetzt ist aber kein `CryptoBackend`
+  übergeben wurde — kein Klartext-Token auf Festplatte, nie.
+- `NullBackend` ist ausdrücklich als **UNSICHER** (nur Test/CI) dokumentiert und darf von
+  produktivem Code auf Windows nicht als Token-Speicher eingesetzt werden.
+
+Beide Prüfungen sind per Unit-Test abgesichert (Sicherheits-Regressionstests):
+- `test_raises_on_windows_without_dpapi`: simuliert Windows ohne pywin32, erwartet `CryptoUnavailableError`
+- `test_save_token_without_crypto_raises`: erwartet `ConfigError` bei Token ohne Backend
+
 ## Konsequenzen
 
 - Alle Config-Logiktests (Parsing, Validierung, Migration, Round-Trip, Token-Verschlüsselung)
@@ -39,3 +56,6 @@ installiert sie nicht.
 - Kein Klartext-Token in der gespeicherten `config.yaml` — im Test nachgewiesen:
   `"supersecrettoken"` erscheint nach `save_config(..., crypto=NullBackend())` nicht im
   gespeicherten YAML (Base64-kodierter Wert stattdessen).
+- **Packaging-Anforderung (Schritt 9):** `pywin32` MUSS im finalen Windows-Installer-Bundle
+  enthalten sein. Fehlt es zur Laufzeit, greift `CryptoUnavailableError` und das Programm
+  kann keinen Token speichern. → Verfolgt in GitHub Issue #6.

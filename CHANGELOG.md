@@ -17,7 +17,17 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `load_or_trigger_setup()`, `create_initial_config()` mit Override-Unterstützung
 - Test-Infrastruktur: pytest-Gerüst (`tests/`, `pyproject.toml`) mit 49 Unit-Tests;
   GitHub Actions CI (`/.github/workflows/ci.yml`) bei Push auf `dev` und `main`
-- ADR-0010: Kryptographie-Abstraktionsschicht (DPAPI-Backend)
+- ADR-0010: Kryptographie-Abstraktionsschicht (DPAPI-Backend, fail-closed-Entscheidung)
+
+### Changed
+- `crypto.py`: `get_default_backend()` wirft `CryptoUnavailableError` auf Windows ohne pywin32
+  statt silent auf `NullBackend` zurückzufallen (fail closed)
+- `config.py`: `save_config()` verweigert das Speichern eines Tokens ohne Crypto-Backend
+- `NullBackend` als UNSICHER/nur Test-CI dokumentiert; `CryptoUnavailableError` neu hinzugefügt
+
+### Security
+- Kein stiller Fallback auf unsicheres NullBackend bei fehlendem pywin32 auf Windows
+- Token wird nie unverschlüsselt persistiert; bei fehlendem Backend klare Exception
 
 ## [0.1.0] - 2026-06-16
 

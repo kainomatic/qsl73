@@ -1,2 +1,8 @@
 -r requirements.txt
 pytest>=7.4
+
+# Windows-Entwicklung: DPAPI-Tests laufen nur mit pywin32 (sonst skip).
+# Für echte DPAPI-Tests auf Windows installieren:
+#   pip install pywin32>=306
+# CI (Linux) läuft ohne pywin32; DPAPI-Tests werden dort übersprungen.
+# Schritt 9 (Installer): pywin32 muss im finalen Windows-Bundle enthalten sein. → Issue #6

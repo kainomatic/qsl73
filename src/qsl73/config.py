@@ -263,10 +263,19 @@ def save_config(config: Config, path: Path, crypto: CryptoBackend | None = None)
     """Speichert Config als YAML-Datei. Verschlüsselt Token wenn crypto angegeben.
 
     Legt übergeordnete Verzeichnisse an falls nötig.
+    Wirft ConfigError wenn ein Token gesetzt ist aber kein Crypto-Backend übergeben wurde
+    (fail closed: Token wird nie unverschlüsselt persistiert).
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 
     data = _config_to_dict(config)
+
+    if data["paperless"]["token"] and not crypto:
+        raise ConfigError(
+            "Token ist gesetzt, aber kein Verschlüsselungs-Backend angegeben. "
+            "Übergebe ein CryptoBackend-Objekt (crypto=...), um den Token sicher "
+            "zu speichern. Auf Windows: get_default_backend() liefert DPAPI."
+        )
 
     if crypto and data["paperless"]["token"]:
         data["paperless"]["token"] = crypto.encrypt(data["paperless"]["token"])

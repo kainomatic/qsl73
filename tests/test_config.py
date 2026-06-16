@@ -101,13 +101,32 @@ class TestTokenEncryption:
         loaded = load_config(config_path, crypto=null_crypto)
         assert loaded.paperless.token == ""
 
-    def test_save_without_crypto_stores_token_as_is(self, config_path):
+    def test_save_token_without_crypto_raises(self, config_path):
+        """Sicherheits-Regressionstest: Token mit gesetztem Wert und fehlendem
+        Crypto-Backend führt zu ConfigError — kein stilles Speichern im Klartext.
+        """
         config = Config()
         config.paperless.token = "plaintexttoken"
-        save_config(config, config_path)
+        with pytest.raises(ConfigError, match="Verschlüsselungs-Backend"):
+            save_config(config, config_path)
 
-        content = config_path.read_text(encoding="utf-8")
-        assert "plaintexttoken" in content
+    def test_save_token_without_crypto_does_not_write_plaintext(self, config_path):
+        """Datei darf nach fehlgeschlagenem save_config keinen Klartext-Token enthalten."""
+        config = Config()
+        config.paperless.token = "plaintexttoken"
+        try:
+            save_config(config, config_path)
+        except ConfigError:
+            pass
+        if config_path.exists():
+            assert "plaintexttoken" not in config_path.read_text(encoding="utf-8")
+
+    def test_save_empty_token_without_crypto_is_ok(self, config_path):
+        """Leerer Token: kein Crypto-Backend nötig — Config-Speichern soll funktionieren."""
+        config = Config()
+        config.paperless.token = ""
+        save_config(config, config_path)
+        assert config_path.exists()
 
 
 class TestValidation:
