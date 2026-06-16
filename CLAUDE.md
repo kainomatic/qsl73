@@ -59,10 +59,18 @@ verwenden bedeutet: Reviewer kann nicht reviewen.
 
 ## Sessions / Clear
 
-**Claude Desktop entscheidet**, ob ein Auftrag eine neue Session erfordert. Steht am Anfang
-des Auftrags der Hinweis „NEUE SESSION: ja", führt Claude Code vor der Arbeit `/clear` aus.
+**Zuständigkeiten:**
+- **Claude Desktop entscheidet**, ob ein Auftrag eine neue Session erfordert, und gibt den
+  Hinweis `NEUE SESSION: ja` oder `NEUE SESSION: nein` am Anfang des Auftrags.
+- **DF1DS (User) führt `/clear` aus** — vor dem Einfügen des Auftrags in Claude Code, wenn
+  `NEUE SESSION: ja` gesetzt ist. `/clear` ist ein Bedienelement der Claude-Code-Oberfläche;
+  Claude Code kann seine eigene Session nicht selbst leeren.
+- **Claude Code** beginnt dadurch mit frischem Kontext und liest die Onboarding-Dateien
+  (`CLAUDE.md`, `KONZEPT.md`, `ROADMAP.md` usw.) neu ein — gemäß Abschnitt
+  „Onboarding für neue Sessions".
+- Bei `NEUE SESSION: nein` wird der Auftrag in der laufenden Session fortgeführt.
 
-**Faustregel:**
+**Faustregel für Desktop:**
 - **Neue Session:** beim Start eines neuen, thematisch eigenständigen Bau-Schritts
   (z. B. ROADMAP-Schritt-Grenzen wie „jetzt Schritt 3").
 - **Session fortführen:** bei Folge-Korrekturen oder Ergänzungen innerhalb desselben Themas
@@ -71,7 +79,7 @@ des Auftrags der Hinweis „NEUE SESSION: ja", führt Claude Code vor der Arbeit
 **Begründung:** hält den Kontext fokussiert und vermeidet Kontextverschmutzung durch
 ältere Zwischenstände. Gefahrlos, weil der maßgebliche Stand vollständig im Repo liegt
 (`CLAUDE.md`, `KONZEPT.md`, `ROADMAP.md`, `docs/adr/`, GitHub-Issues) und nach einem Clear
-über das Onboarding-Verfahren (→ Abschnitt „Onboarding für neue Sessions") neu eingelesen wird.
+über das Onboarding-Verfahren neu eingelesen wird.
 
 ---
 
