@@ -19,8 +19,10 @@ paperless:
 log4om:
   # Absoluter Pfad zur Log4OM-SQLite-Datenbankdatei
   db_path: "C:\\Users\\DEIN_NAME\\Documents\\Log4OM2\\log4om.db"
-  # Eigenes Rufzeichen (für From/To-Unterscheidung beim QR-Code/OCR-Parsing)
-  # Muss mit dem Rufzeichen auf den Karten übereinstimmen (To-Feld)
+  # Eigenes Rufzeichen (manueller Anker für From/To-Zugehörigkeitsprüfung).
+  # QSL73 erkennt außerdem automatisch alle in der DB vorkommenden stationcallsign-Werte
+  # als eigene Calls (z. B. portabel geloggte Varianten wie DH3KR/P). own_callsign ist
+  # der Fallback, falls die DB noch leer oder ein abweichender Call konfiguriert ist.
   own_callsign: "DF1DS"
 
 tags:
@@ -34,6 +36,19 @@ tags:
 matching:
   # Fuzzy-Matching aktivieren (Toleranz: 1 Zeichen bei OCR-Verlesern)
   fuzzy_enabled: true
+  # Bekannte Portabel-/Operationssuffixe für die Stammrufzeichen-Zerlegung.
+  # Steht der Teil nach "/" in dieser Liste, gilt der Teil davor als Stammrufzeichen.
+  # Erweiterbar; unbekannte Suffixe führen nicht zum Absturz, sondern zu vorsichtigem
+  # Verhalten (Stammrufzeichen nicht eindeutig bestimmbar → "unsicher").
+  portable_suffixes:
+    - P    # portabel (ITU)
+    - M    # mobil (ITU)
+    - MM   # maritim mobil (ITU)
+    - AM   # aeronautisch mobil (ITU)
+    - QRP  # Niedrigleistungsbetrieb (verbreitet)
+    - A    # temporär UK (historisch)
+    - R    # Remote (regional)
+    - T    # Trainee/Ausbildungsrufzeichen (DE)
 
 confirm:
   # Standard-Übertragungsweg (RV = "Received Via") für Papier-QSL-Bestätigungen.

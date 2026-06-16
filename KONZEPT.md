@@ -251,31 +251,67 @@ der einzig gangbare Weg für ältere oder handschriftliche Karten.
 
 - Unbekannte Mode-Bezeichnung → Fuzzy-Match gegen bekannte Modi; kein Treffer → **unsicher**.
 
+**Rufzeichen — Stammrufzeichen-Zerlegung:**
+
+Rufzeichen mit `/` werden zerlegt. Reihenfolge (Kurzschluss nach erstem Treffer):
+
+| Fall | Erkennungsregel | Stammrufzeichen |
+|------|----------------|-----------------|
+| a) | Teil **nach** `/` ist bekanntes Suffix (→ `matching.portable_suffixes` in Config) | Teil **vor** `/` (z. B. `DL1EJD/P` → `DL1EJD`) |
+| b) | Teil **vor** `/` ist bekannter ITU-Länderpräfix (Code-interne Datendatei) | Teil **nach** `/` (z. B. `5Z4/UA4WHX` → `UA4WHX`) |
+| c) | Beide Seiten mehrdeutig / keiner Regel eindeutig zuordenbar | Karte → **unsicher** (kein erzwungenes Match) |
+
+Unbekannte Suffixe lösen kein Parsing-Fehler aus — sie führen zu Fall c) (vorsichtiges Verhalten).
+Die ITU-Länderpräfix-Liste ist zu umfangreich für die Config und wird als pflegbare Datendatei /
+Konstante im Code geführt (Details: Schritt 4).
+
+**Suffix-Unterschied-Regel:**
+
+Stimmt das Stammrufzeichen überein, aber der Zusatz unterscheidet sich (z. B. Karte `DL1EJD`,
+Log `DL1EJD/P`, oder umgekehrt):
+- → **sicher** nur, wenn Datum + Band + Mode **eindeutig** übereinstimmen (genau ein Kandidat).
+- → **unsicher**, wenn bei Datum/Band/Mode irgendeine Unschärfe besteht (mehrere Kandidaten,
+  Band nicht normalisierbar, Datum mehrdeutig). Nie raten.
+
 **Rufzeichen / From-To-Logik:**
-- `From` (QR) bzw. das führende Rufzeichen im OCR = Gegenstation = Match-Schlüssel gegen
-  Log4OM `callsign`. Dieser Wert wird **nie** als eigener Call interpretiert.
-- `To` (QR) bzw. `"To Radio:"` o. ä. (OCR) = eigener Call — **toleranter Abgleich**:
-  - Der Basis-Call aus `log4om.own_callsign` (z. B. `DH3KR`) dient als Kern.
-  - Portabel-Präfixe (`SV9/DH3KR`) und -Suffixe (`DH3KR/P`, `DH3KR/M`, `DH3KR/MM`)
-    werden abgetrennt/ignoriert; nur der Basis-Call wird verglichen.
-  - Optional: Abgleich auch gegen die in der Log4OM-DB tatsächlich vorkommenden
-    `stationcallsign`-Werte (deckt weitere Rufzeichen-Varianten ab, z. B. frühere Calls).
-  - Stimmt der Basis-Call nicht überein, gehört die Karte nicht zu diesem Log → überspringen.
-  - Hinweis: Der Match-Schlüssel für das eigentliche QSO-Matching bleibt `From` ↔ `callsign`;
+- `From` (QR) bzw. führendes Rufzeichen im OCR = Gegenstation = Match-Schlüssel gegen
+  Log4OM `callsign` (nach Stammrufzeichen-Zerlegung). Dieser Wert wird **nie** als eigener
+  Call interpretiert.
+- `To` (QR) bzw. `"To Radio:"` o. ä. (OCR) = eigener Call — **Zugehörigkeitsprüfung**:
+  - Abgleich gegen (a) `log4om.own_callsign` aus der Config **und** (b) alle in der
+    Log4OM-DB tatsächlich vorkommenden `stationcallsign`-Werte — jeweils mit
+    Stammrufzeichen-Zerlegung (Portabel-Präfixe/-Suffixe werden beidseitig abgetrennt).
+  - Stimmt keiner der eigenen Calls (nach Zerlegung) mit dem `To`-Feld überein
+    → Karte gehört nicht zu diesem Log → überspringen.
+  - `own_callsign` in der Config ist der manuelle Anker/Fallback; der `stationcallsign`-
+    Abgleich deckt portabel geloggte eigene Calls ab, die nur in der DB stehen.
+  - Hinweis: Der Match-Schlüssel für das QSO-Matching bleibt `From` ↔ `callsign`;
     `To` dient ausschließlich der Zugehörigkeitsprüfung.
 - Rufzeichen case-insensitiv; Fuzzy-Toleranz 1 Zeichen bei Fuzzy=an (gegen OCR-Verleser).
 
 ### 6.4 Match-Ergebnis
 
 - **Auto-Bestätigung nur**, wenn **Rufzeichen + Datum + Band + Mode** übereinstimmen.
-- **Datum exakt** (nach Normalisierung). Rufzeichen/Band/Mode mit **Fuzzy-Toleranz von
-  1 Zeichen** (Einstellung); Fuzzy in den Einstellungen abschaltbar.
+- **Datum exakt** (nach Normalisierung auf Tag-Ebene, ohne Uhrzeit — siehe „Zeit-Match-Logik"
+  unten). Rufzeichen/Band/Mode mit **Fuzzy-Toleranz von 1 Zeichen** (Einstellung);
+  Fuzzy in den Einstellungen abschaltbar.
 - Ergebnis je Karte:
   - **sicher** = genau ein Kandidat erfüllt alle vier Felder → bestätigen.
   - **unsicher** = ein oder mehrere Kandidaten, aber nicht eindeutig (z. B. mehrdeutiges
     Datum, mehrere mögliche QSOs, Band nicht normalisierbar) → Tag `qsl-nicht-bestätigt`.
   - **kein Match** = kein plausibler Kandidat → **kein Status-Tag** (Wiedervorlage).
 - „kein Match" ≠ „nicht bestätigt" (unterschiedliche Zustände, getrennt behandeln).
+
+**Zeit-Match-Logik:**
+- **Primär:** Datum-Match auf **Tag-Ebene** (`YYYY-MM-DD`). Eine genaue Uhrzeit auf der
+  Karte wird **nicht** verlangt (viele Karten nennen nur das Datum; Karten- und Logzeiten
+  weichen real oft ab).
+- **Tie-Breaker:** Gibt es am selben Tag **mehrere** sonst gleichwertige Kandidaten
+  (gleiche Station + Band + Mode), wird die Uhrzeit mit großzügiger Toleranz
+  (Vorschlag ± 30 Minuten) zur Unterscheidung herangezogen.
+  - Genau ein Kandidat innerhalb des Toleranzfensters → **sicher**.
+  - Kein Kandidat im Fenster, oder mehrere Kandidaten auch nach Uhrzeit-Filterung → **unsicher**.
+- Hinweis: Der genaue Toleranzwert (± 30 min) wird in Schritt 4 empirisch überprüft.
 
 **OCR-Quelle:** QSL73 nutzt die **Paperless-OCR** (`GET /api/documents/{id}/?fields=content`),
 nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
@@ -298,7 +334,15 @@ nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
 - Unbekanntes Datumsformat (z. B. römische Monatsziffern `17-XI-93`) → **unsicher**,
   kein Absturz, kein Rate-Match; manuelle Zuordnung greift.
 - `To: SV9/DH3KR` bei `own_callsign = DH3KR` → Karte korrekt als eigenes Log erkannt.
-- `From`/`To` korrekt unterschieden; Basis-Call von `To` stimmt nicht überein → Karte übersprungen.
+- Karte adressiert eigenen portablen Call (`[EIGENCALL]/P`), der nur in `stationcallsign`
+  der DB steht (nicht in `own_callsign`) → Karte wird korrekt als eigenes Log erkannt.
+- `From`/`To` korrekt unterschieden; Stammrufzeichen von `To` stimmt nicht überein → Karte übersprungen.
+- `DL1EJD/P` im Log, `DL1EJD` auf Karte (oder umgekehrt): bei sonst exakten Feldern → **sicher**;
+  bei jeder Unschärfe bei Datum/Band/Mode → **unsicher**.
+- `5Z4/UA4WHX` auf Karte → Stammrufzeichen `UA4WHX` (Präfix erkannt) → korrekt gegen Log abgeglichen.
+- `[CALL]/IF9` (Fall c, mehrdeutig) → **unsicher**, kein erzwungenes Match, kein Absturz.
+- Zwei QSOs derselben Station am selben Tag, Karte nennt nur das Datum → Uhrzeit-Tie-Breaker;
+  bleibt mehrdeutig → **unsicher**.
 
 ---
 

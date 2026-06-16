@@ -277,6 +277,23 @@ Vollständige Bilderkennung aller 7 Musterkarten (anonymisiert/zusammengefasst).
 - §6.3: Tolerantes eigenes-Call-Matching; erweiterte Datum-Tabelle; `2×SSB`→SSB; alle Seiten.
 - Grundsatz: unbekannte Formate → unsicher, kein Ratespiel.
 
+### 5.4 Rufzeichen-Vielfalt in der Test-DB (anonymisiert, 2026-06-16)
+
+Analyse der echten Test-DB (428 QSOs, 403 eindeutige Gegenstationen):
+
+**Gegenstationen mit `/`-Zusatz (10 von 403):**
+- Suffixe: `/P` (6×), `/QRP` (1×) — bekannte Portabel-/Betriebsart-Kürzel.
+- Präfixe: 2× Karten mit Länderpräfix + `/` + Stammrufzeichen (Gast-Operation).
+- Grenzfall: 1× `[CALL]/IF9` — Region/Distriktsuffix, nicht eindeutig einem bekannten
+  Suffix zuzuordnen (→ Fall c der Stammrufzeichen-Zerlegung: unsicher).
+
+**Eigene Rufzeichen (`stationcallsign`):**
+- Drei verschiedene `stationcallsign`-Werte in der DB (zwei feste Calls, einer portabel mit `/P`-Suffix).
+- Der Nutzer hat also unter mehreren eigenen Calls geloggt. Ein starrer Vergleich nur
+  gegen `own_callsign` würde portabel adressierte Karten verwerfen.
+- → Bestätigt die Entscheidung: `To`-Abgleich gegen `own_callsign` UND alle
+  `stationcallsign`-Werte der DB (mit Stammrufzeichen-Toleranz). → ADR-0013.
+
 ## 6. Offene Fragen / Klärungsbedarfe
 
 | # | Frage | Status |
@@ -284,5 +301,5 @@ Vollständige Bilderkennung aller 7 Musterkarten (anonymisiert/zusammengefasst).
 | 1 | `RV`-Wert bei bestätigtem Papier-QSL: welche Werte schreibt Log4OM exakt (Groß-/Kleinschreibung, akzeptiert Log4OM `"Undefined"`?) | **Wartet auf Hand-Test** durch DF1DS |
 | 2 | Muss `S` auf `"Yes"` gesetzt werden, wenn Karte empfangen wird? | **Entschieden:** Nein — `S`/`SV` bleiben unverändert; QSL73 bestätigt nur Empfang |
 | 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | Offen / Niedrig; →Schema-Validierung §3.3 fängt das ab |
-| 4 | OCR-Qualität (Paperless-OCR) und Paperless-API-Details | Offen → Issue #2 (Karten in Paperless taggen) |
+| 4 | OCR-Qualität (Paperless-OCR) und Paperless-API-Details | **Erledigt** → §5.2/§5.3 (Schritt 3b) |
 | 5 | `R`-Wert `"V"` (DXCC-verifiziert) vs. `"Yes"`: setzt QSL73 „V"? | **Entschieden:** Nein — QSL73 setzt ausschließlich `"Yes"`. `"V"` vergibt der Nutzer selbst im Award-Checker. |
