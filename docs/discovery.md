@@ -186,13 +186,70 @@ und diesen Abschnitt aktualisieren).
 - Mode: ältere ITU-Bezeichnungen (`J3E` → SSB) vorhanden; Mapping-Tabelle nötig.
 - From/To: explizit trennbar bei QR-Code; bei OCR schwieriger → eigener Call als Anker.
 
-### 5.2 Paperless-API (noch offen)
+### 5.2 Paperless-API — Verifikationsbefund (Schritt 3b, 2026-06-16)
 
-Ausstehend (wartet auf Karten mit Tag `qsl-card` in Paperless, → Issue #2):
-- Paperless-OCR-Qualität im Vergleich zur PDF-internen OCR
-- Aufbau Vorder-/Rückseite (wird als zweiseitiges PDF geliefert?)
-- Bild-Endpunkte: `preview/`, `download/`, `thumb/`
-- API-Paginierung bei Tag-Filter `qsl-card`
+Real getestet gegen lokale Paperless-ngx-Docker-Instanz mit 7 echten QSL-Karten
+(getaggt `qsl-card`). Client: `src/qsl73/paperless.py`.
+
+#### Client-Funktionen (real nachgewiesen)
+
+| Funktion | Ergebnis |
+|----------|----------|
+| `get_documents_by_tag("qsl-card")` | Alle 7 Karten gefunden; Paginierung funktioniert |
+| `get_document_content(id)` | OCR-Text sofort verfügbar (0 s Wartezeit) |
+| `get_document_preview(id)` | PDF-Bytes (400–860 KB je Karte) |
+| `get_document_download(id)` | PDF-Bytes (identisch mit preview) |
+| `get_document_thumb(id)` | WebP-Bytes (10–45 KB) |
+| `add_tag_to_document` | Test-Tag hinzugefügt; `qsl-card` bleibt erhalten ✅ |
+| `remove_tag_from_document` | Test-Tag entfernt; `qsl-card` bleibt erhalten ✅ |
+
+**Bildformate:** `preview` und `download` liefern beide das optimierte PDF (gleiche Byte-Größe).
+`thumb` liefert WebP. Die Auflösung der PDFs (400–860 KB) ist für manuelle Ansicht ausreichend.
+
+#### OCR-Qualitätsbefund (pro Kartentyp, anonymisiert)
+
+7 Karten in 3 Typen:
+
+**Typ A — Gedruckte Karte mit QR-Code (modernes DARC-Format, 1 Karte):**
+- Paperless-OCR liefert lesbaren Tabellentext; Rufzeichen und Datum erkennbar.
+- **Kritisch:** Band `6m` wird von Paperless-OCR als `tToemvem` ausgegeben — gleicher Fehler wie bei der PDF-internen OCR (bestätigt). Band-Feld nicht direkt verwertbar via OCR.
+- **QR-Code-Inhalt ist NICHT im Paperless-OCR-Text enthalten.** Das strukturierte Format
+  (`From: [CALL] To: [CALL] Date: TT.MM.JJ Time: HH:MM Band: 6m Mode: FT8 ...`)
+  ist nur im Bild/PDF codiert — Paperless-OCR dekodiert QR-Codes nicht.
+  QR-Matching erfordert client-seitiges QR-Decoding aus dem heruntergeladenen PDF.
+
+**Typ B — Gedruckte Karte ohne QR (modernes und älteres Format, 3 Karten):**
+- OCR-Qualität: mittel bis mäßig.
+- Rufzeichen meist erkennbar. Datum im Format `TT.MM.JJ` oder `TT.MM.JJJJ` partiell erkennbar.
+- Band/Mode-Felder: oft im Tabellenkontext, aber durch OCR-Artefakte unzuverlässig.
+- Frequenzangabe statt Bandname kommt vor (z. B. `5,3570` statt `60m`/`6m` → Umrechnung nötig).
+- Ein Beispiel mit lesbarem Datum+Frequenz+Mode bei modernem Kartenlayout:
+  `26.04.25 19:52  5,3570  FT8` (anonymisiert; kein Rufzeichen wiedergegeben).
+- Ältere gedruckte Karten (1990er, dichtes Layout): OCR-Text zerstückelt, Felder schwer trennbar.
+
+**Typ C — Handschriftliche Karte (3 Karten: US-amerikanisch, britisch ~1990, französisch):**
+- OCR-Qualität: schlecht bis sehr schlecht.
+- Rufzeichen teils erkannt, teils verfälscht (z. B. Buchstabe verdoppelt/verdreht).
+- Datum: Teilerkennung, Format inkonsistent (`TT/MM/JJ`, `TTMMM JJ`, kaum les­bar).
+- Band/Mode: in handschriftlichen Tabellenzellen praktisch nicht zuverlässig erkennbar.
+- **Fazit Typ C:** Auto-Matching über OCR allein nicht möglich.
+
+#### Gesamtbewertung: Taugt Paperless-OCR für Auto-Matching?
+
+**Nein — OCR allein ist nicht produktionstauglich für das automatische Matching.**
+
+| Pfad | Machbarkeit | Anmerkung |
+|------|-------------|-----------|
+| QR-Code (Priorität 1) | Machbar, aber aufwändig | QR nicht in OCR; erfordert PDF-Download + QR-Decoder im Client |
+| OCR-Matching (Priorität 2) | Nur für moderne gedruckte Karten, mit Normalisierung | Band-OCR unzuverlässig; handschriftliche Karten fallen durch |
+| Manueller Pfad (Priorität 3) | Immer nötig als Fallback | Für handschriftliche und alte Karten dominant |
+
+**Empfehlung (bestätigt):** Der im KONZEPT.md vorgesehene dreistufige Pfad ist korrekt:
+QR → OCR (normalisiert) → manuell. Bei diesem Kartenset dominieren handschriftliche/alte
+Karten, d. h. der manuelle Pfad wird im Alltag häufig genutzt.
+
+**QR-Pfad (Schritt 4):** QR-Decoding muss im Client aus dem PDF-Bild erfolgen (z. B. `pyzbar`
+oder `opencv` auf einem gerenderten PDF-Frame). Paperless-OCR ist kein Ersatz dafür.
 
 ---
 
