@@ -296,22 +296,50 @@ Log `DL1EJD/P`, oder umgekehrt):
 
 ### 6.4 Match-Ergebnis
 
-- **Auto-Bestätigung nur**, wenn **Rufzeichen + Datum + Band + Mode** übereinstimmen.
-- **Datum exakt** (nach Normalisierung auf Tag-Ebene, ohne Uhrzeit — siehe „Zeit-Match-Logik"
-  unten).
-- **Rufzeichen:** Fuzzy-Toleranz von 1 Zeichen (Levenshtein) bei `fuzzy_enabled=True` (Einstellung),
-  um OCR-Verleser abzufangen. Fuzzy in den Einstellungen abschaltbar.
-- **Band und Mode:** Immer **exakt** verglichen (case-insensitiv), unabhängig von `fuzzy_enabled`.
+**Drei Feldzustände (ADR-0016):**
+
+Für jedes der vier Matchfelder (Rufzeichen, Datum, Band, Mode) gilt gegenüber einem
+Kandidaten-QSO einer von drei Zuständen:
+
+| Zustand | Bedingung | Wirkung |
+|---------|-----------|---------|
+| **STIMMT ÜBEREIN** | Kartenfeld lesbar (≠ None) und passt zum Kandidaten | positiv, trägt zur 3-von-4-Schwelle bei |
+| **FEHLT / UNBESTIMMT** | Kartenfeld ist `None` (OCR kaputt oder nicht normalisierbar) | neutral — schließt nicht aus, zählt nicht positiv |
+| **WIDERSPRICHT** | Kartenfeld lesbar (≠ None) und stimmt **nicht** mit Kandidaten überein | schließt diesen Kandidaten aus der Treffermenge aus |
+
+**Eingrenzung (Kandidatensuche):**
+- Startmenge: alle QSOs, deren Rufzeichen zum Stammrufzeichen der Karte passt
+  (exakt oder Fuzzy-1 bei `fuzzy_enabled=True`).
+- Für jedes weitere **lesbare** Kartenfeld (Datum, Band, Mode): Kandidaten mit
+  Widerspruch werden ausgeschlossen. Fehlende Felder (`None`) grenzen nicht ein.
+- Ergebnis: Menge der Kandidaten, die in keinem lesbaren Feld widersprechen.
+
+**Rufzeichen:**
+- Fuzzy-Toleranz von 1 Zeichen (Levenshtein) bei `fuzzy_enabled=True`, um OCR-Verleser
+  abzufangen. Fuzzy in den Einstellungen abschaltbar.
+
+**Band und Mode:**
+- Immer **exakt** verglichen (case-insensitiv), unabhängig von `fuzzy_enabled`.
   Begründung: Band und Mode sind kleine, feste Wertemengen; 1 Zeichen Unterschied bedeutet nach
-  Normalisierung einen **anderen realen Wert** (anderes Band/anderer Modus), keinen OCR-Verleser.
-  OCR-Verleser sind bereits durch `normalize_band`/`normalize_mode` abgefangen, die unbekannte
-  Werte zu `None` normalisieren. Fuzzy auf Band/Mode würde Falsch-Positive erzeugen (ADR-0007).
-- Ergebnis je Karte:
-  - **sicher** = genau ein Kandidat erfüllt alle vier Felder → bestätigen.
-  - **unsicher** = ein oder mehrere Kandidaten, aber nicht eindeutig (z. B. mehrdeutiges
-    Datum, mehrere mögliche QSOs, Band nicht normalisierbar) → Tag `qsl-nicht-bestätigt`.
-  - **kein Match** = kein plausibler Kandidat → **kein Status-Tag** (Wiedervorlage).
-- „kein Match" ≠ „nicht bestätigt" (unterschiedliche Zustände, getrennt behandeln).
+  Normalisierung einen anderen realen Wert. OCR-Verleser werden bereits durch
+  `normalize_band`/`normalize_mode` auf `None` normalisiert; Fuzzy auf Band/Mode würde
+  Falsch-Positive erzeugen (ADR-0007).
+
+**Einstufung:**
+- **0 Kandidaten** → **kein Match**.
+- **Mehrere Kandidaten** → Uhrzeit-Tie-Breaker (±30 min); bleibt mehr als einer → **unsicher**.
+- **Genau 1 Kandidat** → **sicher** nur wenn BEIDE Bedingungen erfüllt:
+  - (a) mindestens **3 der 4 Felder STIMMEN ÜBEREIN** (positiv gezählt),
+  - (b) kein lesbares Kartenfeld widerspricht (durch Eingrenzung bereits sichergestellt).
+  - Sind weniger als 3 Felder positiv (z. B. nur Rufzeichen + Datum, Rest fehlt) → **unsicher**.
+  - Das Rufzeichen ist immer Pflichtbestandteil der 3; ohne Rufzeichen-Treffer gibt es
+    keinen Kandidaten.
+
+- **kein Match** ≠ „nicht bestätigt" (unterschiedliche Zustände, getrennt behandeln).
+
+**Suffix-Unterschied-Regel (§6.3 / strenger als 3-von-4):**
+Stimmt das Stammrufzeichen überein, aber der Zusatz unterscheidet sich, müssen Datum +
+Band + Mode alle **explizit übereinstimmen** (kein `None` erlaubt) → erst dann „sicher".
 
 **Zeit-Match-Logik:**
 - **Primär:** Datum-Match auf **Tag-Ebene** (`YYYY-MM-DD`). Eine genaue Uhrzeit auf der
@@ -342,13 +370,14 @@ nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
 `docs/discovery.md` §5.2 (Schritt 3b).
 
 **Akzeptanzkriterien:**
-- Ein QSO mit exakt passenden vier Feldern wird als „sicher" erkannt.
-- Ein um 1 Zeichen abweichendes **Rufzeichen** (bei sonst exakter Übereinstimmung) matcht bei
-  Fuzzy=an als „sicher", bei Fuzzy=aus als „kein Match".
-- Verschiedene Bänder oder Modi — auch wenn sie sich nur um 1 Zeichen unterscheiden (z. B.
-  `"6m"` vs. `"2m"`, `"FT8"` vs. `"FT4"`) — ergeben **niemals** „sicher"; sie werden exakt
-  verglichen und landen bei „kein Match". Begründung: nach Normalisierung ist 1 Zeichen
-  Unterschied ein echter Wertunterschied, kein OCR-Verleser.
+- Ein QSO mit exakt passenden vier Feldern wird als „sicher" erkannt (4/4).
+- Genau 3 von 4 Feldern positiv (ein Feld fehlt/None), kein Widerspruch, 1 Kandidat → „sicher" (3-von-4-Regel, ADR-0016).
+- Nur 2 oder weniger Felder positiv (zwei oder mehr fehlen) → „unsicher".
+- Lesbares Kartenfeld widerspricht dem Kandidaten → Kandidat ausgeschlossen; bleibt kein Kandidat → „kein Match". Kein Kandidat ohne aktiven Widerspruch wird durch ein einzelnes fehlendes Feld ausgeschlossen.
+- Karte mit lesbarem Band 20m, DB hat QSOs auf 6m und 20m am selben Tag: das 6m-QSO wird ausgeschlossen; das 20m-QSO ist der einzige verbleibende Kandidat → „sicher".
+- Karte ohne lesbares Band, DB hat QSOs auf 6m und 20m: beide bleiben (kein Widerspruch) → „unsicher" (zwei Kandidaten).
+- Ein um 1 Zeichen abweichendes **Rufzeichen** (bei mind. 2 weiteren übereinstimmenden Feldern) matcht bei Fuzzy=an als „sicher", bei Fuzzy=aus als „kein Match".
+- Verschiedene Bänder oder Modi — auch wenn sie sich nur um 1 Zeichen unterscheiden (z. B. `"6m"` vs. `"2m"`, `"FT8"` vs. `"FT4"`) — ergeben **niemals** „sicher"; sie werden exakt verglichen und schließen den Kandidaten aus.
 - Zwei gleich gut passende Kandidaten ergeben „unsicher", nie eine Auto-Bestätigung.
 - Karte mit gültigem QR-Code (QSO-Felder vorhanden) → Felder aus QR, bevorzugt.
 - QR-Code ohne gültiges QSO-Format (z. B. Werbe-/Druckdienst-Code) → ignoriert,

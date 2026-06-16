@@ -136,14 +136,17 @@ def test_suffix_differ_reverse_is_certain():
     assert _match(card, [cand]).result == MatchResult.CERTAIN
 
 # Unsicher-Fälle
-def test_missing_date_is_uncertain():
-    assert _match(_card(date=None), [_candidate()]).result == MatchResult.UNCERTAIN
+def test_missing_date_three_fields_is_certain():
+    # call + band + mode stimmen überein (3/4); Datum fehlt → SICHER (ADR-0016, 3-von-4)
+    assert _match(_card(date=None), [_candidate()]).result == MatchResult.CERTAIN
 
-def test_missing_band_is_uncertain():
-    assert _match(_card(band=None), [_candidate()]).result == MatchResult.UNCERTAIN
+def test_missing_band_three_fields_is_certain():
+    # call + date + mode stimmen überein (3/4); Band fehlt → SICHER (ADR-0016, 3-von-4)
+    assert _match(_card(band=None), [_candidate()]).result == MatchResult.CERTAIN
 
-def test_missing_mode_is_uncertain():
-    assert _match(_card(mode=None), [_candidate()]).result == MatchResult.UNCERTAIN
+def test_missing_mode_three_fields_is_certain():
+    # call + date + band stimmen überein (3/4); Mode fehlt → SICHER (ADR-0016, 3-von-4)
+    assert _match(_card(mode=None), [_candidate()]).result == MatchResult.CERTAIN
 
 def test_missing_call_from_is_uncertain():
     assert _match(_card(call_from=None), [_candidate()]).result == MatchResult.UNCERTAIN
@@ -221,7 +224,7 @@ def test_ocr_callsign_errors_matrix(card_call, cand_call, fuzzy, expected):
     ("6m", "6m", True, MatchResult.CERTAIN),       # exakt gleich → sicher
     ("6m", "2m", True, MatchResult.NO_MATCH),      # verschiedene Bänder → kein Match (auch mit Fuzzy)
     ("6m", "2m", False, MatchResult.NO_MATCH),     # verschiedene Bänder → kein Match
-    (None, "6m", True, MatchResult.UNCERTAIN),     # fehlendes Band → unsicher
+    (None, "6m", True, MatchResult.CERTAIN),       # Band fehlt, call+date+mode = 3/4 → sicher (ADR-0016)
 ])
 def test_band_exact_comparison_in_matching(card_band, cand_band, fuzzy, expected):
     result = _match(_card(band=card_band), [_candidate(band=cand_band)], fuzzy=fuzzy)
@@ -234,11 +237,14 @@ def test_band_exact_comparison_in_matching(card_band, cand_band, fuzzy, expected
 
 class TestNeverFalsePositive:
 
-    def test_ambiguous_date_similar_qso_is_uncertain(self):
-        assert _match(_card(date=None), [_candidate()]).result == MatchResult.UNCERTAIN
+    def test_missing_date_three_others_match_is_certain(self):
+        # Datum fehlt, aber call+band+mode stimmen → SICHER (3/4, ADR-0016)
+        # fehlend ≠ widersprechend: kein Falsch-Positiv
+        assert _match(_card(date=None), [_candidate()]).result == MatchResult.CERTAIN
 
-    def test_missing_band_similar_qso_is_uncertain(self):
-        assert _match(_card(band=None), [_candidate()]).result == MatchResult.UNCERTAIN
+    def test_missing_band_three_others_match_is_certain(self):
+        # Band fehlt, aber call+date+mode stimmen → SICHER (3/4, ADR-0016)
+        assert _match(_card(band=None), [_candidate()]).result == MatchResult.CERTAIN
 
     def test_ambiguous_callsign_similar_qso_is_uncertain(self):
         result = _match(_card(call_from="DH3KR/IF9"), [_candidate(callsign="DH3KR")])
@@ -406,10 +412,10 @@ def test_double_ocr_error_callsign_is_never_certain(card_call, cand_call):
     ("DK8NF", "6m",  "FT8", MatchResult.CERTAIN),
     # Rufzeichen 2 Verleser (Dist 2), alle Felder → kein Match
     ("DKBN3", "6m",  "FT8", MatchResult.NO_MATCH),
-    # Rufzeichen exakt, Band fehlt → unsicher
-    ("DK8NE", None,  "FT8", MatchResult.UNCERTAIN),
-    # Rufzeichen 1 Verleser, Band fehlt → unsicher (Kandidat passiert Rufzeichenfilter)
-    ("DK8NF", None,  "FT8", MatchResult.UNCERTAIN),
+    # Rufzeichen exakt, Band fehlt; call+date+mode = 3/4 → sicher (ADR-0016)
+    ("DK8NE", None,  "FT8", MatchResult.CERTAIN),
+    # Rufzeichen 1 Verleser, Band fehlt; call+date+mode = 3/4 → sicher (ADR-0016)
+    ("DK8NF", None,  "FT8", MatchResult.CERTAIN),
     # Rufzeichen 2 Verleser, Band fehlt → kein Match (Kandidat kommt nicht durch Rufzeichenfilter)
     ("DKBN3", None,  "FT8", MatchResult.NO_MATCH),
 ])
@@ -460,9 +466,9 @@ class TestDbCollisions:
         cands = [_candidate(qsoid=f"b{i}", band=b) for i, b in enumerate(["6m", "2m", "40m"])]
         assert _match(card, cands).result == MatchResult.UNCERTAIN
 
-    def test_same_station_single_band_in_db_missing_band_on_card_is_uncertain(self):
-        # Nur ein Kandidat, aber Band auf Karte unbekannt → unsicher
-        assert _match(_card(band=None), [_candidate(band="6m")]).result == MatchResult.UNCERTAIN
+    def test_same_station_single_band_in_db_missing_band_on_card_is_certain(self):
+        # Nur ein Kandidat; Band auf Karte unbekannt; call+date+mode stimmen → SICHER (3/4, ADR-0016)
+        assert _match(_card(band=None), [_candidate(band="6m")]).result == MatchResult.CERTAIN
 
     # ── C3: Zwei ähnliche Rufzeichen gleichzeitig in der DB ─────────────────
 
@@ -597,3 +603,94 @@ def test_tiebreaker_many_candidates_single_winner():
     result = _match(_card(time_utc="19:45"), cands)
     assert result.result == MatchResult.CERTAIN
     assert result.matched_qso.qsoid == "c"
+
+
+# ===========================================================================
+# ADR-0016: Abgestuftes Matching — 3-von-4 + Widerspruchs-Ausschluss
+# ===========================================================================
+
+
+# --- Weniger als 3 positive Felder → UNSICHER --------------------------------
+
+@pytest.mark.parametrize("date,band,mode,label", [
+    (None, None, "FT8",       "call+mode = 2/4"),
+    (None, "6m", None,        "call+band = 2/4"),
+    ("2025-04-02", None, None, "call+date = 2/4"),
+    (None, None, None,        "nur call = 1/4"),
+])
+def test_fewer_than_three_positives_is_uncertain(date, band, mode, label):
+    result = _match(_card(date=date, band=band, mode=mode), [_candidate()])
+    assert result.result == MatchResult.UNCERTAIN, f"erwartet UNSICHER für {label}"
+
+
+# --- Widerspruchs-Ausschluss: lesbares Feld ≠ Kandidatenwert → KEIN MATCH ---
+
+def test_band_contradiction_sole_candidate_is_no_match():
+    # Band lesbar + widerspricht dem einzigen Kandidaten → Kandidat ausgeschlossen → KEIN MATCH
+    # Kritischer Falsch-Positiv-Schutz (ADR-0016, ADR-0007):
+    # 1 Kandidat reicht NICHT, wenn ein lesbares Feld klar widerspricht.
+    card = _card(call_from="DK8NE", date="2025-04-02", band="20m", mode="FT8")
+    cand = _candidate(callsign="DK8NE", date="2025-04-02", band="6m",  mode="FT8")
+    assert _match(card, [cand]).result == MatchResult.NO_MATCH
+
+
+def test_mode_contradiction_sole_candidate_is_no_match():
+    # Mode lesbar + widerspricht → Kandidat ausgeschlossen → KEIN MATCH
+    card = _card(mode="FT8")
+    cand = _candidate(mode="SSB")
+    assert _match(card, [cand]).result == MatchResult.NO_MATCH
+
+
+def test_date_contradiction_sole_candidate_is_no_match():
+    # Datum lesbar + widerspricht → Kandidat ausgeschlossen → KEIN MATCH
+    card = _card(date="2025-04-02")
+    cand = _candidate(date="2025-04-03")
+    assert _match(card, [cand]).result == MatchResult.NO_MATCH
+
+
+def test_contradiction_removes_wrong_candidate_leaving_correct_one_certain():
+    # Zwei Kandidaten: einer widerspricht dem Band, einer stimmt → einziger verbleibender → SICHER
+    card = _card(band="20m")
+    c_wrong = _candidate(qsoid="wrong", band="6m")
+    c_right = _candidate(qsoid="right", band="20m")
+    result = _match(card, [c_wrong, c_right])
+    assert result.result == MatchResult.CERTAIN
+    assert result.matched_qso.qsoid == "right"
+
+
+# --- Band-Eingrenzung bei zwei Kandidaten (konkrete Fälle aus dem Auftrag) ---
+
+def test_band_readable_narrows_two_day_candidates_to_one_certain():
+    # Karte Band=20m; DB hat 6m UND 20m QSO am selben Tag → grenzt auf 20m ein → SICHER (ADR-0016)
+    card = _card(band="20m")
+    c6m  = _candidate(qsoid="c6m",  band="6m")
+    c20m = _candidate(qsoid="c20m", band="20m")
+    result = _match(card, [c6m, c20m])
+    assert result.result == MatchResult.CERTAIN
+    assert result.matched_qso.qsoid == "c20m"
+
+
+def test_band_missing_leaves_two_day_candidates_uncertain():
+    # Band fehlt auf Karte; DB hat 6m UND 20m QSO → beide bleiben (kein Widerspruch) → UNSICHER
+    card = _card(band=None)
+    c6m  = _candidate(qsoid="c6m",  band="6m")
+    c20m = _candidate(qsoid="c20m", band="20m")
+    result = _match(card, [c6m, c20m])
+    assert result.result == MatchResult.UNCERTAIN
+
+
+# --- Suffix-Unterschied + fehlendes Feld → strenge Regel bleibt (UNSICHER) --
+
+def test_suffix_differ_with_missing_mode_is_uncertain():
+    # Suffix-Unterschied-Regel (§6.3): date+band+mode müssen ALLE explizit übereinstimmen.
+    # Mode=None → Regel nicht erfüllt → UNSICHER (strenger als 3-von-4, ADR-0016)
+    card = _card(call_from="DL1EJD", mode=None)
+    cand = _candidate(callsign="DL1EJD/P")
+    assert _match(card, [cand]).result == MatchResult.UNCERTAIN
+
+
+def test_suffix_differ_with_missing_band_is_uncertain():
+    # Suffix-Unterschied + Band=None → Regel nicht erfüllt → UNSICHER
+    card = _card(call_from="DL1EJD", band=None)
+    cand = _candidate(callsign="DL1EJD/P")
+    assert _match(card, [cand]).result == MatchResult.UNCERTAIN
