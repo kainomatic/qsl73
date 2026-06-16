@@ -108,13 +108,15 @@ def test_fuzzy_callsign_off_is_no_match():
     result = _match(_card(call_from="DK8NE"), [_candidate(callsign="DK8NF")], fuzzy=False)
     assert result.result == MatchResult.NO_MATCH
 
-def test_fuzzy_band_on_is_certain():
+def test_different_band_is_no_match_regardless_of_fuzzy():
+    # Band wird nach Normalisierung EXAKT verglichen — "6n" und "6m" sind verschiedene Bänder
     result = _match(_card(band="6m"), [_candidate(band="6n")], fuzzy=True)
-    assert result.result == MatchResult.CERTAIN
+    assert result.result == MatchResult.NO_MATCH
 
-def test_fuzzy_mode_on_is_certain():
+def test_different_mode_is_no_match_regardless_of_fuzzy():
+    # Mode wird nach Normalisierung EXAKT verglichen — "FT8" und "FT9" sind verschiedene Modi
     result = _match(_card(mode="FT8"), [_candidate(mode="FT9")], fuzzy=True)
-    assert result.result == MatchResult.CERTAIN
+    assert result.result == MatchResult.NO_MATCH
 
 # Suffix-Unterschied-Regel
 def test_suffix_differ_exact_fields_is_certain():
@@ -122,10 +124,11 @@ def test_suffix_differ_exact_fields_is_certain():
     cand = _candidate(callsign="DL1EJD/P", band="6m", mode="FT8", date="2025-04-02")
     assert _match(card, [cand]).result == MatchResult.CERTAIN
 
-def test_suffix_differ_fuzzy_band_is_uncertain():
+def test_suffix_differ_band_mismatch_is_no_match():
+    # Band exakt: "6n" ≠ "6m" → Kandidat wird gefiltert → kein Match (kein Kandidat)
     card = _card(call_from="DL1EJD", band="6m", mode="FT8", date="2025-04-02")
     cand = _candidate(callsign="DL1EJD/P", band="6n", mode="FT8", date="2025-04-02")
-    assert _match(card, [cand], fuzzy=True).result == MatchResult.UNCERTAIN
+    assert _match(card, [cand], fuzzy=True).result == MatchResult.NO_MATCH
 
 def test_suffix_differ_reverse_is_certain():
     card = _card(call_from="DL1EJD/P", band="6m", mode="FT8", date="2025-04-02")
@@ -215,14 +218,12 @@ def test_ocr_callsign_errors_matrix(card_call, cand_call, fuzzy, expected):
 
 
 @pytest.mark.parametrize("card_band,cand_band,fuzzy,expected", [
-    ("6m", "6m", True, MatchResult.CERTAIN),
-    # "6m" vs "2m": Levenshtein-Distanz 1 → Fuzzy-Match → CERTAIN (OCR-Tipp zu Fuzzy)
-    ("6m", "2m", True, MatchResult.CERTAIN),
-    # Ohne Fuzzy: kein Match
-    ("6m", "2m", False, MatchResult.NO_MATCH),
-    (None, "6m", True, MatchResult.UNCERTAIN),
+    ("6m", "6m", True, MatchResult.CERTAIN),       # exakt gleich → sicher
+    ("6m", "2m", True, MatchResult.NO_MATCH),      # verschiedene Bänder → kein Match (auch mit Fuzzy)
+    ("6m", "2m", False, MatchResult.NO_MATCH),     # verschiedene Bänder → kein Match
+    (None, "6m", True, MatchResult.UNCERTAIN),     # fehlendes Band → unsicher
 ])
-def test_ocr_band_errors_in_matching(card_band, cand_band, fuzzy, expected):
+def test_band_exact_comparison_in_matching(card_band, cand_band, fuzzy, expected):
     result = _match(_card(band=card_band), [_candidate(band=cand_band)], fuzzy=fuzzy)
     assert result.result == expected
 
@@ -249,6 +250,19 @@ class TestNeverFalsePositive:
     def test_similar_qso_wrong_band_is_no_match(self):
         assert _match(_card(band="6m"), [_candidate(band="40m")]).result == MatchResult.NO_MATCH
 
+    def test_close_band_different_value_is_no_match(self):
+        # "6m" und "2m" sind 1 Zeichen verschieden, aber VERSCHIEDENE Bänder → kein Match
+        assert _match(_card(band="6m"), [_candidate(band="2m")], fuzzy=True).result == MatchResult.NO_MATCH
+
+    def test_close_mode_different_value_is_no_match(self):
+        # "FT8" und "FT4" sind 1 Zeichen verschieden, aber VERSCHIEDENE Modi → kein Match
+        assert _match(_card(mode="FT8"), [_candidate(mode="FT4")], fuzzy=True).result == MatchResult.NO_MATCH
+
+    def test_ssb_vs_ssb_exact_is_certain_but_different_is_no_match(self):
+        # Exakter Mode-Vergleich: SSB == SSB → sicher; SSB ≠ CW → kein Match
+        assert _match(_card(mode="SSB"), [_candidate(mode="SSB")]).result == MatchResult.CERTAIN
+        assert _match(_card(mode="SSB"), [_candidate(mode="CW")], fuzzy=True).result == MatchResult.NO_MATCH
+
     def test_two_candidates_same_station_no_time_is_uncertain(self):
         cand1 = _candidate(qsoid="id1", time_utc="10:00")
         cand2 = _candidate(qsoid="id2", time_utc="14:00")
@@ -256,10 +270,12 @@ class TestNeverFalsePositive:
         assert result.result == MatchResult.UNCERTAIN
         assert result.matched_qso is None
 
-    def test_suffix_differ_fuzzy_field_is_not_certain(self):
+    def test_suffix_differ_band_mismatch_is_not_certain(self):
+        # Band exakt: "6n" ≠ "6m" → Kandidat gefiltert → NO_MATCH (nicht CERTAIN, nicht UNCERTAIN)
+        # Noch sicherer als vorher: der falsche Kandidat kommt gar nicht durch den Filter
         card = _card(call_from="DL1EJD", band="6m", mode="FT8")
         cand = _candidate(callsign="DL1EJD/P", band="6n", mode="FT8")
-        assert _match(card, [cand], fuzzy=True).result == MatchResult.UNCERTAIN
+        assert _match(card, [cand], fuzzy=True).result == MatchResult.NO_MATCH
 
     def test_card_not_for_own_log_is_no_match(self):
         assert _match(_card(call_to="DL1ABC"), [_candidate()]).result == MatchResult.NO_MATCH

@@ -50,6 +50,19 @@ in Bandnamen (`2m`, `6m` …) umgerechnet. Nicht zuordnenbare OCR-Fetzen → Fel
 Match-Schlüssel. `To` (QR) bzw. `"To Radio:"` o. ä. (OCR) = eigener Call → Abgleich
 gegen `log4om.own_callsign`.
 
+### Fuzzy-Toleranz: nur für das Rufzeichen
+
+**Fuzzy-Vergleich (Levenshtein-Distanz 1) gilt ausschließlich für das Rufzeichen (`From` /
+Stammrufzeichen)**. Band und Mode werden nach Normalisierung immer **exakt** verglichen
+(case-insensitiv), unabhängig von der Einstellung `fuzzy_enabled`.
+
+Begründung: Band und Mode sind kleine, feste Wertemengen. Nach erfolgreicher Normalisierung
+durch `normalize_band`/`normalize_mode` bedeutet 1 Zeichen Unterschied einen **anderen
+realen Wert** (z. B. `"6m"` vs. `"2m"`, `"FT8"` vs. `"FT4"`), keinen OCR-Verleser.
+OCR-Verleser bei Band/Mode werden bereits durch die Normalisierung abgefangen (unbekannte
+Werte → `None` → `UNCERTAIN`). Fuzzy auf Band/Mode würde die Leitregel verletzen und
+Falsch-Positive erzeugen.
+
 ### Leitregel
 
 > **Im Zweifel lieber „unsicher" als falsch auto-bestätigen.**
@@ -67,3 +80,5 @@ niemals wird geraten oder ein falsches QSO bestätigt.
 - Manuelle Zuordnung bleibt der zuverlässige Fallback für unleserliche Karten.
 - Die Leitregel schützt vor Falschbestätigungen auf Kosten einer höheren „unsicher"-Rate;
   das ist bewusst so gewählt.
+- Fuzzy nur auf Rufzeichen: exaktes Band/Mode-Matching schützt vor Falsch-Positiven bei
+  ähnlichen, aber verschiedenen Werten.

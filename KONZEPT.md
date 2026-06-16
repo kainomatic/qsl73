@@ -287,14 +287,22 @@ Log `DL1EJD/P`, oder umgekehrt):
     Abgleich deckt portabel geloggte eigene Calls ab, die nur in der DB stehen.
   - Hinweis: Der Match-Schlüssel für das QSO-Matching bleibt `From` ↔ `callsign`;
     `To` dient ausschließlich der Zugehörigkeitsprüfung.
-- Rufzeichen case-insensitiv; Fuzzy-Toleranz 1 Zeichen bei Fuzzy=an (gegen OCR-Verleser).
+- Rufzeichen case-insensitiv; Fuzzy-Toleranz 1 Zeichen (Levenshtein) bei Fuzzy=an (gegen OCR-Verleser).
+- Band und Mode werden **exakt** verglichen (nach Normalisierung, case-insensitiv);
+  kein Fuzzy — 1 Zeichen Unterschied ist nach Normalisierung ein echter Wertunterschied.
 
 ### 6.4 Match-Ergebnis
 
 - **Auto-Bestätigung nur**, wenn **Rufzeichen + Datum + Band + Mode** übereinstimmen.
 - **Datum exakt** (nach Normalisierung auf Tag-Ebene, ohne Uhrzeit — siehe „Zeit-Match-Logik"
-  unten). Rufzeichen/Band/Mode mit **Fuzzy-Toleranz von 1 Zeichen** (Einstellung);
-  Fuzzy in den Einstellungen abschaltbar.
+  unten).
+- **Rufzeichen:** Fuzzy-Toleranz von 1 Zeichen (Levenshtein) bei `fuzzy_enabled=True` (Einstellung),
+  um OCR-Verleser abzufangen. Fuzzy in den Einstellungen abschaltbar.
+- **Band und Mode:** Immer **exakt** verglichen (case-insensitiv), unabhängig von `fuzzy_enabled`.
+  Begründung: Band und Mode sind kleine, feste Wertemengen; 1 Zeichen Unterschied bedeutet nach
+  Normalisierung einen **anderen realen Wert** (anderes Band/anderer Modus), keinen OCR-Verleser.
+  OCR-Verleser sind bereits durch `normalize_band`/`normalize_mode` abgefangen, die unbekannte
+  Werte zu `None` normalisieren. Fuzzy auf Band/Mode würde Falsch-Positive erzeugen (ADR-0007).
 - Ergebnis je Karte:
   - **sicher** = genau ein Kandidat erfüllt alle vier Felder → bestätigen.
   - **unsicher** = ein oder mehrere Kandidaten, aber nicht eindeutig (z. B. mehrdeutiges
@@ -319,8 +327,12 @@ nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
 
 **Akzeptanzkriterien:**
 - Ein QSO mit exakt passenden vier Feldern wird als „sicher" erkannt.
-- Ein um 1 Zeichen abweichendes Rufzeichen (bei sonst exakter Übereinstimmung) matcht bei
-  Fuzzy=an als „sicher", bei Fuzzy=aus als „unsicher" oder „kein Match".
+- Ein um 1 Zeichen abweichendes **Rufzeichen** (bei sonst exakter Übereinstimmung) matcht bei
+  Fuzzy=an als „sicher", bei Fuzzy=aus als „kein Match".
+- Verschiedene Bänder oder Modi — auch wenn sie sich nur um 1 Zeichen unterscheiden (z. B.
+  `"6m"` vs. `"2m"`, `"FT8"` vs. `"FT4"`) — ergeben **niemals** „sicher"; sie werden exakt
+  verglichen und landen bei „kein Match". Begründung: nach Normalisierung ist 1 Zeichen
+  Unterschied ein echter Wertunterschied, kein OCR-Verleser.
 - Zwei gleich gut passende Kandidaten ergeben „unsicher", nie eine Auto-Bestätigung.
 - Karte mit gültigem QR-Code (QSO-Felder vorhanden) → Felder aus QR, bevorzugt.
 - QR-Code ohne gültiges QSO-Format (z. B. Werbe-/Druckdienst-Code) → ignoriert,

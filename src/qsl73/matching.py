@@ -128,9 +128,9 @@ def match_card(
             continue
         if card.date is not None and card.date != cand.date:
             continue
-        if card.band is not None and not _fuzzy_equal(card.band, cand.band, fuzzy_enabled):
+        if card.band is not None and not _exact_equal(card.band, cand.band):
             continue
-        if card.mode is not None and not _fuzzy_equal(card.mode, cand.mode, fuzzy_enabled):
+        if card.mode is not None and not _exact_equal(card.mode, cand.mode):
             continue
         matched.append(cand)
 
