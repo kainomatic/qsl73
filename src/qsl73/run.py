@@ -66,3 +66,97 @@ class _CandidatesData:
     expected_states: dict[str, str]
     existing_confirmations: dict[str, list[str]]
     fingerprint: dict
+
+
+# ---------------------------------------------------------------------------
+# DB-Kandidaten laden
+# ---------------------------------------------------------------------------
+
+
+def load_qso_candidates(db_path: str | Path) -> _CandidatesData:
+    """Lädt offene Papier-QSL-Kandidaten aus der Log4OM-DB (rein lesend).
+
+    Vorfilter: nur QSOs mit CT='QSL' und R='No' oder R='Requested'.
+    R='Yes' (bereits bestätigt) und R='Invalid' werden NICHT geladen.
+    Liefert zudem station_callsigns, expected_states, existing_confirmations
+    und einen Fingerabdruck für write_selected (5c-Schutz).
+    """
+    db_path = Path(db_path)
+    fingerprint = get_db_fingerprint(db_path)
+
+    conn = open_wal_connection(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT qsoid, callsign, qsodate, band, mode, stationcallsign, qsoconfirmations
+               FROM Log WHERE qsoconfirmations IS NOT NULL"""
+        ).fetchall()
+    finally:
+        conn.close()
+
+    candidates: list[QsoCandidate] = []
+    station_callsigns: set[str] = set()
+    expected_states: dict[str, str] = {}
+    existing_confirmations: dict[str, list[str]] = {}
+
+    for row in rows:
+        qsoid, callsign, qsodate, band, mode, stationcallsign, conf_json = row
+
+        if stationcallsign:
+            station_callsigns.add(stationcallsign)
+
+        try:
+            entries = json.loads(conf_json)
+        except (json.JSONDecodeError, TypeError):
+            _log.debug("Ungültiges JSON in qsoconfirmations für %r — übersprungen", qsoid)
+            continue
+
+        if not isinstance(entries, list):
+            continue
+
+        qsl_entry = next(
+            (e for e in entries if isinstance(e, dict) and e.get("CT") == "QSL"),
+            None,
+        )
+        if qsl_entry is None:
+            continue
+
+        r_value = qsl_entry.get("R", "")
+        if r_value not in ("No", "Requested"):
+            continue
+
+        # Zeit aus qsodate-Feld extrahieren ('YYYY-MM-DD HH:MM:SSZ' → 'HH:MM')
+        time_utc: str | None = None
+        if qsodate and len(qsodate) >= 16:
+            part = qsodate[11:16]
+            if re.match(r"^\d{2}:\d{2}$", part):
+                time_utc = part
+
+        candidates.append(
+            QsoCandidate(
+                qsoid=qsoid,
+                callsign=callsign or "",
+                date=qsodate or "",
+                band=band or "",
+                mode=mode or "",
+                time_utc=time_utc,
+                stationcallsign=stationcallsign or "",
+            )
+        )
+        expected_states[qsoid] = r_value
+
+        # ADR-0015: nicht-QSL-Bestätigungen mit R='Yes' für Anzeige sammeln
+        existing = [
+            e["CT"]
+            for e in entries
+            if isinstance(e, dict) and e.get("CT") != "QSL" and e.get("R") == "Yes"
+        ]
+        if existing:
+            existing_confirmations[qsoid] = existing
+
+    return _CandidatesData(
+        candidates=candidates,
+        station_callsigns=station_callsigns,
+        expected_states=expected_states,
+        existing_confirmations=existing_confirmations,
+        fingerprint=fingerprint,
+    )
