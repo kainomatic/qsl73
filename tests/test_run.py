@@ -577,3 +577,155 @@ def test_run_pass_r_yes_excluded_from_candidates(tmp_path):
 
     assert len(result.certain) == 0
     assert len(result.no_match) == 1
+
+
+# --- write_selected ---
+
+def _make_writable_db(tmp_path: Path, name: str = "write_test.sqlite") -> tuple[sqlite3.Connection, Path]:
+    """Mini-DB mit vollständigem Schema und einem schreibbaren QSO (R='No', CT='QSL')."""
+    conn, p = _make_run_db(tmp_path, name)
+    qsl_json = json.dumps([{"CT": "QSL", "R": "No", "S": "No", "SV": "Electronic"}])
+    conn.execute(
+        "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
+        ("QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", qsl_json),
+    )
+    conn.commit()
+    return conn, p
+
+
+def test_write_selected_writes_to_db(tmp_path):
+    """write_selected schreibt QSO korrekt als R='Yes' in DB-Kopie."""
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.run import write_selected
+
+    conn, db_path = _make_writable_db(tmp_path)
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+    backup_dir = tmp_path / "backups"
+
+    result = write_selected(
+        selections=[("QSO1", "bureau")],
+        db_path=db_path,
+        backup_dir=backup_dir,
+        snapshot_fingerprint=fp,
+        expected_states={"QSO1": "No"},
+        backup_count=3,
+    )
+
+    assert result.written == 1
+    assert result.skipped == []
+
+    # DB-Inhalt verifizieren
+    verify_conn = sqlite3.connect(str(db_path))
+    row = verify_conn.execute("SELECT qsoconfirmations FROM Log WHERE qsoid='QSO1'").fetchone()
+    verify_conn.close()
+    entries = json.loads(row[0])
+    qsl = next(e for e in entries if e.get("CT") == "QSL")
+    assert qsl["R"] == "Yes"
+    assert qsl["RV"] == "Bureau"
+
+
+def test_write_selected_paperless_tags_set_after_db(tmp_path):
+    """Tags werden NUR nach erfolgreicher DB-Transaktion gesetzt (ADR-0003)."""
+    from qsl73.config import TagsConfig
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.run import write_selected
+
+    conn, db_path = _make_writable_db(tmp_path)
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+    mock_client = MagicMock()
+    tags_cfg = TagsConfig(confirmed="qsl-bestätigt", uncertain="qsl-nicht-bestätigt")
+
+    write_selected(
+        selections=[("QSO1", "undefined")],
+        db_path=db_path,
+        backup_dir=tmp_path / "bak",
+        snapshot_fingerprint=fp,
+        expected_states={"QSO1": "No"},
+        paperless_client=mock_client,
+        confirmed_doc_ids=[1],
+        tags_config=tags_cfg,
+    )
+
+    mock_client.add_tag_to_document.assert_called_once_with(1, "qsl-bestätigt")
+
+
+def test_write_selected_tag_error_nonfatal(tmp_path):
+    """Tag-Fehler wird geloggt, kein raise — DB-Schreibergebnis wird trotzdem zurückgegeben."""
+    from qsl73.config import TagsConfig
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.paperless import PaperlessConnectionError
+    from qsl73.run import write_selected
+
+    conn, db_path = _make_writable_db(tmp_path)
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+    mock_client = MagicMock()
+    mock_client.add_tag_to_document.side_effect = PaperlessConnectionError("Timeout")
+    tags_cfg = TagsConfig()
+
+    result = write_selected(
+        selections=[("QSO1", "undefined")],
+        db_path=db_path,
+        backup_dir=tmp_path / "bak",
+        snapshot_fingerprint=fp,
+        expected_states={"QSO1": "No"},
+        paperless_client=mock_client,
+        confirmed_doc_ids=[1],
+        tags_config=tags_cfg,
+    )
+
+    assert result.written == 1  # DB erfolgreich, Tag-Fehler ignoriert
+
+
+def test_write_selected_no_paperless_no_tags(tmp_path):
+    """Kein paperless_client → keine Tag-Operationen, nur DB-Schreiben."""
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.run import write_selected
+
+    conn, db_path = _make_writable_db(tmp_path)
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+
+    result = write_selected(
+        selections=[("QSO1", "direct")],
+        db_path=db_path,
+        backup_dir=tmp_path / "bak",
+        snapshot_fingerprint=fp,
+        expected_states={"QSO1": "No"},
+        paperless_client=None,
+    )
+
+    assert result.written == 1
+
+
+def test_write_selected_uncertain_tags(tmp_path):
+    """uncertain_doc_ids bekommen den 'qsl-nicht-bestätigt'-Tag."""
+    from qsl73.config import TagsConfig
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.run import write_selected
+
+    conn, db_path = _make_writable_db(tmp_path)
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+    mock_client = MagicMock()
+    tags_cfg = TagsConfig(confirmed="qsl-bestätigt", uncertain="qsl-nicht-bestätigt")
+
+    write_selected(
+        selections=[],  # nichts schreiben
+        db_path=db_path,
+        backup_dir=tmp_path / "bak",
+        snapshot_fingerprint=fp,
+        expected_states={},
+        paperless_client=mock_client,
+        uncertain_doc_ids=[99],
+        tags_config=tags_cfg,
+    )
+
+    mock_client.add_tag_to_document.assert_called_once_with(99, "qsl-nicht-bestätigt")

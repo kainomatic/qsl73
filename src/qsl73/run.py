@@ -333,3 +333,74 @@ def run_pass(
         fingerprint=data.fingerprint,
         expected_states=data.expected_states,
     )
+
+
+# ---------------------------------------------------------------------------
+# Öffentliche Schreibfunktion
+# ---------------------------------------------------------------------------
+
+
+def write_selected(
+    selections: list[tuple[str, str]],
+    db_path: str | Path,
+    backup_dir: Path,
+    snapshot_fingerprint: dict,
+    expected_states: dict[str, str],
+    backup_count: int = 5,
+    paperless_client: Optional[PaperlessClient] = None,
+    confirmed_doc_ids: Optional[list[int]] = None,
+    uncertain_doc_ids: Optional[list[int]] = None,
+    tags_config: Optional[TagsConfig] = None,
+) -> WriteResult:
+    """Schreibt die bestätigte Auswahl in Log4OM-DB und setzt Paperless-Tags.
+
+    Delegiert an log4om_db.write_confirmations (Schema-Check, WAL, Backup,
+    Transaktion, Nebenläufigkeit). Keine neue Schreiblogik in diesem Modul.
+
+    Reihenfolge (ADR-0003): (1) DB-Transaktion → (2) Paperless-Tags.
+    Tag-Fehler sind nicht fatal: geloggt, beim nächsten Lauf nachziehbar.
+
+    Args:
+        selections: Liste von (qsoid, route)-Paaren.
+        db_path: Pfad zur Log4OM-SQLite-Datei.
+        backup_dir: Zielverzeichnis für Vor-Backups.
+        snapshot_fingerprint: DB-Fingerabdruck aus run_pass (get_db_fingerprint).
+        expected_states: qsoid → R-Wert aus run_pass (für Optimistic Locking).
+        backup_count: Maximale Anzahl aufbewahrter Backups.
+        paperless_client: Optional — wenn None, werden keine Tags gesetzt.
+        confirmed_doc_ids: Dok-IDs, die den bestätigten Tag erhalten.
+        uncertain_doc_ids: Dok-IDs, die den unsicheren Tag erhalten.
+        tags_config: Tag-Namen aus Config; erforderlich wenn paperless_client gesetzt.
+
+    Returns:
+        WriteResult mit Anzahl geschriebener und übersprungener QSOs.
+    """
+    result = write_confirmations(
+        db_path=db_path,
+        items=selections,
+        backup_dir=backup_dir,
+        backup_count=backup_count,
+        snapshot_fingerprint=snapshot_fingerprint,
+        expected_states=expected_states,
+    )
+
+    # Paperless-Tags NUR nach erfolgreicher DB-Transaktion (ADR-0003)
+    if paperless_client and tags_config:
+        for doc_id in (confirmed_doc_ids or []):
+            try:
+                paperless_client.add_tag_to_document(doc_id, tags_config.confirmed)
+            except Exception as exc:
+                _log.warning(
+                    "Tag '%s' konnte für Dok. %s nicht gesetzt werden: %s",
+                    tags_config.confirmed, doc_id, exc,
+                )
+        for doc_id in (uncertain_doc_ids or []):
+            try:
+                paperless_client.add_tag_to_document(doc_id, tags_config.uncertain)
+            except Exception as exc:
+                _log.warning(
+                    "Tag '%s' konnte für Dok. %s nicht gesetzt werden: %s",
+                    tags_config.uncertain, doc_id, exc,
+                )
+
+    return result
