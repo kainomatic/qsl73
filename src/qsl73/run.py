@@ -252,3 +252,84 @@ def load_qso_candidates(db_path: str | Path) -> _CandidatesData:
         existing_confirmations=existing_confirmations,
         fingerprint=fingerprint,
     )
+
+
+# ---------------------------------------------------------------------------
+# Öffentliche Orchestrierung — rein lesend
+# ---------------------------------------------------------------------------
+
+
+def run_pass(
+    paperless_client: PaperlessClient,
+    db_path: str | Path,
+    config: Config,
+    on_progress: Optional[Callable[[int, int, str], None]] = None,
+) -> RunResult:
+    """Rein lesender Lauf: Sammeln → Auswerten → Matchen → Vorschau.
+
+    Kein Schreiben in dieser Funktion. Liefert RunResult mit Einteilung
+    sicher/unsicher/kein Match sowie Fingerabdruck + expected_states für write_selected.
+    """
+
+    def _progress(done: int, total: int, msg: str) -> None:
+        if on_progress:
+            on_progress(done, total, msg)
+
+    # 1. Paperless-Dokumente mit qsl-card-Tag laden (paginiert)
+    tag_name = config.tags.input
+    docs = paperless_client.get_documents_by_tag(tag_name)
+    total = len(docs)
+    _progress(0, total, f"{total} Dokumente mit Tag '{tag_name}' geladen")
+
+    # 2. DB-Kandidaten laden (rein lesend); Fingerabdruck und expected_states merken
+    data = load_qso_candidates(db_path)
+    _progress(0, total, f"{len(data.candidates)} offene QSO-Kandidaten geladen")
+
+    certain: list[CardResult] = []
+    uncertain: list[CardResult] = []
+    no_match: list[CardResult] = []
+
+    # 3. Pro Dokument: auswerten und matchen
+    for idx, doc in enumerate(docs):
+        doc_id = doc["id"]
+
+        card_fields, source = evaluate_card(doc, paperless_client)
+
+        outcome = match_card(
+            card=card_fields,
+            candidates=data.candidates,
+            fuzzy_enabled=config.matching.fuzzy_enabled,
+            portable_suffixes=config.matching.portable_suffixes,
+            own_callsign=config.log4om.own_callsign,
+            station_callsigns=data.station_callsigns,
+        )
+
+        # ADR-0015: vorhandene Bestätigungen des gematchten QSOs für Anzeige
+        existing: list[str] = []
+        if outcome.matched_qso is not None:
+            existing = data.existing_confirmations.get(outcome.matched_qso.qsoid, [])
+
+        card_result = CardResult(
+            doc_id=doc_id,
+            card_fields=card_fields,
+            source=source,
+            outcome=outcome,
+            existing_confirmations=existing,
+        )
+
+        if outcome.result == MatchResult.CERTAIN:
+            certain.append(card_result)
+        elif outcome.result == MatchResult.UNCERTAIN:
+            uncertain.append(card_result)
+        else:
+            no_match.append(card_result)
+
+        _progress(idx + 1, total, f"Karte {idx + 1}/{total} ausgewertet")
+
+    return RunResult(
+        certain=certain,
+        uncertain=uncertain,
+        no_match=no_match,
+        fingerprint=data.fingerprint,
+        expected_states=data.expected_states,
+    )

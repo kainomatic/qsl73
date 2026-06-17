@@ -405,3 +405,175 @@ def test_evaluate_card_missing_content_key():
         card, source = evaluate_card(doc, client)
 
     assert source == "none"
+
+
+# --- run_pass Orchestrierung ---
+
+def _make_config(own_callsign: str = "DH3KR"):
+    """Minimalconfig für run_pass-Tests."""
+    from qsl73.config import Config
+    cfg = Config()
+    cfg.log4om.own_callsign = own_callsign
+    cfg.matching.fuzzy_enabled = True
+    cfg.matching.portable_suffixes = ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
+    cfg.tags.input = "qsl-card"
+    return cfg
+
+
+def _make_paperless_mock(docs: list[dict]) -> MagicMock:
+    """PaperlessClient-Mock der docs von get_documents_by_tag zurückgibt."""
+    client = MagicMock()
+    client.get_documents_by_tag.return_value = docs
+    client.get_document_download.return_value = b""  # kein QR
+    return client
+
+
+def _insert_qso(conn, qsoid, callsign, qsodate, band, mode, stationcallsign, r="No", extra=None):
+    conf_json = _qsl_json(r, extra)
+    conn.execute(
+        "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
+        (qsoid, callsign, qsodate, band, mode, stationcallsign, conf_json),
+    )
+
+
+def test_run_pass_certain_match(tmp_path):
+    """Ein Dokument + passender Kandidat → RunResult.certain hat einen Eintrag."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR")
+    conn.commit(); conn.close()
+
+    # OCR-Text mit allen vier Pflichtfeldern (parse_qr_text-Format)
+    docs = [{"id": 1, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        result = run_pass(client, db_path, cfg)
+
+    assert len(result.certain) == 1
+    assert result.certain[0].doc_id == 1
+    assert result.certain[0].source == "ocr"
+
+
+def test_run_pass_no_match(tmp_path):
+    """Kein passender Kandidat → RunResult.no_match hat einen Eintrag."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK9ZZZ", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR")
+    conn.commit(); conn.close()
+
+    docs = [{"id": 2, "content": "From: DL1ABC To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        result = run_pass(client, db_path, cfg)
+
+    assert len(result.no_match) == 1
+    assert len(result.certain) == 0
+
+
+def test_run_pass_uncertain_multiple_candidates(tmp_path):
+    """Zwei Kandidaten, keine Zeitangabe → unsicher."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 09:00:00Z", "6m", "FT8", "DH3KR")
+    _insert_qso(conn, "QSO2", "DK8NE", "2025-04-02 19:00:00Z", "6m", "FT8", "DH3KR")
+    conn.commit(); conn.close()
+
+    # OCR: kein Time-Feld → kein Tie-Breaker → two candidates → uncertain
+    docs = [{"id": 3, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        result = run_pass(client, db_path, cfg)
+
+    assert len(result.uncertain) == 1
+    assert len(result.certain) == 0
+
+
+def test_run_pass_existing_confirmations_in_result(tmp_path):
+    """existing_confirmations des gematchten QSOs wird ans CardResult gehängt."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(
+        conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR",
+        extra=[{"CT": "EQSL", "R": "Yes"}],
+    )
+    conn.commit(); conn.close()
+
+    docs = [{"id": 1, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        result = run_pass(client, db_path, cfg)
+
+    assert len(result.certain) == 1
+    assert "EQSL" in result.certain[0].existing_confirmations
+
+
+def test_run_pass_fingerprint_and_expected_states_in_result(tmp_path):
+    """RunResult trägt fingerprint und expected_states aus der Sammelphase."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR")
+    conn.commit(); conn.close()
+
+    docs = []
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    result = run_pass(client, db_path, cfg)
+
+    assert isinstance(result.fingerprint, dict)
+    assert "main_mtime" in result.fingerprint
+    assert "QSO1" in result.expected_states
+    assert result.expected_states["QSO1"] == "No"
+
+
+def test_run_pass_progress_callback(tmp_path):
+    """on_progress wird mehrfach aufgerufen."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    conn.commit(); conn.close()
+
+    docs = [{"id": 1, "content": ""}, {"id": 2, "content": ""}]
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    calls = []
+    def progress(done, total, msg):
+        calls.append((done, total, msg))
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        run_pass(client, db_path, cfg, on_progress=progress)
+
+    assert len(calls) >= 3  # mindestens: laden, Kandidaten, 2× Karte
+
+
+def test_run_pass_r_yes_excluded_from_candidates(tmp_path):
+    """QSOs mit R='Yes' sind keine Kandidaten — Karte findet keinen Match."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", r="Yes")
+    conn.commit(); conn.close()
+
+    docs = [{"id": 1, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        result = run_pass(client, db_path, cfg)
+
+    assert len(result.certain) == 0
+    assert len(result.no_match) == 1
