@@ -687,10 +687,10 @@ BETA-Kennzeichnung, DB-Pfad-Hinweis im Setup-Assistent). → ADR-0021
 Python 3.11+ (64-Bit), `requests` (Paperless), `sqlite3` (Log4OM, WAL), `rapidfuzz` (Fuzzy),
 `PyYAML` (Config), `tkinter` (GUI), `pywin32` (DPAPI), Bild-/PDF-Anzeige (`Pillow` + PDF-Render).
 
-**QR-Code-Pfad (§6.2):** `pyzbar` (QR-Decoding) + `pymupdf` (PDF→Bild-Rendering).
-`pyzbar` benötigt die **native zbar-Bibliothek** als Laufzeit-Abhängigkeit (DLL unter
-Windows: `libzbar-64.dll`). Das erfordert beim PyInstaller-Build explizites Mitbündeln der
-DLL → Packaging-Risiko für Schritt 9 (→ Issue #7).
+**QR-Code-Pfad (§6.2):** `zxingcpp` (QR-Decoding, rein Python/C++, keine externe DLL) +
+`pymupdf` (PDF→Bild-Rendering) + `Pillow` (Bild-Konvertierung für zxingcpp). Das ursprüngliche
+`pyzbar`-Risiko (native `libzbar-64.dll` als PyInstaller-Bundle-Abhängigkeit, → ADR-0017) entfällt
+durch `zxingcpp` vollständig — Issue #7 ist damit als durch zxingcpp entschärft zu vermerken.
 
 Build: **PyInstaller** → **Inno Setup**. Hinweis: unsignierte EXE löst SmartScreen-Warnung aus.
 

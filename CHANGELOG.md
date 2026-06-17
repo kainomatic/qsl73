@@ -9,6 +9,21 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 6a — Lauf-Orchestrierung (`src/qsl73/run.py`):**
+  - `run_pass(paperless_client, db_path, config, on_progress)`: rein lesender
+    Durchgang Sammeln→Auswerten→Matchen, liefert `RunResult` mit Einteilung
+    `certain`/`uncertain`/`no_match`; Fortschritts-Callback für GUI (6b)
+  - `write_selected(selections, db_path, backup_dir, ...)`: schreibt ausgewählte
+    QSOs über `log4om_db.write_confirmations` (Schema-Check, WAL, Backup, Transaktion,
+    Nebenläufigkeit); danach Paperless-Tags (DB-zuerst, ADR-0003); Tag-Fehler nicht fatal
+  - `load_qso_candidates`: Vorfilter R='No'/'Requested'; R='Yes'/'Invalid' ausgeschlossen;
+    liefert Fingerabdruck + expected_states für 5c-Schutz
+  - `evaluate_card`: QR-Vorrang (download + zxingcpp), Fallback auf OCR-Text;
+    `_parse_ocr_text`: Key:Value-Parse + Regex-Fallback für beschriftete Felder
+  - `existing_confirmations` (ADR-0015): non-QSL-Bestätigungen mit R='Yes' pro gematchtem QSO
+  - ADR-0022: RunResult-Struktur, Fingerabdruck-Weitergabe, Tag-Setzen-Abgrenzung
+  - Kosmetik §17: zxingcpp statt pyzbar dokumentiert; libzbar-DLL-Packaging-Risiko entfällt
+
 - **Konzept: Release-Kanäle Stable/Beta dokumentiert** (ADR-0021): Stable (main,
   `C:\Program Files\QSL73`, `%APPDATA%\QSL73\`) und Beta (dev,
   `C:\Program Files\QSL73 Beta`, `%APPDATA%\QSL73-Beta\`) als parallel installierbare
