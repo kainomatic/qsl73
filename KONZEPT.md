@@ -29,7 +29,8 @@ Kernprinzipien:
 - **OS:** Windows 10 und 11, 64-Bit. (XP/8.1 nicht unterstützt.)
 - **Sprache/Runtime:** Python 3.11+ (64-Bit), gebündelt via PyInstaller.
 - **Installationsziel:** `C:\Program Files\QSL73` (pro Maschine, Adminrechte bei Installation).
-- **Nutzerdaten:** `%APPDATA%\QSL73\` (config.yaml, logs\, backups\).
+- **Nutzerdaten:** `%APPDATA%\QSL73\` (config.yaml, logs\, backups\). Die Beta-Variante
+  nutzt `%APPDATA%\QSL73-Beta\` — vollständig getrennt, keine gemeinsamen Daten (→ §16).
 - **Externe Abhängigkeiten:** Log4OM (SQLite-DB lokal), Paperless-ngx (REST-API, erreichbar).
 
 ---
@@ -629,7 +630,59 @@ für korrekte Verschlagwortung liegt beim Nutzer.
 
 ---
 
-## 16. Tech-Stack
+## 16. Release-Kanäle (Stable und Beta)
+
+QSL73 bietet zwei parallel installierbare Varianten, damit neue Features gefahrlos
+vorab getestet werden können, ohne die produktive Stable-Installation zu gefährden.
+
+### 16.1 Zwei getrennte Installationen
+
+| | **Stable** | **Beta** |
+|---|---|---|
+| Quelle | `main`-Branch | `dev`-Branch |
+| Installationspfad | `C:\Program Files\QSL73` | `C:\Program Files\QSL73 Beta` |
+| Nutzerdaten | `%APPDATA%\QSL73\` | `%APPDATA%\QSL73-Beta\` |
+| Installer | `QSL73-Setup.exe` | `QSL73-Beta-Setup.exe` |
+
+Beide Varianten können auf demselben Rechner gleichzeitig installiert sein, ohne sich
+gegenseitig zu stören: getrennte Config, getrennte Backups, getrennte Logs. Jede
+Variante hat einen eigenen, separaten Installer — kein gemeinsamer Installer.
+
+### 16.2 Update-Kanäle (bewusst ruhig)
+
+- **Stable** prüft und aktualisiert gegen offizielle GitHub-Releases (aus `main`).
+- **Beta** prüft und aktualisiert **ausschließlich gegen explizit getaggte GitHub-Pre-Releases**
+  (aus `dev`). Ein `dev`-Stand wird erst dann zum Beta-Update, wenn er bewusst als
+  Pre-Release veröffentlicht wird — nicht bei jedem Commit/Push.
+
+### 16.3 BETA-Kennzeichnung
+
+Die Beta-Variante trägt einen deutlich sichtbaren **„BETA"-Hinweis** in der Oberfläche
+— mindestens im Fenstertitel und im „Über"-Dialog (→ §9 GUI) — damit jederzeit klar
+ist, in welcher Variante der Nutzer arbeitet.
+
+### 16.4 Gemeinsamer Log4OM-DB-Pfad — Hinweis, keine Blockade
+
+Es ist technisch möglich, dass der Nutzer in Stable und Beta denselben Log4OM-DB-Pfad
+einträgt; dann greift auch die (experimentelle) Beta auf die produktive DB zu. Das wird
+**nicht hard verhindert** (die DB liegt außerhalb von QSL73 und ist Nutzerentscheidung),
+aber QSL73 weist klar darauf **hin**:
+
+- beim Einrichten der Beta im Setup-Assistenten (→ §9), und/oder
+- wenn die Beta erkennt, dass ihr DB-Pfad mit dem in einer vorhandenen Stable-Konfiguration
+  identisch ist.
+
+**Empfehlung:** Beta zunächst gegen eine Kopie der produktiven DB testen.
+
+Das bestehende Sicherheitsnetz bleibt ohnehin wirksam und federt das Risiko ab:
+Vor-Backup vor jedem Schreibvorgang + Vorschau/Bestätigung (Schreibmodell B, → §7).
+
+**Umsetzung:** Schritt 8 (kanalabhängige Update-Prüfung) und Schritt 9 (zwei Installer,
+BETA-Kennzeichnung, DB-Pfad-Hinweis im Setup-Assistent). → ADR-0021
+
+---
+
+## 17. Tech-Stack
 
 Python 3.11+ (64-Bit), `requests` (Paperless), `sqlite3` (Log4OM, WAL), `rapidfuzz` (Fuzzy),
 `PyYAML` (Config), `tkinter` (GUI), `pywin32` (DPAPI), Bild-/PDF-Anzeige (`Pillow` + PDF-Render).
@@ -643,7 +696,7 @@ Build: **PyInstaller** → **Inno Setup**. Hinweis: unsignierte EXE löst SmartS
 
 ---
 
-## 17. Bewusst verschoben (V2)
+## 18. Bewusst verschoben (V2)
 
 - **Undo** einer Bestätigung (QSO wiederfinden, Status zurücksetzen, Paperless-Tag entfernen).
   Fuer Start nicht noetig (Vorschau+Bestaetigung + Vor-Backup sichern ab).

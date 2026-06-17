@@ -9,6 +9,14 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Konzept: Release-Kanäle Stable/Beta dokumentiert** (ADR-0021): Stable (main,
+  `C:\Program Files\QSL73`, `%APPDATA%\QSL73\`) und Beta (dev,
+  `C:\Program Files\QSL73 Beta`, `%APPDATA%\QSL73-Beta\`) als parallel installierbare
+  Programme mit getrennten Daten; Update-Prüfung kanalabhängig (Stable → main-Releases;
+  Beta → nur explizit getaggte GitHub-Pre-Releases); BETA-Kennzeichnung in Oberfläche;
+  DB-Pfad-Hinweis bei gemeinsamem Einsatz. Umsetzung in Schritt 8 (Update-Kanal) und
+  Schritt 9 (zwei Installer).
+
 - **Schritt 5c — Nebenläufigkeit (Gastschreiber, SQLITE_BUSY, Optimistic Locking):**
   - `src/qsl73/log4om_db.py`: Nebenläufigkeits-Sicherheitsschicht für den Schreibpfad
     - Konstanten `BUSY_RETRY_COUNT=3`, `BUSY_RETRY_DELAY_S=0.3`, `BUSY_TIMEOUT_MS=500`
@@ -34,7 +42,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
       - R='Yes' oder expected_states-Mismatch → ÜBERSPRINGEN + skipped-Eintrag (5c)
   - ADR-0008 erweitert: Implementierungsdetails zu Fingerabdruck-Strategie,
     Skip-vs-Rollback-Abgrenzung, WAL-WAL-Recovery-Robustheit, Checkpoint-Härtung
-  - GitHub-Issue #XX: Manueller Win10-Realtest "Nebenläufigkeit gegen laufendes Log4OM"
+  - GitHub-Issue #8: Manueller Win10-Realtest "Nebenläufigkeit gegen laufendes Log4OM"
     mit Schritt-für-Schritt-Anleitung für DF1DS angelegt
   - `tests/test_log4om_db.py`: 38 neue Unit-Tests (Gesamtanzahl: 60):
     - `open_wal_connection`: busy_timeout-Konfiguration (2 Tests)

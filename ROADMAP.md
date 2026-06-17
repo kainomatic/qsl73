@@ -136,6 +136,8 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 
 - GitHub-Releases-Check, Updater, Inno-Installer (still, aufräumend), Deinstaller mit
   Nutzerdaten-Abfrage, Config-Migration scharf schalten.
+- **Beta-Kanal:** kanalabhängige Update-Prüfung — Stable prüft gegen main-Releases;
+  Beta prüft nur gegen explizit getaggte GitHub-Pre-Releases (→ ADR-0021).
 - **Review:** Akzeptanzkriterien §12/§13; pytest grün, CI grün.
 
 ## Schritt 9 — Build, Test, erstes Release
@@ -143,6 +145,10 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - PyInstaller-Build (64-Bit), Inno-Setup-Paket, Test auf Win10/11. Versionspflege +
   CHANGELOG, Tag `v0.x.0`, GitHub-Release. Logo/Icon final (Freistellen + .ico durch
   Claude Code).
+- **Beta-Kanal:** zweiter Installer (`QSL73-Beta-Setup.exe`) mit eigenem Installationspfad
+  (`C:\Program Files\QSL73 Beta`), eigenem APPDATA-Verzeichnis (`%APPDATA%\QSL73-Beta\`),
+  BETA-Kennzeichnung in Fenstertitel und „Über"-Dialog, DB-Pfad-Hinweis im Setup-Assistent
+  (→ ADR-0021; Packaging-Grundlage Issue #6/#7 unberührt).
 - **Review:** Lauf Ende-zu-Ende (Vorschau → „Jetzt schreiben") auf echtem System;
   Release konsistent.
 
