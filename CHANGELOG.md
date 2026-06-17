@@ -7,6 +7,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Realtest-Befunde 2026-06-17 dokumentiert** (`docs/realtest-befunde-2026-06-17.md`):
+  6 Bugs (Issues #9–#14) und 2 Verbesserungen (Issues #15–#16) aus erstem echten
+  Programmstart auf Win10 festgehalten; ADR-0024 (Python 3.12 als Referenzversion).
+
 ### Fixed
 
 - **Schritt 6b Korrektur — nur CERTAIN-Karten sammel-bestätigbar (ADR-0007/ADR-0023):**
