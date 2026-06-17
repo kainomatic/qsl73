@@ -86,6 +86,59 @@ Wheel-Verfügbarkeit (zxing-cpp/pywin32) prüfen. Bis dahin nicht ändern.
 - zxing-cpp + pywin32 MÜSSEN im Windows-Build fest enthalten sein (Bezug Issues #6/#7).
 - Beim Start: Warnung, wenn QR-Funktion nicht verfügbar (siehe BUG-6).
 
+---
+
+## Schreibtest verifiziert (2026-06-18)
+
+Erster vollständiger End-to-End-Schreibtest des Schreib-Pfades (Issue #8, Szenario B).
+Basis: `TESTDB_DH3KR_schreibtest.sqlite` (Kopie der DF1DS-Test-DB + 4 künstliche DH3KR-QSOs).
+Vergleich: Vor-Schreib-Backup vs. geschriebene DB, byte-genau durch Claude Desktop verifiziert
+(467 QSOs gesamt).
+
+### Byte-genau bestätigte Schreib-Befunde
+
+**Korrektheit der JSON-Transformation:**
+- `R` wechselt `No` → `Yes` bei exakt den 3 Treffern (OE6DRG, DG5MLA 60m, DK8NE 6m).
+- `RV`-Feld bei `route=undefined` vollständig entfernt — kein Restwert, kein `"Undefined"`
+  (discovery §3 / ADR-0005 real bestätigt).
+- `S`, `CT`, `SV` unverändert bei allen geschriebenen QSOs.
+- EQSL-Bestätigung bei DG5MLA byte-genau erhalten — die isolierte JSON-Manipulation aus
+  ADR-0019 / `log4om_write.apply_paper_qsl` greift ausschließlich auf den CT='QSL'-Eintrag
+  und lässt alle anderen Einträge unberührt (real bestätigt).
+
+**Kollateral-Integrität:**
+- Exakt 3 von 467 QSOs verändert; alle übrigen QSOs byte-genau unberührt.
+- DK8NE 20m-QSO (Grenzfall) **nicht** bestätigt — Band-Disambiguierung wirkt auch beim
+  tatsächlichen Schreiben (6m-QSO trifft, 20m widerspricht und wird ausgeschlossen).
+
+**Sicherheitsschicht:**
+- Vor-Schreib-Backup wurde automatisch angelegt (Schritt 5c / ADR-0020, real bestätigt).
+- Nebenläufigkeitsschutz: zweiter Schreibversuch ohne Neu-Einlesen wirft korrekt
+  `DatabaseChangedError` (5c / ADR-0008, real bestätigt; der erste Schreibvorgang hat den
+  Fingerabdruck geändert — zweiter Versuch schlägt fehl wie erwartet).
+
+**ADR-0013 (stationcallsign-Abgleich) real bestätigt:**
+- DH3KR-Karten wurden als eigenes Log erkannt, obwohl `own_callsign = DF1DS` in der Config.
+  Zugehörigkeitsprüfung über alle `stationcallsign`-Werte der DB funktioniert wie spezifiziert.
+  Kein Config-Eingriff nötig.
+
+### Offen
+
+- Visuelle Bestätigung in Log4OM selbst: zeigt Log4OM die Papier-QSL bei den 3 QSOs korrekt
+  als bestätigt an? — vom Nutzer (DF1DS) noch zu prüfen (Log4OM auf eigenem Rechner öffnen).
+
+### Kleine UX-Befunde aus dem Schreibtest (Issues #17, #18)
+
+Zwei kleinere Punkte, die beim Schreibtest aufgefallen sind und als Issues festgehalten wurden:
+
+- **Issue #17 — Encoding-Problem im Schreiben-Dialog:** Im „Schreiben abgeschlossen"-Dialog
+  (messagebox) erscheinen bei bestimmten Zählwerten (z. B. `übersprungen=0`) Sonderzeichen
+  bzw. nicht-rendernde Zeichen. Encoding/Formatierung der messagebox prüfen.
+- **Issue #18 — DatabaseChangedError benutzerfreundlich behandeln:** Nach erfolgreichem Schreiben
+  führt ein versehentlicher zweiter Klick auf „Jetzt schreiben" zu einem Fehler-Dialog mit
+  Traceback. Stattdessen sollte ein freundlicher Hinweis „Bitte neu einlesen" erscheinen;
+  Liste/Buttons sollten ggf. automatisch zurückgesetzt werden.
+
 ## Positiv bestätigt
 - Programm startet, Setup-Assistent + Hauptfenster funktionieren.
 - Paperless-Verbindung über VPN funktioniert; alle 7 Karten werden geholt und ausgewertet.
