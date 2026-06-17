@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from qsl73.log4om_db import SchemaError, WriteResult, validate_schema
+from qsl73.log4om_db import SchemaError, WriteResult, create_backup, validate_schema
 
 # ---------------------------------------------------------------------------
 # Hilfsfunktionen
@@ -145,3 +145,88 @@ def test_schema_non_array_json():
     result = validate_schema(conn)
     conn.close()
     assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# create_backup
+# ---------------------------------------------------------------------------
+
+
+def test_backup_creates_file(tmp_path):
+    """create_backup legt genau eine Datei im Backup-Verzeichnis an."""
+    _, db_path = _make_mini_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    result = create_backup(db_path, backup_dir, max_count=5)
+
+    assert result.exists()
+    assert result.parent == backup_dir
+    backups = list(backup_dir.glob("log4om_*.sqlite"))
+    assert len(backups) == 1
+
+
+def test_backup_filename_pattern(tmp_path):
+    """Backup-Dateiname folgt dem Muster log4om_YYYYMMDD_HHMMSS_ffffff.sqlite."""
+    _, db_path = _make_mini_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    result = create_backup(db_path, backup_dir, max_count=5)
+
+    assert result.name.startswith("log4om_")
+    assert result.suffix == ".sqlite"
+
+
+def test_backup_rotation_keeps_max(tmp_path):
+    """Bei mehr als max_count Backups werden die ältesten gelöscht."""
+    _, db_path = _make_mini_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    for _ in range(7):
+        create_backup(db_path, backup_dir, max_count=5)
+
+    backups = list(backup_dir.glob("log4om_*.sqlite"))
+    assert len(backups) == 5
+
+
+def test_backup_rotation_default_five(tmp_path):
+    """Standard-Rotation: Default max_count=5."""
+    _, db_path = _make_mini_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    for _ in range(8):
+        create_backup(db_path, backup_dir)  # Kein max_count → Default 5
+
+    backups = list(backup_dir.glob("log4om_*.sqlite"))
+    assert len(backups) == 5
+
+
+def test_backup_wal_consistent(tmp_path):
+    """Backup enthält alle committeten Daten nach WAL-Checkpoint (standalone konsistent)."""
+    db_path = tmp_path / "wal_test.sqlite"
+    backup_dir = tmp_path / "backups"
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE T (v TEXT)")
+    conn.execute("INSERT INTO T VALUES ('checkpoint_marker')")
+    conn.commit()
+    conn.close()
+
+    backup = create_backup(db_path, backup_dir, max_count=5)
+
+    bconn = sqlite3.connect(str(backup))
+    val = bconn.execute("SELECT v FROM T").fetchone()
+    bconn.close()
+
+    assert val is not None
+    assert val[0] == "checkpoint_marker"
+
+
+def test_backup_creates_target_dir(tmp_path):
+    """Backup-Verzeichnis wird automatisch angelegt wenn es nicht existiert."""
+    _, db_path = _make_mini_db(tmp_path)
+    backup_dir = tmp_path / "nested" / "backups"
+
+    assert not backup_dir.exists()
+    create_backup(db_path, backup_dir, max_count=5)
+    assert backup_dir.exists()

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import shutil
 import sqlite3
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -79,3 +80,47 @@ def validate_schema(conn: sqlite3.Connection) -> str | None:
         "Keine Zeile in Log enthält einen CT='QSL'-Eintrag mit erwartetem R-Feld — "
         "Schema weicht ab (Log4OM-Version zu alt oder DB-Format geändert)"
     )
+
+
+def open_wal_connection(db_path: str | Path) -> sqlite3.Connection:
+    """Öffnet SQLite-Verbindung im WAL-Modus."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
+def create_backup(db_path: Path, backup_dir: Path, max_count: int = 5) -> Path:
+    """WAL-konsistentes Vor-Backup der DB-Datei (ADR-0020).
+
+    Strategie: PRAGMA wal_checkpoint(FULL) auf getrennter Verbindung,
+    dann Datei kopieren. Danach Rotation: nur die neuesten max_count Backups behalten.
+
+    Args:
+        db_path: Pfad zur Log4OM-SQLite-Datei.
+        backup_dir: Zielverzeichnis für Backups (wird angelegt wenn nötig).
+        max_count: Maximale Anzahl aufbewahrter Backups (Default 5).
+
+    Returns:
+        Pfad zur erzeugten Backup-Datei.
+    """
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    # WAL-Checkpoint: alle offenen WAL-Frames in Hauptdatei schreiben (ADR-0020)
+    chk_conn = sqlite3.connect(str(db_path))
+    try:
+        chk_conn.execute("PRAGMA wal_checkpoint(FULL)")
+    finally:
+        chk_conn.close()
+
+    # Datei kopieren — uuid4-Suffix sichert Eindeutigkeit bei Schnellaufrufen
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    unique = uuid.uuid4().hex[:8]
+    dst = backup_dir / f"log4om_{timestamp}_{unique}.sqlite"
+    shutil.copy2(str(db_path), str(dst))
+
+    # Rotation: älteste Backups löschen bis max_count
+    backups = sorted(backup_dir.glob("log4om_*.sqlite"))
+    for old in backups[:-max_count]:
+        old.unlink(missing_ok=True)
+
+    return dst
