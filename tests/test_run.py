@@ -742,19 +742,39 @@ _OWN = "DH3KR"
 _OWN_CALLS = set()
 _SUFFIXES = ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
 
-# 1. OE6DRG — gedruckte Karte, Tabellenlayout
+# 1. OE6DRG — echter Paperless-OCR-Text (gedruckte Karte, Tabellenlayout)
 OCR_OE6DRG = (
-    "AMATEUR RADIO STATION OE6DRG\n"
-    "confirming QSO with DH3KR\n"
-    "DATE       TIME    BAND    MODE   RST\n"
-    "23Apr2025  12:23   20m     FT8    599\n"
+    "|\n"
+    "!\n"
+    "ap 7\n"
+    "OE6DRG Ll/p Ll/m VIA:\n"
+    "(— OE6DRG toRadio DH3KR =\n"
+    "— $SwisslogV5 QTH: JO30EV ~\n"
+    "~ | DATE TIME | BAND MODE RST\n"
+    "23Apr2025 | 12:23 20m FT8 -07\n"
+    "— in front Gaberl 1551 m, (JN77KC) Lortvard F\n"
+    "— Flex 3000, 50 W, Kelemen 80 - 10 m x\n"
+    "| TNXQSO, 73, Gerhard (Gerry)\n"
+    "Gerhard Radl VY 73!\n"
+    "Buchenhof 1/2/8\n"
+    "A-8724 SPIELBERG\n"
+    "oe6drg@gmail.com\n"
+    "LOC: JN77JE PSE QSL: VIA OEVSV OR DIRECT\n"
+    "ADL: 609\n"
 )
 
-# 2. DG5MLA — gedruckte Karte, Frequenz statt Bandname, Pipe-Trennzeichen
+# 2. DG5MLA — echter Paperless-OCR-Text (gedruckte Karte, Frequenz statt Bandname)
 OCR_DG5MLA = (
-    "QSL CARD | DG5MLA | to DH3KR\n"
-    "DATE     | TIME  | FREQ   | MODE | RST\n"
-    "26.04.25 | 19:52 | 5,3570 | FT8  | +05\n"
+    "Gerald Graf email: dg5mla@darc.de\n"
+    "Germany QSL-Info: www.qrz.com\n"
+    "DG5MLA confirming the following QSO\n"
+    "ToRadio DH3KR via\n"
+    "Date UTC MHz RST 2-WAY\n"
+    "26.04.25 19:52 5,3570 +13 FT8\n"
+    "PSE QSL DIRECT OR VIA DARC QSL BUREAU\n"
+    "LINDENALLEE 4 - 34225 BAUNATAL - GERMANY\n"
+    "LOC JN58QR CQ14\n"
+    "DOK T@8 ITU 28 vy 73\n"
 )
 
 # 3. DK8NE — DARC-QR-Karte; OCR-Pfad nicht auswertbar (QR hat Vorrang)

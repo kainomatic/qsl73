@@ -87,7 +87,14 @@ _RE_TIME_TOKEN = re.compile(r'^(\d{1,2}:\d{2})(?::\d{2})?$')
 
 # Umgebende Satzzeichen, die von Tokens abgetrennt werden (Slash NICHT hier —
 # er ist Bestandteil von Portable-Suffix-Rufzeichen wie "DH3KR/P").
-_STRIP_CHARS = '.,;:!?()[]{}"\'-_#@'
+# Bindestrich/Minus ABSICHTLICH ausgelassen: "-07" (RST-Wert) darf nicht zu "07"
+# werden — normalize_band("07") = "40m" wäre ein Falsch-Positiv.
+_STRIP_CHARS = ".,;:!?()[]{}'\"_#@"
+
+# Reine Ganzzahlen (keine Dezimalstelle, kein MHz-Suffix, kein Bandname-Suffix)
+# werden NICHT als Frequenz interpretiert — "28" (ITU-Zone), "50" (Watt), "7" usw.
+# würden sonst fälschlich als 10m / 6m / 40m erkannt werden.
+_RE_PURE_INT = re.compile(r'^\d+$')
 
 
 def _tokenize(text: str) -> list[str]:
@@ -142,7 +149,8 @@ def _extract_token_based(
     foreign_calls: list[str] = []
 
     for t in tokens:
-        b = normalize_band(t)
+        # Reine Ganzzahlen nicht als Frequenz werten (ITU-Zone, Watt, Seite …)
+        b = None if _RE_PURE_INT.match(t) else normalize_band(t)
         m = normalize_mode(t, fuzzy=False)  # kein Fuzzy beim Breitband-Token-Scan
         d = normalize_date(t)
         tm = _RE_TIME_TOKEN.match(t)
@@ -181,6 +189,13 @@ def _extract_token_based(
     seen: set[str] = set()
     unique_foreign = [c for c in foreign_calls if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
     call_from = unique_foreign[0] if len(unique_foreign) == 1 else None
+
+    _log.debug(
+        "OCR token-scan: band_cands=%r mode_cands=%r date_cands=%r "
+        "time_cands=%r foreign_calls=%r call_to=%r",
+        band_candidates, mode_candidates, date_candidates,
+        time_candidates, unique_foreign, call_to,
+    )
 
     return CardFields(
         call_from=call_from,

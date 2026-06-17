@@ -19,6 +19,11 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Frequenzangabe im OCR-Text (z. B. „5,3570" MHz) wird korrekt zu Band normalisiert (60m)
   - `normalize_mode` erhält optionalen Parameter `fuzzy=True`; Token-Scan nutzt `fuzzy=False`
     (verhindert Falsch-Positive bei Tabellenköpfen wie „DATE" → „DATA")
+  - Reine Ganzzahlen (ITU-Zone, Wattangabe u. ä.) werden nicht als Frequenz gewertet
+    (`_RE_PURE_INT`-Guard); Bindestrich aus Tokenizer-Stripzeichen entfernt damit
+    „-07" (RST-Wert) nicht zu „07" = 40m verfälscht wird
+  - Echte Paperless-OCR-Texte von OE6DRG und DG5MLA als Fixtures (schmutziger als
+    synthetische Tests); DEBUG-Log zeigt Band/Mode/Date/Call-Kandidaten je Karte
   - 7 reale OCR-Texte als Test-Fixtures; 14 neue Tests; alle bestehenden Tests grün
 
 ### Fixed
