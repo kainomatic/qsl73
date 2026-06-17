@@ -89,3 +89,10 @@ Wheel-Verfügbarkeit (zxing-cpp/pywin32) prüfen. Bis dahin nicht ändern.
 - DPAPI-Tokenspeicherung funktioniert (nach pywin32-Installation).
 - GUI-Threading sauber (kein Einfrieren).
 - Falsch-Positiv-Schutz greift: leere/unklare Karten → "unsicher", nichts fälschlich "sicher".
+
+### P1-Fix verifiziert (Frischtest 2026-06-17, Win10, venv)
+- **Saubere venv-Installation** (`pip install -r requirements.txt` + `pip install -e .`) läuft
+  ohne manuelle Eingriffe durch — kein manuelles Nachinstallieren, kein PYTHONPATH-Setzen.
+- **zxing-cpp automatisch installiert** (via PEP-508-Marker) → QR-Pfad wieder aktiv.
+  DK8NE-Karte wird über QR erkannt und als CERTAIN eingestuft (zuvor: still auf OCR gefallen).
+- **Fortschrittsbalken stoppt** nach "Fertig" korrekt (BUG-5 / Issue #13 behoben).
