@@ -314,12 +314,18 @@ def test_write_atomic_rollback_on_invalid_qsoid(tmp_path):
     db_path = _make_write_db(tmp_path)
     backup_dir = tmp_path / "backups"
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         write_confirmations(
             db_path,
             [("QSO1", "bureau"), ("NONEXISTENT_ID", "bureau")],
             backup_dir,
         )
+
+    # Backup wurde vor der Transaktion angelegt (ADR-0003: Backup → Transaktion).
+    # Bei ROLLBACK bleibt das Backup erhalten — es schützt den Zustand vor dem
+    # Schreibversuch, nicht nur nach erfolgreichem Commit.
+    backups = list(backup_dir.glob("log4om_*.sqlite"))
+    assert len(backups) == 1, "Backup soll auch nach ROLLBACK erhalten bleiben (ADR-0003)"
 
     # QSO1 darf NICHT verändert sein (ROLLBACK)
     qsl1 = _read_qsl_entry(db_path, "QSO1")
