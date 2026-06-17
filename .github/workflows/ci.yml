@@ -28,5 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
+      - name: Optionale Windows-Abhängigkeiten (zxingcpp) — skip wenn kein Wheel
+        run: pip install zxingcpp>=2.0 || true
+        continue-on-error: true
+
       - name: Tests ausführen
         run: pytest tests/ -v
