@@ -7,6 +7,19 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Schritt 6b Korrektur — nur CERTAIN-Karten sammel-bestätigbar (ADR-0007/ADR-0023):**
+  - `_on_tree_click` und `_select_all` ignorieren UNCERTAIN/NO_MATCH-Karten (nicht
+    selektierbar); Klick auf unsichere Zeilen ist ein No-op
+  - `_on_write` nutzt neue `build_write_selections()`: filtert auf CERTAIN + matched_qso;
+    bei leerer Auswahl klare Meldung ("Unsichere Karten über Zuordnungs-Bildschirm")
+  - Hinweiszeile im Hauptfenster: "Nur sichere Treffer können hier bestätigt werden.
+    Unsichere Karten folgen über die manuelle Zuordnung (Schritt 6c)."
+  - `is_batch_writable(card)` und `build_write_selections(cards, route)` als reine
+    Funktionen in `gui/filter_util.py`; 8 neue Tests in `test_batch_writable.py`
+  - ADR-0023 um Punkt 4 ergänzt (GUI-Durchsetzung ADR-0007)
+
 ### Added
 
 - **Schritt 6b — GUI-Grundgerüst (tkinter):**

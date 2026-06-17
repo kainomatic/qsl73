@@ -28,6 +28,14 @@ Zustandsübergänge unit-testbar sein (CI auf Linux, kein Display).
    erhalten ein `pytestmark = pytest.mark.skipif(not _tk_available(), ...)`.
    Controller-, Filter- und Logik-Tests brauchen keinen Skip-Guard.
 
+4. **Nur CERTAIN-Karten sind sammel-bestätigbar (ADR-0007-Durchsetzung auf GUI-Ebene):**
+   Der Sammel-Schreibvorgang ("Jetzt schreiben") umfasst ausschließlich Karten mit
+   `MatchResult.CERTAIN`. UNCERTAIN- und NO_MATCH-Karten werden angezeigt (Übersicht),
+   sind aber im UI weder selektierbar noch schreibbar. Die Prüflogik ist in
+   `gui/filter_util.py` als reine Funktion `is_batch_writable()` gekapselt und
+   ohne tk testbar. UNCERTAIN-Karten laufen über den manuellen Zuordnungs-Bildschirm
+   (Schritt 6c).
+
 ## Konsequenzen
 
 + Controller vollständig ohne Display testbar

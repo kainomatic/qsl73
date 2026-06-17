@@ -21,7 +21,7 @@ from qsl73.gui.controller import (
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
-from qsl73.gui.filter_util import FILTER_MODES, filter_results
+from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable
 
 
 _RESULT_LABELS = {
@@ -67,7 +67,7 @@ class MainWindow(tk.Tk):
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
 
         # Toolbar
         toolbar = ttk.Frame(self, padding=(8, 6))
@@ -102,9 +102,20 @@ class MainWindow(tk.Tk):
             side="left", padx=(4, 0)
         )
 
+        # Hinweis: nur sichere Treffer sind sammel-bestätigbar
+        hint = ttk.Frame(self, padding=(8, 0, 8, 4))
+        hint.grid(row=1, column=0, sticky="ew")
+        ttk.Label(
+            hint,
+            text="ℹ Nur sichere Treffer können hier bestätigt werden. "
+                 "Unsichere Karten folgen über die manuelle Zuordnung (Schritt 6c).",
+            foreground="#555555",
+            font=("", 8),
+        ).pack(side="left")
+
         # Treeview
         tree_frame = ttk.Frame(self)
-        tree_frame.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 4))
+        tree_frame.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 4))
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
 
@@ -144,7 +155,7 @@ class MainWindow(tk.Tk):
 
         # Statusleiste
         status_bar = ttk.Frame(self, padding=(8, 2))
-        status_bar.grid(row=2, column=0, sticky="ew")
+        status_bar.grid(row=3, column=0, sticky="ew")
 
         self._progress = ttk.Progressbar(status_bar, length=200, mode="determinate")
         self._progress.pack(side="left", padx=(0, 8))
@@ -253,6 +264,10 @@ class MainWindow(tk.Tk):
             doc_id = int(row_id)
         except ValueError:
             return
+        # Nur CERTAIN-Karten sind selektierbar (ADR-0007, ADR-0023)
+        card = next((c for c in self._displayed if c.doc_id == doc_id), None)
+        if card is None or not is_batch_writable(card):
+            return
         if doc_id in self._selected:
             self._selected.discard(doc_id)
             current_tags = list(self._tree.item(row_id, "tags"))
@@ -269,7 +284,8 @@ class MainWindow(tk.Tk):
 
     def _select_all(self) -> None:
         for card in self._displayed:
-            self._selected.add(card.doc_id)
+            if is_batch_writable(card):
+                self._selected.add(card.doc_id)
         self._refresh_tree()
 
     def _deselect_all(self) -> None:
@@ -324,18 +340,21 @@ class MainWindow(tk.Tk):
             messagebox.showwarning("Keine Auswahl", "Bitte mindestens eine Karte auswählen.", parent=self)
             return
 
+        cfg = self._config
         selected_cards = [c for c in self._displayed if c.doc_id in self._selected]
-        # Nur Karten mit einem gematchten QSO können geschrieben werden
-        writable = [c for c in selected_cards if c.outcome.matched_qso is not None]
-        if not writable:
+        selections, confirmed_doc_ids = build_write_selections(
+            selected_cards, route=cfg.confirm.qsl_route_default
+        )
+        if not selections:
             messagebox.showwarning(
                 "Keine schreibbaren Karten",
-                "Die ausgewählten Karten haben keinen zugeordneten QSO-Eintrag.",
+                "Nur sichere Treffer können hier bestätigt werden.\n\n"
+                "Unsichere Karten über den Zuordnungs-Bildschirm — folgt in einer späteren Version.",
                 parent=self,
             )
             return
 
-        count = len(writable)
+        count = len(selections)
         if not messagebox.askyesno(
             "Bestätigen",
             f"{count} Karte(n) in Log4OM bestätigen und Tags in Paperless setzen?\n\n"
@@ -344,11 +363,6 @@ class MainWindow(tk.Tk):
             parent=self,
         ):
             return
-
-        cfg = self._config
-        route = cfg.confirm.qsl_route_default
-        selections = [(c.outcome.matched_qso.qsoid, route) for c in writable]
-        confirmed_doc_ids = [c.doc_id for c in writable]
 
         from qsl73.paperless import PaperlessClient
         pc = PaperlessClient(cfg.paperless.url, cfg.paperless.token)
