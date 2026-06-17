@@ -50,6 +50,14 @@ def _lock_path() -> Path:
 
 def run_app() -> None:
     """Startet die QSL73-Anwendung mit Single-Instance-Lock, Setup-Assistent und Hauptfenster."""
+    import logging
+
+    from qsl73.logging_setup import setup_logging
+    from qsl73.__version__ import __version__
+
+    setup_logging()
+    _log = logging.getLogger("qsl73")
+
     import tkinter as tk
     from tkinter import messagebox
 
@@ -64,6 +72,16 @@ def run_app() -> None:
         )
         root.destroy()
         sys.exit(0)
+
+    _log.info("QSL73 %s gestartet", __version__)
+
+    from qsl73.qr import qr_backend_status
+    qr_status = qr_backend_status()
+    if not (qr_status["fitz"] and qr_status["zxing"]):
+        _log.warning(
+            "QR-Code-Bibliotheken nicht verfügbar (pymupdf=%s, zxing-cpp=%s) — nur OCR aktiv",
+            qr_status["fitz"], qr_status["zxing"],
+        )
 
     try:
         from qsl73.setup_assistant import SetupNeeded, load_or_trigger_setup

@@ -67,6 +67,15 @@ class MainWindow(tk.Tk):
         self._build_ui()
         self._poll()
 
+        # QR-Startwarnung (Issue #14 / ADR-0026)
+        from qsl73.qr import qr_backend_status
+        qr_status = qr_backend_status()
+        if not (qr_status["fitz"] and qr_status["zxing"]):
+            self._status_var.set(
+                "⚠ QR-Code-Auswertung nicht verfügbar "
+                "(zxing-cpp/pymupdf fehlt) — es wird nur OCR genutzt."
+            )
+
     # ------------------------------------------------------------------
     # UI-Aufbau
     # ------------------------------------------------------------------

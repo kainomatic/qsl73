@@ -31,6 +31,11 @@ except ImportError:  # pragma: no cover
 from qsl73.matching import CardFields
 from qsl73.normalize import normalize_band, normalize_date, normalize_mode
 
+
+def qr_backend_status() -> dict:
+    """Gibt Verfügbarkeit der QR-Code-Bibliotheken zurück (pymupdf + zxing-cpp)."""
+    return {"fitz": _FITZ_OK, "zxing": _ZXING_OK}
+
 RENDER_DPI = 300
 
 _REQUIRED_KEYS = frozenset({"from", "to", "date", "band", "mode"})

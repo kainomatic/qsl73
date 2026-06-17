@@ -127,10 +127,27 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Über/Datenschutz-Dialog, Single-Instance, Icon einbinden.
 - **Review:** Akzeptanzkriterien §9; flüssige Liste bei vielen Einträgen; pytest grün, CI grün.
 
-## Schritt 7 — Logging & Fehler-Reporting
+## 🔧 Schritt 7 — Logging & Fehler-Reporting — IN ARBEIT
 
-- audit.log/qsl73.log + Rotation; On-demand-Bericht (GitHub-Issue / lokal), bereinigt.
-- **Review:** Akzeptanzkriterien §10 (Bericht ohne Secrets); pytest grün, CI grün.
+### ✅ Schritt 7a — Diagnose-Logging + QR-Startwarnung (Issue #14)
+
+- `logging_setup.py`: `setup_logging()` mit RotatingFileHandler auf
+  `%APPDATA%\QSL73\logs\qsl73.log` (1 MB / 5 Backups, Stable/Beta-getrennt). ADR-0026.
+- `QSL73_DEBUG=1` hebt Level auf DEBUG → Token-Scan-Ausgaben in `run.py` sichtbar.
+- Log-Punkte in `run.py`: Lauf-Start/Ende, pro Karte Quelle+Ergebnis (INFO);
+  Fallback-auf-OCR, per-QSO-Route (DEBUG); Schreibvorgang (INFO).
+- `qr_backend_status()` in `qr.py`; fehlende QR-Libs → WARNING im Log + GUI-Hinweis.
+- 16 neue Tests; pytest grün, CI grün.
+- **Review:** Logdatei entsteht beim Start; kein Secret im Log; QR-Warnung sichtbar.
+
+### ➡️ Schritt 7b — Audit-Log + Fehler-Reporting (offen)
+
+- `audit.log`: fachliche Änderungen (Zeitstempel, Dok-ID, QSO-Rufzeichen/Datum/Band/Mode,
+  auto vs. manuell, Backup ja/nein).
+- On-demand-Bericht: „Auf GitHub melden" (vorausgefülltes Issue) + „Lokal speichern",
+  Bericht bereinigt (keine Secrets/QSO-Inhalte; Nutzer sieht ihn vor Versand).
+- „Log-Ordner öffnen"-Button in §9-GUI (nutzt `get_log_dir()` aus 7a).
+- **Review:** Akzeptanzkriterien §10; Bericht ohne Secrets nachgewiesen; pytest grün, CI grün.
 
 ## Schritt 8 — Update-Lifecycle + Installer/Deinstaller
 

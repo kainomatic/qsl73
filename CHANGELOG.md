@@ -9,6 +9,25 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Diagnose-Logging + QR-Startwarnung (Issue #14, ADR-0026, Schritt 7a):**
+  - `src/qsl73/logging_setup.py`: neues Modul mit `setup_logging()` (RotatingFileHandler auf
+    `%APPDATA%\QSL73\logs\qsl73.log`, 1 MB / 5 Backups, idempotent) und `get_log_dir()`
+    (Stable/Beta-getrennt, dient als Mechanismus für „Log-Ordner öffnen"-Button §9)
+  - Level INFO default; `QSL73_DEBUG=1` (Umgebungsvariable) oder `debug=True`-Parameter
+    hebt auf DEBUG an — dann erscheinen auch die bestehenden Token-Scan-Ausgaben aus `run.py`
+  - `setup_logging()` wird in `gui/app.py::run_app()` als erste Aktion aufgerufen (vor
+    Single-Instance-Lock und Config-Laden)
+  - **Log-Punkte in `run.py`** (INFO): Lauf-Start/Ende mit Mengenangaben, pro Karte
+    Quelle + Ergebnis (`doc_id=%d quelle=%s ergebnis=%s`), Schreib-Start + Abschluss;
+    (DEBUG): Fallback auf OCR wenn QR None liefert, per-QSO `qsoid`/`route` bei Schreiben
+  - **`qr_backend_status()`** in `qr.py`: exponiert `_FITZ_OK`/`_ZXING_OK` als
+    `dict[str, bool]` — testbar ohne Library-Import
+  - **QR-Startwarnung**: fehlende `zxing-cpp`/`pymupdf` → `WARNING` ins Log + sichtbarer
+    Hinweistext in der GUI-Statuszeile (nicht-blockierend)
+  - Kein Secret im Log nachgewiesen (Negativtest): Token/Passwort sind nie Argumente der
+    neuen Log-Calls
+  - 16 neue Tests in `tests/test_logging_setup.py`; alle bestehenden Tests grün
+
 - **Token-basierte OCR-Extraktion für gedruckte QSL-Karten (ADR-0025):**
   - `_extract_token_based` in `run.py`: zerlegt OCR-Text in Tokens (Whitespace + Pipe)
     und schickt jedes Token durch `normalize_band`, `normalize_mode(fuzzy=False)`,

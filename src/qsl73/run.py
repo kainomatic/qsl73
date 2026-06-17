@@ -266,6 +266,7 @@ def evaluate_card(
         qr_fields = decode_qr_from_pdf(pdf_bytes)
         if qr_fields is not None:
             return qr_fields, "qr"
+        _log.debug("doc_id=%d: QR-Dekodierung lieferte None — Fallback auf OCR", doc_id)
     except Exception as exc:
         _log.debug("QR-Dekodierung fehlgeschlagen für Dok. %s: %s", doc_id, exc)
 
@@ -398,6 +399,10 @@ def run_pass(
     # 2. DB-Kandidaten laden (rein lesend); Fingerabdruck und expected_states merken
     data = load_qso_candidates(db_path)
     _progress(0, total, f"{len(data.candidates)} offene QSO-Kandidaten geladen")
+    _log.info(
+        "Lauf gestartet — %d Dokumente (Tag '%s'), %d QSO-Kandidaten",
+        total, tag_name, len(data.candidates),
+    )
 
     certain: list[CardResult] = []
     uncertain: list[CardResult] = []
@@ -437,6 +442,8 @@ def run_pass(
             existing_confirmations=existing,
         )
 
+        _log.info("doc_id=%d: quelle=%s ergebnis=%s", doc_id, source, outcome.result.name)
+
         if outcome.result == MatchResult.CERTAIN:
             certain.append(card_result)
         elif outcome.result == MatchResult.UNCERTAIN:
@@ -446,6 +453,10 @@ def run_pass(
 
         _progress(idx + 1, total, f"Karte {idx + 1}/{total} ausgewertet")
 
+    _log.info(
+        "Lauf beendet — sicher=%d unsicher=%d kein_treffer=%d",
+        len(certain), len(uncertain), len(no_match),
+    )
     return RunResult(
         certain=certain,
         uncertain=uncertain,
@@ -495,6 +506,10 @@ def write_selected(
     Returns:
         WriteResult mit Anzahl geschriebener und übersprungener QSOs.
     """
+    _log.info("Schreibe %d Auswahl(en)", len(selections))
+    for qsoid, route in selections:
+        _log.debug("  qsoid=%s route=%s", qsoid, route)
+
     result = write_confirmations(
         db_path=db_path,
         items=selections,
@@ -523,4 +538,8 @@ def write_selected(
                     tags_config.uncertain, doc_id, exc,
                 )
 
+    _log.info(
+        "Schreiben abgeschlossen — geschrieben=%d übersprungen=%d",
+        result.written, len(result.skipped),
+    )
     return result
