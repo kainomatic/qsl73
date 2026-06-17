@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from qsl73.log4om_db import SchemaError, WriteResult, create_backup, validate_schema
+from qsl73.log4om_db import SchemaError, WriteResult, create_backup, validate_schema, write_confirmations
 
 # ---------------------------------------------------------------------------
 # Hilfsfunktionen
@@ -230,3 +230,138 @@ def test_backup_creates_target_dir(tmp_path):
     assert not backup_dir.exists()
     create_backup(db_path, backup_dir, max_count=5)
     assert backup_dir.exists()
+
+
+# ---------------------------------------------------------------------------
+# write_confirmations
+# ---------------------------------------------------------------------------
+
+
+def _make_write_db(tmp_path, name="write_test.sqlite") -> Path:
+    """Mini-DB mit zwei QSOs, je unbestätigt — für Schreib-Tests."""
+    db_path = tmp_path / name
+    qso_json = _valid_qso_json()
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute(
+        "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
+    )
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", qso_json))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO2", "DL1ABC", qso_json))
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+def _read_qsl_entry(db_path: Path, qsoid: str) -> dict:
+    """Liest den CT='QSL'-Eintrag eines QSO aus der DB."""
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute(
+        "SELECT qsoconfirmations FROM Log WHERE qsoid=?", (qsoid,)
+    ).fetchone()
+    conn.close()
+    return next(e for e in json.loads(row[0]) if e.get("CT") == "QSL")
+
+
+def test_write_success_two_qsos(tmp_path):
+    """Erfolgreich zwei QSOs in einer Transaktion schreiben."""
+    db_path = _make_write_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    result = write_confirmations(
+        db_path,
+        [("QSO1", "bureau"), ("QSO2", "direct")],
+        backup_dir,
+    )
+
+    assert result.written == 2
+    assert result.skipped == []
+
+    qsl1 = _read_qsl_entry(db_path, "QSO1")
+    assert qsl1["R"] == "Yes"
+    assert qsl1["RV"] == "Bureau"
+
+    qsl2 = _read_qsl_entry(db_path, "QSO2")
+    assert qsl2["R"] == "Yes"
+    assert qsl2["RV"] == "Direct"
+
+
+def test_write_creates_backup(tmp_path):
+    """Backup wird bei tatsächlichem Schreiben angelegt."""
+    db_path = _make_write_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    write_confirmations(db_path, [("QSO1", "bureau")], backup_dir)
+
+    backups = list(backup_dir.glob("log4om_*.sqlite"))
+    assert len(backups) == 1
+
+
+def test_write_empty_items_no_backup(tmp_path):
+    """Leere items-Liste → kein Backup, WriteResult.written == 0."""
+    db_path = _make_write_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    result = write_confirmations(db_path, [], backup_dir)
+
+    assert result.written == 0
+    assert result.skipped == []
+    assert not any(backup_dir.glob("*.sqlite"))
+
+
+def test_write_atomic_rollback_on_invalid_qsoid(tmp_path):
+    """Ungültiger qsoid mitten in der Liste → vollständiger ROLLBACK aller QSOs."""
+    db_path = _make_write_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    with pytest.raises(Exception):
+        write_confirmations(
+            db_path,
+            [("QSO1", "bureau"), ("NONEXISTENT_ID", "bureau")],
+            backup_dir,
+        )
+
+    # QSO1 darf NICHT verändert sein (ROLLBACK)
+    qsl1 = _read_qsl_entry(db_path, "QSO1")
+    assert qsl1["R"] == "No", "QSO1 wurde verändert, obwohl Transaktion fehlschlagen sollte"
+
+
+def test_write_schema_fail_prevents_backup_and_write(tmp_path):
+    """Schema-Check schlägt fehl → SchemaError, kein Backup, keine Schreibung."""
+    db_path = tmp_path / "bad.sqlite"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("CREATE TABLE WrongTable (x TEXT)")
+    conn.commit()
+    conn.close()
+
+    backup_dir = tmp_path / "backups"
+
+    with pytest.raises(SchemaError):
+        write_confirmations(db_path, [("QSO1", "bureau")], backup_dir)
+
+    assert not any(backup_dir.glob("*.sqlite")), (
+        "Backup wurde angelegt, obwohl Schema-Check fehlschlug — Reihenfolge verletzt"
+    )
+
+
+def test_write_schema_fail_missing_column(tmp_path):
+    """Schema-Check schlägt fehl (fehlende Spalte) → SchemaError, kein Backup."""
+    db_path = tmp_path / "no_col.sqlite"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("CREATE TABLE Log (qsoid TEXT)")
+    conn.commit()
+    conn.close()
+
+    backup_dir = tmp_path / "backups"
+
+    with pytest.raises(SchemaError):
+        write_confirmations(db_path, [("QSO1", "bureau")], backup_dir)
+
+    assert not any(backup_dir.glob("*.sqlite"))
+
+
+def test_write_result_skipped_empty_on_success(tmp_path):
+    """Bei Erfolg ist skipped eine leere Liste."""
+    db_path = _make_write_db(tmp_path)
+    result = write_confirmations(db_path, [("QSO1", "bureau")], tmp_path / "bk")
+    assert result.skipped == []

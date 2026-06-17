@@ -5,6 +5,12 @@ Schritt 5b — bettet write_paper_qsl (5a) in die Sicherheitsschicht ein:
 Reihenfolge (ADR-0003): (1) Schema-Check → (2) Vor-Backup → (3) Transaktion.
 Paperless-Tags (Schritt 4 in ADR-0003) sind NICHT Teil dieses Moduls.
 
+Öffentliche Funktionen:
+  validate_schema      — prüft DB-Schema gegen erwartetes Format
+  open_wal_connection  — öffnet SQLite-Verbindung im WAL-Modus
+  create_backup        — WAL-konsistentes Vor-Backup mit Rotation
+  write_confirmations  — Sicherheits-Schreiborchester (Schema → Backup → Transaktion)
+
 Empirische Basis: docs/discovery.md §3, ADR-0003, ADR-0004, ADR-0020.
 """
 from __future__ import annotations
@@ -124,3 +130,60 @@ def create_backup(db_path: Path, backup_dir: Path, max_count: int = 5) -> Path:
         old.unlink(missing_ok=True)
 
     return dst
+
+
+def write_confirmations(
+    db_path: str | Path,
+    items: list[tuple[str, str]],
+    backup_dir: Path,
+    backup_count: int = 5,
+) -> WriteResult:
+    """Sicherheits-Schreiborchester: Schema-Check → Backup → atomare Transaktion.
+
+    Reihenfolge (ADR-0003):
+      (1) Schema-Check → bei Abweichung: SchemaError, kein Backup, keine Transaktion.
+      (2) Vor-Backup → WAL-konsistente Kopie vor dem Schreiben (nur wenn items nicht leer).
+      (3) DB-Transaktion → BEGIN/COMMIT für alle items, bei JEDEM Fehler ROLLBACK.
+
+    Schritt 4 (Paperless-Tags) ist NICHT Teil dieser Funktion (→ ADR-0003, GUI/5c).
+    Nebenläufigkeit (SQLITE_BUSY, data_version, Pro-QSO-Check) kommt in 5c.
+
+    Args:
+        db_path: Pfad zur Log4OM-SQLite-Datei.
+        items: Liste von (qsoid, route)-Paaren. Leere Liste = no-op.
+        backup_dir: Zielverzeichnis für Vor-Backups.
+        backup_count: Maximale Anzahl aufbewahrter Backups (Default 5).
+
+    Returns:
+        WriteResult mit Anzahl geschriebener QSOs und leerer skipped-Liste (5b).
+
+    Raises:
+        SchemaError: Schema weicht ab — kein Backup, keine Schreibung.
+        ValueError: qsoid nicht in DB oder JSON-Fehler → ROLLBACK aller items.
+        QslEntryNotFoundError: CT='QSL'-Eintrag fehlt → ROLLBACK aller items.
+    """
+    db_path = Path(db_path)
+    conn = open_wal_connection(db_path)
+    try:
+        # (1) Schema-Check — bei Abweichung kein Backup, keine Transaktion
+        deviation = validate_schema(conn)
+        if deviation:
+            raise SchemaError(deviation)
+
+        # (2) Vor-Backup — nur bei tatsächlichem Schreiben (ADR-0003)
+        if items:
+            create_backup(db_path, backup_dir, max_count=backup_count)
+
+        # (3) Atomare Transaktion
+        try:
+            conn.execute("BEGIN")
+            for qsoid, route in items:
+                write_paper_qsl(conn, qsoid, route)
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+
+        return WriteResult(written=len(items), skipped=[])
+    finally:
+        conn.close()
