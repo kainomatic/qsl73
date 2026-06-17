@@ -105,6 +105,7 @@ def test_schema_invalid_json():
     result = validate_schema(conn)
     conn.close()
     assert result is not None
+    assert "JSON" in result
 
 
 def test_schema_no_qsl_ct_entry():
