@@ -9,6 +9,48 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 5c — Nebenläufigkeit (Gastschreiber, SQLITE_BUSY, Optimistic Locking):**
+  - `src/qsl73/log4om_db.py`: Nebenläufigkeits-Sicherheitsschicht für den Schreibpfad
+    - Konstanten `BUSY_RETRY_COUNT=3`, `BUSY_RETRY_DELAY_S=0.3`, `BUSY_TIMEOUT_MS=500`
+    - `DatabaseBusyError`: DB nach allen Versuchen gesperrt — sauberer Abbruch
+    - `DatabaseChangedError`: DB-Fingerabdruck geändert — gesamter Schreibvorgang abgebrochen
+    - `get_db_fingerprint(db_path)`: pfadbasierter Fingerabdruck (Hauptdatei mtime+size,
+      WAL-Datei als Diagnosefelder). Primärvergleich auf Hauptdatei (WAL-Recovery-stabil).
+    - `fingerprints_differ(fp1, fp2)`: Vergleich nur Hauptdatei (nicht WAL-mtime — SQLite
+      WAL-Recovery schreibt neue Salts ohne neue Datenframes, wäre Falsch-Positiv)
+    - `is_log4om_running(process_names)`: plattformtolerante Prozessprüfung (Windows:
+      tasklist; Linux/CI: ps); mockbar über optionalen Parameter
+    - `open_wal_connection` erweitert: setzt `PRAGMA busy_timeout=<ms>` (ergänzt manuellen
+      Retry — SQLite wartet intern bis busy_timeout ms, dann Retry-Schleife greift)
+    - `create_backup` gehärtet: Rückgabewert von `PRAGMA wal_checkpoint(FULL)` wird
+      ausgewertet; unvollständiger Checkpoint (busy==1 oder log!=checkpointed) loggt
+      WARNING ins qsl73-Log statt stillschweigend fortzufahren (ADR-0020-Härtung)
+    - `write_confirmations` erweitert: neue Parameter `snapshot_fingerprint`,
+      `expected_states`, `retry_count`, `retry_delay_s`, `busy_timeout_ms`
+    - `_run_transaction`: `BEGIN IMMEDIATE` (statt deferred) — Schreibsperre sofort
+      beim BEGIN angefordert; BUSY schlägt früh fehl, kein Teilschreiben-Risiko
+    - Skip-vs-Rollback-Abgrenzung (ADR-0008):
+      - Technisch (QSO fehlt, JSON-Fehler, kein CT='QSL') → ROLLBACK aller (5b)
+      - R='Yes' oder expected_states-Mismatch → ÜBERSPRINGEN + skipped-Eintrag (5c)
+  - ADR-0008 erweitert: Implementierungsdetails zu Fingerabdruck-Strategie,
+    Skip-vs-Rollback-Abgrenzung, WAL-WAL-Recovery-Robustheit, Checkpoint-Härtung
+  - GitHub-Issue #XX: Manueller Win10-Realtest "Nebenläufigkeit gegen laufendes Log4OM"
+    mit Schritt-für-Schritt-Anleitung für DF1DS angelegt
+  - `tests/test_log4om_db.py`: 38 neue Unit-Tests (Gesamtanzahl: 60):
+    - `open_wal_connection`: busy_timeout-Konfiguration (2 Tests)
+    - `create_backup`: Checkpoint-Vollständigkeit + WARNING-Logging (2 Tests)
+    - Fingerabdruck: Felder, Gleichheit, Änderung nach Checkpoint, Fallback-Logik (8 Tests)
+    - `write_confirmations` Fingerabdruck-Check: DatabaseChangedError, kein Backup, kein
+      Schreiben; Durchlauf bei unverändertem Fingerabdruck (4 Tests)
+    - SQLITE_BUSY: DatabaseBusyError bei erschöpften Versuchen, kein Teilschreiben (Hash),
+      Retry-Anzahl via monkeypatch verifiziert, Erfolg nach Lock-Freigabe (4 Tests)
+    - Optimistic Locking: bestätigtes QSO übersprungen, andere geschrieben; skip hat
+      Grund; technische Fehler → ROLLBACK; ungültiger R-Wert → skip (7 Tests)
+    - expected_states: Match→Schreiben, Mismatch→Skip, fehlender Key→Schreiben (3 Tests)
+    - R='Requested' als 'offen' akzeptiert (1 Test)
+    - is_log4om_running: found/not found/leer/case-insensitiv/blockiert nicht/CI (6 Tests)
+    - Integrations-Hash: Original-DB unverändert wenn alle QSOs übersprungen (1 Test)
+
 - **Schritt 5a — Schreiblogik (isoliert):**
   - `src/qsl73/log4om_write.py`: reine JSON-Transformationslogik für Papier-QSL-Bestätigung
     - `apply_paper_qsl(json_str, route)`: setzt im CT='QSL'-Eintrag R→"Yes", RV per route
