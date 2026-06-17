@@ -321,3 +321,87 @@ def test_parse_ocr_mode_de_not_matched_as_from():
 
     card, _ = _parse_ocr_text("Mode: FT8")
     assert card.call_from is None
+
+
+# --- Karten-Auswertung (QR→OCR) ---
+
+def _make_mock_client(download_bytes: bytes = b"", content: str = "") -> MagicMock:
+    """Erstellt einen PaperlessClient-Mock mit konfigurierbaren Rückgabewerten."""
+    client = MagicMock()
+    client.get_document_download.return_value = download_bytes
+    return client
+
+
+def test_evaluate_card_qr_found():
+    """Gültiger QR im PDF → CardFields aus QR, source='qr'."""
+    from qsl73.matching import CardFields
+    from qsl73.run import evaluate_card
+
+    qr_fields = CardFields("DK8NE", "DH3KR", "2025-04-02", "6m", "FT8", "19:42")
+
+    client = _make_mock_client(download_bytes=b"%PDF-fake")
+    doc = {"id": 1, "content": ""}
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=qr_fields):
+        card, source = evaluate_card(doc, client)
+
+    assert source == "qr"
+    assert card.call_from == "DK8NE"
+
+
+def test_evaluate_card_no_qr_uses_ocr():
+    """Kein QR im PDF → Fallback auf OCR-Text aus doc['content']."""
+    from qsl73.run import evaluate_card
+
+    client = _make_mock_client(download_bytes=b"%PDF-no-qr")
+    doc = {"id": 2, "content": "From: DL5ABC To: DH3KR Band: 40m Mode: CW Date: 2024-06-21"}
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        card, source = evaluate_card(doc, client)
+
+    assert source == "ocr"
+    assert card.call_from == "DL5ABC"
+    assert card.band == "40m"
+
+
+def test_evaluate_card_no_qr_no_ocr():
+    """Kein QR, kein OCR-Inhalt → alle None, source='none'."""
+    from qsl73.run import evaluate_card
+
+    client = _make_mock_client(download_bytes=b"")
+    doc = {"id": 3, "content": ""}
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        card, source = evaluate_card(doc, client)
+
+    assert source == "none"
+    assert card.call_from is None
+    assert card.band is None
+
+
+def test_evaluate_card_download_error_falls_back_to_ocr():
+    """Download-Fehler → kein Absturz, Fallback auf OCR."""
+    from qsl73.paperless import PaperlessConnectionError
+    from qsl73.run import evaluate_card
+
+    client = MagicMock()
+    client.get_document_download.side_effect = PaperlessConnectionError("Timeout")
+    doc = {"id": 4, "content": "Band: 20m Mode: FT8"}
+
+    card, source = evaluate_card(doc, client)
+
+    assert source == "ocr"
+    assert card.band == "20m"
+
+
+def test_evaluate_card_missing_content_key():
+    """doc ohne 'content'-Schlüssel → kein Absturz."""
+    from qsl73.run import evaluate_card
+
+    client = _make_mock_client(download_bytes=b"")
+    doc = {"id": 5}  # kein 'content'-Schlüssel
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        card, source = evaluate_card(doc, client)
+
+    assert source == "none"

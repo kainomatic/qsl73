@@ -125,6 +125,42 @@ def _parse_ocr_text(ocr_text: str) -> tuple[CardFields, str]:
 
 
 # ---------------------------------------------------------------------------
+# Karten-Auswertung (intern)
+# ---------------------------------------------------------------------------
+
+
+def evaluate_card(
+    doc: dict,
+    paperless_client: PaperlessClient,
+) -> tuple[CardFields, str]:
+    """Ermittelt CardFields für ein Paperless-Dokument (QR-Vorrang vor OCR).
+
+    Reihenfolge (§6.1 / ADR-0007):
+    1. QR-Code aus PDF-Bytes (get_document_download)
+    2. OCR-Text (doc['content'], im Listen-Response enthalten)
+
+    Kein Absturz bei fehlerhafter Eingabe (ADR-0012).
+
+    Returns:
+        (CardFields, source) — source: "qr" | "ocr" | "none"
+    """
+    doc_id = doc["id"]
+
+    # Versuch 1: QR-Code aus heruntergeladenem PDF
+    try:
+        pdf_bytes = paperless_client.get_document_download(doc_id)
+        qr_fields = decode_qr_from_pdf(pdf_bytes)
+        if qr_fields is not None:
+            return qr_fields, "qr"
+    except Exception as exc:
+        _log.debug("QR-Dekodierung fehlgeschlagen für Dok. %s: %s", doc_id, exc)
+
+    # Versuch 2: OCR-Text aus dem Dokument-Dict
+    ocr_text = doc.get("content") or ""
+    return _parse_ocr_text(ocr_text)
+
+
+# ---------------------------------------------------------------------------
 # DB-Kandidaten laden
 # ---------------------------------------------------------------------------
 
