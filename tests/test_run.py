@@ -325,8 +325,8 @@ def test_parse_ocr_mode_de_not_matched_as_from():
 
 # --- Karten-Auswertung (QR→OCR) ---
 
-def _make_mock_client(download_bytes: bytes = b"", content: str = "") -> MagicMock:
-    """Erstellt einen PaperlessClient-Mock mit konfigurierbaren Rückgabewerten."""
+def _make_mock_client(download_bytes: bytes = b"") -> MagicMock:
+    """Erstellt einen PaperlessClient-Mock. Content kommt aus dem doc-Dict, nicht vom Client."""
     client = MagicMock()
     client.get_document_download.return_value = download_bytes
     return client
