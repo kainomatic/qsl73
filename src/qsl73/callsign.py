@@ -1,3 +1,4 @@
+# QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
 """Rufzeichen-Zerlegung und Eigenrufzeichen-Prüfung.
 
 3-Fall-Logik gemäß KONZEPT.md §6.3 und ADR-0013:

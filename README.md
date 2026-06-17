@@ -23,7 +23,8 @@ Funkamateure sammeln QSL-Karten als Belege für ihre Verbindungen. QSL73 schlie�
 
 ## Lizenz
 
-MIT — siehe [LICENSE](LICENSE).
+[GNU General Public License v3.0 (GPLv3)](LICENSE) — siehe LICENSE.
+Weiterentwicklungen, die verbreitet werden, müssen ebenfalls unter GPLv3 offengelegt werden.
 
 ## Voraussetzungen
 

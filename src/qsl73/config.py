@@ -1,3 +1,4 @@
+# QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
 import os
 from dataclasses import dataclass, field
 from pathlib import Path

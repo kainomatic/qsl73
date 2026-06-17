@@ -76,6 +76,9 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Lizenz von MIT auf **GPLv3** gewechselt (ADR-0018). `LICENSE`-Datei ersetzt;
+  README, KONZEPT §15, Quelldatei-Header angepasst. Copyleft sichert, dass
+  Weiterentwicklungen offen bleiben.
 - `crypto.py`: `get_default_backend()` wirft `CryptoUnavailableError` auf Windows ohne
   pywin32 statt still auf `NullBackend` zurückzufallen (fail closed)
 - `config.py`: `save_config()` verweigert das Speichern eines Tokens ohne Crypto-Backend

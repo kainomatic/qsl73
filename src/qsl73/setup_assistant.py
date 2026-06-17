@@ -1,3 +1,4 @@
+# QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
 from pathlib import Path
 
 from qsl73.config import Config, ConfigError, get_config_path, load_config, save_config

@@ -39,7 +39,8 @@ Ziel: Unbekannte an echten Daten klären, damit später nichts blind gebaut wird
 ## ✅ Schritt 1 — Repo-Grundgerüst — ABGESCHLOSSEN
 
 - Struktur, `.gitignore`, `config.example.yaml`, `README.md`, `CHANGELOG.md`, `LICENSE`
-  (MIT), Versions-Datei `0.1.0`, `assets/` mit `qsl73logo.png`. Branches `main`/`dev`.
+  (ursprünglich MIT, später auf GPLv3 gewechselt → ADR-0018), Versions-Datei `0.1.0`,
+  `assets/` mit `qsl73logo.png`. Branches `main`/`dev`.
 - **Review:** Vollständigkeit/Struktur bestätigt, keine Secrets, Version 0.1.0 gesetzt.
 
 ## ✅ Schritt 2 — Config & Setup-Grundlagen — ABGESCHLOSSEN

@@ -1,3 +1,4 @@
+# QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
 """Matching-Engine: QSL-Karten gegen Log4OM-QSO-Kandidaten.
 
 Leitregel (ADR-0007): Im Zweifel lieber „unsicher" als falsch auto-bestätigen.

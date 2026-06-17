@@ -3,7 +3,7 @@
 > Fachliche Referenz für die Entwicklung. Beschreibt **was** QSL73 können muss und
 > **wie** es sich verhalten soll – nicht die zeitliche Bau-Reihenfolge (→ ROADMAP.md).
 > Maintainer/Entwickler: **DF1DS** (GitHub: kainomatic). Sprache der App: DE (Default),
-> EN umschaltbar. Lizenz: MIT.
+> EN umschaltbar. Lizenz: GPLv3.
 > Schreibmodell: Vorschau + Bestaetigung (kein separater dry-run; siehe §5/§7).
 
 ---
@@ -620,7 +620,7 @@ für korrekte Verschlagwortung liegt beim Nutzer.
 - GitHub öffentlich, Account **kainomatic**, Repo z. B. `qsl73`. Branches: `main` (stabil),
   `dev` (laufend), `feature/*` (von `dev`).
 - Keine Secrets im Repo: `.gitignore` + `config.example.yaml`.
-- **Lizenz MIT** (`LICENSE`-Datei). Inhaber-Infos (DF1DS, kainomatic, QRZ-Link) im
+- **Lizenz GPLv3** (`LICENSE`-Datei). Inhaber-Infos (DF1DS, kainomatic, QRZ-Link) im
   „Über"-Dialog, EXE-Metadaten, `LICENSE`, `README`.
 - **Logo/Icon:** Originaldatei `qsl73logo.png` in `assets/` (im Repo). Freistellen +
   `.ico`-Erzeugung (alle Größen; 16/24/32px ggf. vereinfachtes Motiv aus Pfeilen+Haken,
