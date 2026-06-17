@@ -164,8 +164,15 @@ _KNOWN_MODES: frozenset[str] = frozenset({
 })
 
 
-def normalize_mode(text: str) -> Optional[str]:
-    """Normalisiert Mode-Bezeichnung. Mapping-Tabelle + Fuzzy-Fallback. None bei Unbekannt."""
+def normalize_mode(text: str, fuzzy: bool = True) -> Optional[str]:
+    """Normalisiert Mode-Bezeichnung. Mapping-Tabelle + Fuzzy-Fallback. None bei Unbekannt.
+
+    Args:
+        text:  Mode-String (roher OCR-Wert oder DB-Wert).
+        fuzzy: Levenshtein-1-Fallback aktivieren (Standard: True).
+               Für token-basierte Breitband-Suche deaktivieren, um falsche Treffer
+               bei Tabellenköpfen (z. B. "DATE" → "DATA") zu vermeiden.
+    """
     if not text or not text.strip():
         return None
     stripped = text.strip()
@@ -184,9 +191,10 @@ def normalize_mode(text: str) -> Optional[str]:
         return mapped
 
     # Fuzzy-Fallback: Levenshtein-Distanz 1
-    from rapidfuzz.distance import Levenshtein
-    matches = [mode for mode in _KNOWN_MODES if Levenshtein.distance(upper, mode) == 1]
-    if len(matches) == 1:
-        return matches[0]
+    if fuzzy:
+        from rapidfuzz.distance import Levenshtein
+        matches = [mode for mode in _KNOWN_MODES if Levenshtein.distance(upper, mode) == 1]
+        if len(matches) == 1:
+            return matches[0]
 
     return None

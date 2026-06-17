@@ -729,3 +729,191 @@ def test_write_selected_uncertain_tags(tmp_path):
     )
 
     mock_client.add_tag_to_document.assert_called_once_with(99, "qsl-nicht-bestätigt")
+
+
+# ---------------------------------------------------------------------------
+# Token-basierte OCR-Extraktion — reale Karten-Fixtures (ADR-0025)
+# ---------------------------------------------------------------------------
+#
+# 7 reale OCR-Texte (oder enge Annäherungen) aus dem Realtest 2026-06-17.
+# own_callsign = "DH3KR" ist der Empfänger aller Testkarten.
+
+_OWN = "DH3KR"
+_OWN_CALLS = set()
+_SUFFIXES = ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
+
+# 1. OE6DRG — gedruckte Karte, Tabellenlayout
+OCR_OE6DRG = (
+    "AMATEUR RADIO STATION OE6DRG\n"
+    "confirming QSO with DH3KR\n"
+    "DATE       TIME    BAND    MODE   RST\n"
+    "23Apr2025  12:23   20m     FT8    599\n"
+)
+
+# 2. DG5MLA — gedruckte Karte, Frequenz statt Bandname, Pipe-Trennzeichen
+OCR_DG5MLA = (
+    "QSL CARD | DG5MLA | to DH3KR\n"
+    "DATE     | TIME  | FREQ   | MODE | RST\n"
+    "26.04.25 | 19:52 | 5,3570 | FT8  | +05\n"
+)
+
+# 3. DK8NE — DARC-QR-Karte; OCR-Pfad nicht auswertbar (QR hat Vorrang)
+OCR_DK8NE = "tToemvem g4rbl3d 1gxK ##!!##"
+
+# 4. G7JVJ — Formular, Datenzeile zerstört; nur Call erkennbar
+OCR_G7JVJ = (
+    "G7JVJ\n"
+    "Station Log\n"
+    "|/ .63 | 88 1558 | .3V/0 |\n"
+)
+
+# 5. TM2CIN — handschriftlich; Leerzeichen im Call ("TM 2 CIN") → kein gültiges Token
+OCR_TM2CIN = (
+    "TM 2 CIN\n"
+    "... confirming ...\n"
+)
+
+# 6. WB1CLT — handschriftlich; 1→L OCR-Fehler ("WBLCLT")
+OCR_WB1CLT = (
+    "WBLCLT\n"
+    "de W/P\n"
+)
+
+
+def _ocr(text, own=_OWN, calls=_OWN_CALLS, suffixes=_SUFFIXES):
+    from qsl73.run import _parse_ocr_text
+    return _parse_ocr_text(text, own_callsign=own, station_callsigns=calls, portable_suffixes=suffixes)
+
+
+# --- Fixture-Tests ---
+
+def test_ocr_fixture_oe6drg_all_fields():
+    """OE6DRG: Tabellenlayout → call_from, date, band, mode vollständig."""
+    card, source = _ocr(OCR_OE6DRG)
+    assert source == "ocr"
+    assert card.call_from == "OE6DRG"
+    assert card.call_to == "DH3KR"
+    assert card.date == "2025-04-23"
+    assert card.band == "20m"
+    assert card.mode == "FT8"
+    assert card.time_utc == "12:23"
+
+
+def test_ocr_fixture_dg5mla_frequency_to_band():
+    """DG5MLA: Frequenz 5,3570 MHz → Band 60m; Pipe-Trennzeichen korrekt tokenisiert."""
+    card, source = _ocr(OCR_DG5MLA)
+    assert source == "ocr"
+    assert card.call_from == "DG5MLA"
+    assert card.call_to == "DH3KR"
+    assert card.date == "2025-04-26"
+    assert card.band == "60m"
+    assert card.mode == "FT8"
+    assert card.time_utc == "19:52"
+
+
+def test_ocr_fixture_dk8ne_garbled_all_none():
+    """DK8NE: zerstörter OCR-Text → alle Felder None (QR hat in der Praxis Vorrang)."""
+    card, source = _ocr(OCR_DK8NE)
+    assert source == "ocr"
+    assert card.call_from is None
+    assert card.band is None
+    assert card.mode is None
+    assert card.date is None
+
+
+def test_ocr_fixture_g7jvj_call_recognized_data_none():
+    """G7JVJ: Call erkannt, Datenzeile zerstört → nur call_from, Rest None."""
+    card, source = _ocr(OCR_G7JVJ)
+    assert source == "ocr"
+    assert card.call_from == "G7JVJ"
+    assert card.date is None
+    assert card.band is None
+    assert card.mode is None
+
+
+def test_ocr_fixture_tm2cin_call_not_extractable():
+    """TM2CIN: 'TM 2 CIN' — Leerzeichen im Call → kein gültiges Rufzeichen-Token → None."""
+    card, source = _ocr(OCR_TM2CIN)
+    assert source == "ocr"
+    assert card.call_from is None
+
+
+def test_ocr_fixture_wb1clt_ocr_error_not_extractable():
+    """WB1CLT: 'WBLCLT' (1→L OCR-Fehler) → trifft Rufzeichen-Muster nicht → None."""
+    card, source = _ocr(OCR_WB1CLT)
+    assert source == "ocr"
+    assert card.call_from is None
+
+
+# --- Mehrdeutigkeit ---
+
+def test_ocr_ambiguous_two_different_bands():
+    """Zwei verschiedene gültige Bänder im Text → band = None (kein Raten, ADR-0007)."""
+    text = "QSO auf 20m und 40m FT8 DX5ABC DH3KR 2025-04-23"
+    card, _ = _ocr(text)
+    assert card.band is None
+    assert card.mode == "FT8"  # Mode eindeutig
+
+
+def test_ocr_same_band_twice_not_ambiguous():
+    """Dasselbe Band zweimal → kein Mehrdeutigkeitsproblem → Band korrekt."""
+    text = "20m QSO 20m FT8 DX5ABC DH3KR 2025-04-23"
+    card, _ = _ocr(text)
+    assert card.band == "20m"
+
+
+# --- Tabellen-Layout ---
+
+def test_ocr_table_layout_header_ignored():
+    """Tabellenkopf DATE/TIME/BAND/MODE/RST liefert keine gültigen Feld-Tokens."""
+    text = "DATE       TIME    BAND    MODE    RST\n23Apr2025  12:23   20m     FT8     599"
+    card, _ = _ocr(text)
+    assert card.date == "2025-04-23"
+    assert card.band == "20m"
+    assert card.mode == "FT8"
+    assert card.time_utc == "12:23"
+
+
+# --- Regression: bestehende Pfade unverändert ---
+
+def test_ocr_regression_key_value_format():
+    """DARC-Key:Value-Format (parse_qr_text, Schicht 1) bleibt unverändert auswertbar."""
+    from qsl73.run import _parse_ocr_text
+    text = "From: DK8NE To: DH3KR Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
+    card, source = _parse_ocr_text(text)
+    assert source == "ocr"
+    assert card.call_from == "DK8NE"
+    assert card.call_to == "DH3KR"
+    assert card.date == "2025-04-02"
+    assert card.band == "6m"
+    assert card.mode == "FT8"
+    assert card.time_utc == "19:42"
+
+
+def test_ocr_regression_partial_labeled():
+    """'BAND: 40m MODE: CW DATE: ...' — token-basierte Schicht übernimmt korrekt."""
+    from qsl73.run import _parse_ocr_text
+    text = "BAND: 40m\nMODE: CW\nDATE: 2024-06-21"
+    card, source = _parse_ocr_text(text)
+    assert source == "ocr"
+    assert card.band == "40m"
+    assert card.mode == "CW"
+    assert card.date == "2024-06-21"
+
+
+def test_ocr_regression_empty_text():
+    """Leerer OCR-Text → source='none', alle Felder None."""
+    from qsl73.run import _parse_ocr_text
+    card, source = _parse_ocr_text("")
+    assert source == "none"
+    assert card.call_from is None
+
+
+def test_ocr_tokenize_strips_surrounding_punct():
+    """_tokenize entfernt umgebende Satzzeichen, behält Slash im Rufzeichen."""
+    from qsl73.run import _tokenize
+    tokens = _tokenize("(DH3KR) ,FT8, |20m| [CW]")
+    assert "DH3KR" in tokens
+    assert "FT8" in tokens
+    assert "20m" in tokens
+    assert "CW" in tokens

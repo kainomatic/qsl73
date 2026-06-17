@@ -7,6 +7,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Token-basierte OCR-Extraktion für gedruckte QSL-Karten (ADR-0025):**
+  - `_extract_token_based` in `run.py`: zerlegt OCR-Text in Tokens (Whitespace + Pipe)
+    und schickt jedes Token durch `normalize_band`, `normalize_mode(fuzzy=False)`,
+    `normalize_date`; Rufzeichen werden per `is_own_call` als Absender/Empfänger
+    klassifiziert; mehrere verschiedene gültige Bänder/Modi → Feld `None` (kein Raten)
+  - Gedruckte Karten im Tabellen-/Fließtext-Layout (OE6DRG, DG5MLA) jetzt vollständig
+    automatisch auswertbar ohne Key:Value-Beschriftung
+  - Frequenzangabe im OCR-Text (z. B. „5,3570" MHz) wird korrekt zu Band normalisiert (60m)
+  - `normalize_mode` erhält optionalen Parameter `fuzzy=True`; Token-Scan nutzt `fuzzy=False`
+    (verhindert Falsch-Positive bei Tabellenköpfen wie „DATE" → „DATA")
+  - 7 reale OCR-Texte als Test-Fixtures; 14 neue Tests; alle bestehenden Tests grün
+
 ### Fixed
 
 - **P1 Installations-Fixes (Issues #9, #10, #11, #12, #13):**

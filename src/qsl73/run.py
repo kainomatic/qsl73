@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from qsl73.callsign import is_own_call
 from qsl73.config import Config, TagsConfig
 from qsl73.log4om_db import (
     WriteResult,
@@ -69,32 +70,139 @@ class _CandidatesData:
 
 
 # ---------------------------------------------------------------------------
-# OCR-Textextraktion (intern)
+# OCR-Textextraktion (intern) — token-basierte Strategie (ADR-0025)
 # ---------------------------------------------------------------------------
 
-_RE_FROM = re.compile(
-    r'(?i)\b(?:from|de|fm)\b\s*[:\s]\s*([A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}(?:/[A-Z0-9]+)?)'
+# Rufzeichen-Muster: Prefix (mind. 1 Buchstabe), Zahl, Suffix (mind. 1 Buchstabe).
+# Strengere Form des ursprünglichen ^[A-Z0-9]{1,3}[0-9][A-Z0-9]{1,4}$ — erzwingt
+# Buchstaben in Prefix und Suffix, damit Bandnamen ("20m", "40m") und RST-Werte
+# ("599") nicht fälschlich als Rufzeichen erkannt werden.
+_RE_CALLSIGN = re.compile(
+    r'^[A-Z0-9]{0,2}[A-Z][0-9][A-Z][A-Z0-9]{0,3}(?:/[A-Z0-9]+)?$',
+    re.IGNORECASE,
 )
-_RE_TO = re.compile(
-    r'(?i)\b(?:to|ur|dest)\b\s*[:\s]\s*([A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}(?:/[A-Z0-9]+)?)'
-)
-_RE_DATE = re.compile(r'(?i)(?:date|datum|dat)\s*[:\s]\s*(\S+)')
-_RE_BAND = re.compile(r'(?i)(?:band|freq(?:uency)?)\s*[:\s]\s*(\S+)')
-_RE_MODE = re.compile(r'(?i)(?:mode?|mod|emission)\s*[:\s]\s*(\S+)')
-_RE_TIME = re.compile(r'(?i)(?:time|zeit|utc|gmt)\s*[:\s]\s*(\d{1,2}:\d{2})')
+
+# HH:MM oder HH:MM:SS (sekunden optional; Gruppe 1 liefert HH:MM)
+_RE_TIME_TOKEN = re.compile(r'^(\d{1,2}:\d{2})(?::\d{2})?$')
+
+# Umgebende Satzzeichen, die von Tokens abgetrennt werden (Slash NICHT hier —
+# er ist Bestandteil von Portable-Suffix-Rufzeichen wie "DH3KR/P").
+_STRIP_CHARS = '.,;:!?()[]{}"\'-_#@'
 
 
-def _first(pattern: re.Pattern, text: str) -> Optional[str]:
-    m = pattern.search(text)
-    return m.group(1) if m else None
+def _tokenize(text: str) -> list[str]:
+    """Zerlegt OCR-Text in Tokens. Trenner: Whitespace und Pipe-Zeichen.
+
+    Umgebende Satzzeichen werden entfernt; leere Tokens werden verworfen.
+    """
+    result = []
+    for raw in re.split(r'[\s|]+', text):
+        t = raw.strip(_STRIP_CHARS).strip()
+        if t:
+            result.append(t)
+    return result
 
 
-def _parse_ocr_text(ocr_text: str) -> tuple[CardFields, str]:
+def _extract_token_based(
+    ocr_text: str,
+    own_callsign: Optional[str] = None,
+    station_callsigns: Optional[set[str]] = None,
+    portable_suffixes: Optional[list[str]] = None,
+) -> CardFields:
+    """Token-basierte Feldextraktion für Tabellen- und Fließtext-Layouts (ADR-0025).
+
+    Jedes Token wird durch die vorhandenen Normalizer geschickt:
+      - normalize_band    → Band-Kandidat (inkl. Frequenz→Band-Umrechnung)
+      - normalize_mode    → Mode-Kandidat
+      - normalize_date    → Datum-Kandidat
+      - HH:MM-Muster      → Zeit-Kandidat
+    Tokens, die keines der obigen Felder bedienen, werden auf das Rufzeichen-
+    Muster geprüft; via is_own_call wird zwischen Empfänger (call_to) und Absender
+    (call_from) unterschieden.
+
+    Mehrdeutigkeitsregel (ADR-0007): mehrere VERSCHIEDENE gültige Werte für Band oder
+    Mode → Feld = None (kein Raten; falsch-Positiv-Schutz).
+
+    Args:
+        ocr_text: OCR-Text der Karte.
+        own_callsign: Eigenes Rufzeichen (aus Config) — Anker für call_to.
+        station_callsigns: Alle stationcallsign-Werte aus der DB.
+        portable_suffixes: Bekannte Portable-Suffixe (z. B. ["P", "M"]).
+
+    Returns:
+        CardFields mit erkannten Feldern; nicht extrahierbare Felder = None.
+    """
+    tokens = _tokenize(ocr_text)
+
+    band_candidates: list[str] = []
+    mode_candidates: list[str] = []
+    date_candidates: list[str] = []
+    time_candidates: list[str] = []
+    call_to: Optional[str] = None
+    foreign_calls: list[str] = []
+
+    for t in tokens:
+        b = normalize_band(t)
+        m = normalize_mode(t, fuzzy=False)  # kein Fuzzy beim Breitband-Token-Scan
+        d = normalize_date(t)
+        tm = _RE_TIME_TOKEN.match(t)
+
+        if b is not None:
+            band_candidates.append(b)
+        if m is not None:
+            mode_candidates.append(m)
+        if d is not None:
+            date_candidates.append(d)
+        if tm:
+            time_candidates.append(tm.group(1))
+
+        # Rufzeichen-Check nur für Tokens, die als kein Datenfeld erkannt wurden.
+        # Das schließt "20m" / "FT8" / Datums-Tokens von der Call-Erkennung aus.
+        if b is None and m is None and d is None and not tm:
+            t_upper = t.upper()
+            if _RE_CALLSIGN.match(t_upper):
+                if own_callsign and is_own_call(
+                    t_upper,
+                    own_callsign,
+                    station_callsigns or set(),
+                    portable_suffixes or [],
+                ):
+                    call_to = t_upper
+                else:
+                    foreign_calls.append(t_upper)
+
+    # Mehrdeutigkeitsregel: mehrere VERSCHIEDENE Werte → None.
+    band = band_candidates[0] if len(set(band_candidates)) == 1 else None
+    mode = mode_candidates[0] if len(set(mode_candidates)) == 1 else None
+    date = date_candidates[0] if len(set(date_candidates)) == 1 else None
+    time_utc = time_candidates[0] if time_candidates else None
+
+    # call_from: genau ein eindeutiges Fremd-Rufzeichen → Absender.
+    seen: set[str] = set()
+    unique_foreign = [c for c in foreign_calls if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
+    call_from = unique_foreign[0] if len(unique_foreign) == 1 else None
+
+    return CardFields(
+        call_from=call_from,
+        call_to=call_to,
+        date=date,
+        band=band,
+        mode=mode,
+        time_utc=time_utc,
+    )
+
+
+def _parse_ocr_text(
+    ocr_text: str,
+    own_callsign: Optional[str] = None,
+    station_callsigns: Optional[set[str]] = None,
+    portable_suffixes: Optional[list[str]] = None,
+) -> tuple[CardFields, str]:
     """Extrahiert CardFields aus OCR-Text. Kein Absturz (ADR-0012).
 
-    Strategie:
+    Strategie (ADR-0025):
     1. Strukturierter Key:Value-Parse (parse_qr_text — DARC-Format u. ä.)
-    2. Regex-Fallback für beschriftete Felder (From/To/Date/Band/Mode)
+    2. Token-basierte Extraktion über den gesamten Text (Tabellen- und Fließtext-Layout)
     3. Alle None → CardFields mit None-Feldern (lieber 'unsicher' als raten)
 
     Returns:
@@ -103,25 +211,13 @@ def _parse_ocr_text(ocr_text: str) -> tuple[CardFields, str]:
     if not ocr_text or not ocr_text.strip():
         return CardFields(None, None, None, None, None), "none"
 
-    # Versuch 1: strukturierter Parse (Key:Value-Format)
+    # Schicht 1: strukturierter Parse (Key:Value-Format)
     structured = parse_qr_text(ocr_text)
     if structured is not None:
         return structured, "ocr"
 
-    # Versuch 2: Regex-Extraktion aus beschrifteten Feldern
-    raw_date = _first(_RE_DATE, ocr_text)
-    raw_band = _first(_RE_BAND, ocr_text)
-    raw_mode = _first(_RE_MODE, ocr_text)
-    raw_time = _first(_RE_TIME, ocr_text)
-
-    return CardFields(
-        call_from=_first(_RE_FROM, ocr_text),
-        call_to=_first(_RE_TO, ocr_text),
-        date=normalize_date(raw_date) if raw_date else None,
-        band=normalize_band(raw_band) if raw_band else None,
-        mode=normalize_mode(raw_mode) if raw_mode else None,
-        time_utc=raw_time,  # Regex liefert bereits HH:MM
-    ), "ocr"
+    # Schicht 2: token-basierte Extraktion
+    return _extract_token_based(ocr_text, own_callsign, station_callsigns, portable_suffixes), "ocr"
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +228,9 @@ def _parse_ocr_text(ocr_text: str) -> tuple[CardFields, str]:
 def evaluate_card(
     doc: dict,
     paperless_client: PaperlessClient,
+    own_callsign: Optional[str] = None,
+    station_callsigns: Optional[set[str]] = None,
+    portable_suffixes: Optional[list[str]] = None,
 ) -> tuple[CardFields, str]:
     """Ermittelt CardFields für ein Paperless-Dokument (QR-Vorrang vor OCR).
 
@@ -157,7 +256,7 @@ def evaluate_card(
 
     # Versuch 2: OCR-Text aus dem Dokument-Dict
     ocr_text = doc.get("content") or ""
-    return _parse_ocr_text(ocr_text)
+    return _parse_ocr_text(ocr_text, own_callsign, station_callsigns, portable_suffixes)
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +392,13 @@ def run_pass(
     for idx, doc in enumerate(docs):
         doc_id = doc["id"]
 
-        card_fields, source = evaluate_card(doc, paperless_client)
+        card_fields, source = evaluate_card(
+            doc,
+            paperless_client,
+            own_callsign=config.log4om.own_callsign,
+            station_callsigns=data.station_callsigns,
+            portable_suffixes=config.matching.portable_suffixes,
+        )
 
         outcome = match_card(
             card=card_fields,

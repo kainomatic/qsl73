@@ -52,13 +52,16 @@ QR-Funktion (zxing-cpp/pymupdf) nicht verfügbar ist, statt still auf OCR zu deg
 (Verwandt mit Schritt 7 Logging/Reporting — relevanten Teil vorziehen.)
 
 ## Erwartetes Verhalten (kein Bug, zur Klarstellung)
-Die handschriftlichen/fremdsprachigen Karten (I6LTP, TM2CIN, G7JVJ, WB1CLT) liefern aus
-Paperless unstrukturierten OCR-Text ohne "Key: Value"-Beschriftung (z. B.
-`V3/DHIKR IT -xX1-93 |/8.63 | 88 1558 | ...`). Die `_parse_ocr_text`-Logik (Regex auf
-beschriftete Felder) kann das nicht parsen → Felder None → "unsicher". Das ist erwartet;
-diese Karten gehören in den manuellen Zuordnungs-Bildschirm (Schritt 6c). Bestätigt die
-frühere OCR-Analyse aus Schritt 3b. Nur Karten mit QR (z. B. DK8NE) oder sauber strukturiertem
-OCR-Text sind automatisch auswertbar.
+Die handschriftlichen Karten (TM2CIN, WB1CLT) liefern aus Paperless OCR-Text mit zerstörten
+Rufzeichen (Leerzeichen im Call bzw. OCR-Buchstabenverwechslung). Die token-basierte
+Extraktion (ADR-0025, nachgeführt nach diesem Realtest) erkennt keinen eindeutigen Absender
+→ `call_from = None` → UNCERTAIN → manueller Zuordnungs-Bildschirm. Das ist korrekt.
+
+**Nachgeführte Verbesserung (ADR-0025):** Gedruckte Karten im Tabellenlayout (OE6DRG, DG5MLA)
+sind durch die token-basierte OCR-Extraktion jetzt vollständig automatisch auswertbar. Die
+sieben realen OCR-Texte dieses Realtests sind als Test-Fixtures in `tests/test_run.py`
+aufgenommen. Handschriftliche und stark zerstörte Karten (G7JVJ teils, TM2CIN, WB1CLT)
+verbleiben korrekt im manuellen Pfad.
 
 ## UX-Verbesserungen Setup-Assistent
 - Verbindungstest-Button für Paperless (URL+Token direkt prüfen) im Setup-Fenster.
