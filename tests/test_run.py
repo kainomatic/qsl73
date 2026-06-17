@@ -231,3 +231,75 @@ def test_load_time_utc_extracted(tmp_path):
 
     data = load_qso_candidates(p)
     assert data.candidates[0].time_utc == "19:42"
+
+
+# --- OCR-Textextraktion ---
+
+def test_parse_ocr_structured_format():
+    """Strukturierter Key:Value-Text (DARC-Format) wird über parse_qr_text ausgewertet."""
+    from qsl73.run import _parse_ocr_text
+
+    text = "From: DK8NE To: DH3KR Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
+    card, source = _parse_ocr_text(text)
+    assert source == "ocr"
+    assert card.call_from == "DK8NE"
+    assert card.date == "2025-04-02"
+    assert card.band == "6m"
+    assert card.mode == "FT8"
+
+
+def test_parse_ocr_labeled_fields():
+    """Regex-Extraktion aus beschrifteten Feldern (kein vollständiges Key:Value-Format)."""
+    from qsl73.run import _parse_ocr_text
+
+    text = "BAND: 40m\nMODE: CW\nDATE: 2024-06-21"
+    card, source = _parse_ocr_text(text)
+    assert source == "ocr"
+    assert card.band == "40m"
+    assert card.mode == "CW"
+    assert card.date == "2024-06-21"
+
+
+def test_parse_ocr_empty_returns_none_fields():
+    """Leerer OCR-Text → alle CardFields-Felder None, source='none'."""
+    from qsl73.run import _parse_ocr_text
+
+    card, source = _parse_ocr_text("")
+    assert source == "none"
+    assert card.call_from is None
+    assert card.date is None
+    assert card.band is None
+
+
+def test_parse_ocr_no_labels_returns_none_fields():
+    """Unlesbarer OCR-Kauderwelsch → alle None, kein Absturz."""
+    from qsl73.run import _parse_ocr_text
+
+    card, source = _parse_ocr_text("tToemvem g4rbl3d 1gxK ##!!##")
+    assert source == "ocr"
+    assert card.call_from is None
+    assert card.band is None
+    assert card.mode is None
+
+
+def test_parse_ocr_partial_fields():
+    """Nur Band und Mode lesbar → Datum und Rufzeichen bleiben None."""
+    from qsl73.run import _parse_ocr_text
+
+    text = "Band: 20m Mode: FT8"
+    card, source = _parse_ocr_text(text)
+    assert source == "ocr"
+    assert card.band == "20m"
+    assert card.mode == "FT8"
+    assert card.call_from is None
+    assert card.date is None
+
+
+def test_parse_ocr_from_to_labels():
+    """From: und To: Labels werden extrahiert."""
+    from qsl73.run import _parse_ocr_text
+
+    text = "From: DL5ABC To: DH3KR Band: 6m Mode: FT8 Date: 2025-04-02"
+    card, source = _parse_ocr_text(text)
+    assert card.call_from == "DL5ABC"
+    assert card.call_to == "DH3KR"

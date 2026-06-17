@@ -69,6 +69,62 @@ class _CandidatesData:
 
 
 # ---------------------------------------------------------------------------
+# OCR-Textextraktion (intern)
+# ---------------------------------------------------------------------------
+
+_RE_FROM = re.compile(
+    r'(?i)\b(?:from|de|fm)\b\s*[:\s]\s*([A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}(?:/[A-Z0-9]+)?)'
+)
+_RE_TO = re.compile(
+    r'(?i)\b(?:to|ur|dest)\b\s*[:\s]\s*([A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}(?:/[A-Z0-9]+)?)'
+)
+_RE_DATE = re.compile(r'(?i)(?:date|datum|dat)\s*[:\s]\s*(\S+(?:\s+\S+)?)')
+_RE_BAND = re.compile(r'(?i)(?:band|freq(?:uency)?)\s*[:\s]\s*(\S+)')
+_RE_MODE = re.compile(r'(?i)(?:mode?|mod|emission)\s*[:\s]\s*(\S+)')
+_RE_TIME = re.compile(r'(?i)(?:time|zeit|utc|gmt)\s*[:\s]\s*(\d{1,2}:\d{2})')
+
+
+def _first(pattern: re.Pattern, text: str) -> Optional[str]:
+    m = pattern.search(text)
+    return m.group(1) if m else None
+
+
+def _parse_ocr_text(ocr_text: str) -> tuple[CardFields, str]:
+    """Extrahiert CardFields aus OCR-Text. Kein Absturz (ADR-0012).
+
+    Strategie:
+    1. Strukturierter Key:Value-Parse (parse_qr_text — DARC-Format u. ä.)
+    2. Regex-Fallback für beschriftete Felder (From/To/Date/Band/Mode)
+    3. Alle None → CardFields mit None-Feldern (lieber 'unsicher' als raten)
+
+    Returns:
+        (CardFields, source) — source ist "ocr" wenn Text vorhanden, "none" wenn leer.
+    """
+    if not ocr_text or not ocr_text.strip():
+        return CardFields(None, None, None, None, None), "none"
+
+    # Versuch 1: strukturierter Parse (Key:Value-Format)
+    structured = parse_qr_text(ocr_text)
+    if structured is not None:
+        return structured, "ocr"
+
+    # Versuch 2: Regex-Extraktion aus beschrifteten Feldern
+    raw_date = _first(_RE_DATE, ocr_text)
+    raw_band = _first(_RE_BAND, ocr_text)
+    raw_mode = _first(_RE_MODE, ocr_text)
+    raw_time = _first(_RE_TIME, ocr_text)
+
+    return CardFields(
+        call_from=_first(_RE_FROM, ocr_text),
+        call_to=_first(_RE_TO, ocr_text),
+        date=normalize_date(raw_date) if raw_date else None,
+        band=normalize_band(raw_band) if raw_band else None,
+        mode=normalize_mode(raw_mode) if raw_mode else None,
+        time_utc=raw_time,  # Regex liefert bereits HH:MM
+    ), "ocr"
+
+
+# ---------------------------------------------------------------------------
 # DB-Kandidaten laden
 # ---------------------------------------------------------------------------
 
