@@ -24,8 +24,9 @@ Kopie davon ist standalone konsistent ohne WAL-Begleiter.
 
 ## Entscheidung
 
-Vor jeder Backup-Kopie wird `PRAGMA wal_checkpoint(FULL)` auf der offenen
-Schreibverbindung ausgeführt. Erst danach wird die Hauptdatei kopiert.
+Vor jeder Backup-Kopie wird `PRAGMA wal_checkpoint(FULL)` auf einer eigens
+dafür geöffneten, kurzlebigen Verbindung ausgeführt. Erst danach wird die Hauptdatei
+kopiert.
 Die WAL-Datei wird NICHT kopiert (die Kopie ist standalone konsistent).
 
 FULL-Checkpoint blockiert, bis alle aktiven Leser-Transaktionen abgeschlossen
