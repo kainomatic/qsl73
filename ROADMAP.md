@@ -94,10 +94,19 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 
 ---
 
-## ➡️ Schritt 5 — Schreiblogik (commit) + Backup — NÄCHSTER SCHRITT
+## 🔧 Schritt 5 — Schreiblogik (commit) + Backup — IN ARBEIT
 
 **Spezifikationsseitig entsperrt:** Schreibformat empirisch bestätigt (RV-Hand-Test
 2026-06-17, `docs/discovery.md §3`, Issue #1 geschlossen).
+
+### ✅ Schritt 5a — Isolierte Schreiblogik (freigegeben nach Review)
+
+- `src/qsl73/log4om_write.py`: `apply_paper_qsl` (reine JSON-Transformation) +
+  `write_paper_qsl` (nackte DB-Schreibfunktion ohne Transaktions-Orchestrierung)
+- ADR-0019: fehlender CT='QSL'-Eintrag → QslEntryNotFoundError (kein stilles Neuanlegen)
+- 38 Unit-Tests + 9 Abnahme-Tests gegen DB-Kopie; Original-DB-Integrität per SHA-256; grün
+
+### ➡️ Schritt 5b/5c — Transaktion, Backup, Schema-Validierung, Nebenläufigkeit, Tags
 
 - Sammeln→Vorschau→Bestätigung(„Jetzt schreiben")→eine Transaktion→Tags; Vor-Backup nur
   beim tatsächlichen Schreiben, Aufbewahrung Default 5. Reihenfolge DB-dann-Tags strikt.

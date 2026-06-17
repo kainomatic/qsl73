@@ -9,6 +9,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 5a — Schreiblogik (isoliert):**
+  - `src/qsl73/log4om_write.py`: reine JSON-Transformationslogik für Papier-QSL-Bestätigung
+    - `apply_paper_qsl(json_str, route)`: setzt im CT='QSL'-Eintrag R→"Yes", RV per route
+      (bureau/direct/undefined); alle anderen Einträge/Spalten unberührt; kein RD
+    - `write_paper_qsl(conn, qsoid, route)`: liest qsoconfirmations, wendet Transformation
+      an, schreibt zurück (bewusst ohne Transaktion/Backup — kommt in 5b)
+    - Exceptions: `InvalidRouteError`, `QslEntryNotFoundError`, `ValueError`
+  - ADR-0019: fehlender CT='QSL'-Eintrag → Exception, kein stilles Neuanlegen
+  - `tests/test_log4om_write.py`: 38 Unit-Tests (alle Routen, Idempotenz, Fehlerfälle,
+    Unversehrtheit anderer Einträge, Ausgabeformat)
+  - `tests/acceptance/test_write_acceptance.py`: 9 Abnahme-Tests gegen DB-Kopie —
+    bureau/direct/undefined korrekt; andere CT-Typen/Spalten/QSOs unverändert;
+    Original-DB-Integrität per SHA-256 verifiziert
+
 - **RV-Hand-Test empirisch bestätigt** (2026-06-17): exaktes Schreibformat für Papier-QSL-
   Bestätigung in Log4OM bewiesen — `docs/discovery.md §3`, ADR-0005/0006 aktualisiert.
   Schritt 5 (Schreiblogik) damit spezifikationsseitig entsperrt. Issue #1 geschlossen.
