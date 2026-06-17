@@ -32,10 +32,29 @@ Weiterentwicklungen, die verbreitet werden, müssen ebenfalls unter GPLv3 offeng
 - [Log4OM](https://www.log4om.com/) mit lokaler SQLite-Datenbank
 - [Paperless-ngx](https://docs.paperless-ngx.com/) Instanz mit QSL-Karten (Tag `qsl-card`)
 
-## Starten (Entwicklungsumgebung)
+## Installation (Entwicklungsumgebung)
+
+**Voraussetzung:** Python 3.12, 64-Bit, "Add to PATH" aktiviert (Referenzversion: ADR-0024).
 
 ```
-python -m qsl73
+git clone https://github.com/kainomatic/qsl73.git
+cd qsl73
+git checkout dev
+py -m pip install -r requirements.txt
+py -m pip install -e .
+```
+
+`pip install -e .` richtet das `src/`-Layout korrekt ein — **kein manuelles PYTHONPATH-Setzen** nötig.
+Auf Windows werden `zxing-cpp` und `pywin32` durch PEP-508-Marker in `requirements.txt`
+automatisch mitinstalliert; auf Linux/CI werden sie ignoriert.
+
+Hinweis: Auf Windows ist `py` (Python-Launcher) dem direkten `python`-Aufruf vorzuziehen,
+da er die richtige 64-Bit-Version auswählt.
+
+## Starten
+
+```
+py -m qsl73
 ```
 
 Beim ersten Start öffnet sich der Setup-Assistent. Die Konfiguration wird unter `%APPDATA%\QSL73\config.yaml` gespeichert (Token DPAPI-verschlüsselt).

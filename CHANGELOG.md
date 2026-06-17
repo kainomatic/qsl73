@@ -7,6 +7,35 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **P1 Installations-Fixes (Issues #9, #10, #11, #12, #13):**
+  - **#9 — Build-Backend** (`pyproject.toml`): `setuptools.backends.legacy:build` →
+    `setuptools.build_meta`; `pip install -e .` funktioniert jetzt ohne manuelles
+    PYTHONPATH-Setzen (src-Layout korrekt erkannt)
+  - **#10 — pywin32** (`requirements.txt`): `# pywin32>=306` aktiviert als
+    `pywin32>=306 ; sys_platform == "win32"` (PEP-508-Marker: Linux/CI ignoriert)
+  - **#11 — zxing-cpp Paketname** (`requirements.txt`): falscher/inaktiver Eintrag
+    `# zxingcpp>=2.0` ersetzt durch `zxing-cpp>=3.0 ; sys_platform == "win32"`
+    (PyPI-Name mit Bindestrich; Import-Modul bleibt `zxingcpp`; verifiziert mit cp312-Wheel)
+  - **#12 — Setup-Assistent Passwort-Modus** (`gui/setup_wizard.py`): bei Auth-Modus
+    "password" erscheinen jetzt Benutzername- und Passwort-Felder; Token-Feld wird
+    ausgeblendet; dynamisches Umschalten via `<<ComboboxSelected>>`; beim Speichern wird
+    das Passwort via `PaperlessClient.from_password` einmalig in Token umgewandelt —
+    Passwort wird nie persistiert (§4); testbare Logik in `gui/wizard_logic.py`
+  - **#13 — Fortschrittsbalken endlos** (`gui/main_window.py`): nach `RunDoneEvent`,
+    `WriteDoneEvent` und `ErrorEvent` wird `progress.stop()` aufgerufen und der Modus
+    auf "determinate" zurückgesetzt — Balken ruht nach Abschluss
+
+### Added
+
+- **README: Installationsanleitung** — getestete Schritt-für-Schritt-Anleitung
+  (`git clone` → `pip install -r requirements.txt` → `pip install -e .` → `py -m qsl73`);
+  Hinweis auf automatische Windows-Abhängigkeiten via PEP-508-Marker; `py` vs. `python`
+- **`gui/wizard_logic.py`** — reine, tk-freie Hilfsfunktionen für Auth-Feld-Logik
+  (`auth_fields_for_mode`, `validate_auth_fields`); 8 neue Unit-Tests
+- **`gui/main_window._reset_progress`** — testbare Hilfsfunktion; 3 Unit-Tests via Mock
+
 ### Added
 
 - **Realtest-Befunde 2026-06-17 dokumentiert** (`docs/realtest-befunde-2026-06-17.md`):

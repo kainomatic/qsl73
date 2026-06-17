@@ -24,6 +24,12 @@ from qsl73.gui.error_dialog import show_error
 from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable
 
 
+def _reset_progress(progress: ttk.Progressbar) -> None:
+    """Hält indeterminate-Animation an und setzt Balken auf 0 zurück."""
+    progress.stop()
+    progress.configure(mode="determinate", value=0)
+
+
 _RESULT_LABELS = {
     MatchResult.CERTAIN: "Sicher",
     MatchResult.UNCERTAIN: "Unsicher",
@@ -187,7 +193,7 @@ class MainWindow(tk.Tk):
         elif isinstance(event, RunDoneEvent):
             self._run_result = event.result
             self._refresh_tree()
-            self._progress.configure(value=0)
+            _reset_progress(self._progress)
             certain = len(event.result.certain)
             uncertain = len(event.result.uncertain)
             no_match = len(event.result.no_match)
@@ -199,7 +205,7 @@ class MainWindow(tk.Tk):
         elif isinstance(event, WriteDoneEvent):
             res = event.result
             self._status_var.set(f"Geschrieben: {res.written} QSO(s), übersprungen: {res.skipped}.")
-            self._progress.configure(value=0)
+            _reset_progress(self._progress)
             self._run_btn.configure(state="normal")
             self._write_btn.configure(state="disabled")
             messagebox.showinfo(
@@ -209,7 +215,7 @@ class MainWindow(tk.Tk):
             )
         elif isinstance(event, ErrorEvent):
             self._status_var.set(f"Fehler: {event.exc}")
-            self._progress.configure(value=0)
+            _reset_progress(self._progress)
             self._run_btn.configure(state="normal")
             show_error(self, "Fehler", str(event.exc), event.traceback_str)
 

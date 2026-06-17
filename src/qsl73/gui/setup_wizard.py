@@ -113,7 +113,38 @@ class SetupWizard(tk.Toplevel):
         section("Paperless-ngx")
         field("paperless.url", "URL *", "https://")
         combo_field("paperless.auth_mode", "Authentifizierung", ["token", "password"], "token")
-        field("paperless.token", "API-Token", password=True)
+
+        # Token-Auth-Felder (sichtbar bei Modus "token", Standard)
+        self._vars["paperless.token"] = tk.StringVar()
+        self._token_lbl = ttk.Label(inner, text="API-Token")
+        self._token_lbl.grid(row=row, column=0, sticky="w", padx=(0, 8))
+        self._token_entry = ttk.Entry(inner, textvariable=self._vars["paperless.token"], width=42, show="*")
+        self._token_entry.grid(row=row, column=1, sticky="ew")
+        row += 1
+
+        # Passwort-Auth-Felder (sichtbar bei Modus "password", initial ausgeblendet)
+        self._pw_username_var = tk.StringVar()
+        self._pw_user_lbl = ttk.Label(inner, text="Benutzername *")
+        self._pw_user_lbl.grid(row=row, column=0, sticky="w", padx=(0, 8))
+        self._pw_user_entry = ttk.Entry(inner, textvariable=self._pw_username_var, width=42)
+        self._pw_user_entry.grid(row=row, column=1, sticky="ew")
+        self._pw_user_lbl.grid_remove()
+        self._pw_user_entry.grid_remove()
+        row += 1
+
+        self._pw_password_var = tk.StringVar()
+        self._pw_pass_lbl = ttk.Label(inner, text="Passwort *")
+        self._pw_pass_lbl.grid(row=row, column=0, sticky="w", padx=(0, 8))
+        self._pw_pass_entry = ttk.Entry(inner, textvariable=self._pw_password_var, width=42, show="*")
+        self._pw_pass_entry.grid(row=row, column=1, sticky="ew")
+        self._pw_pass_lbl.grid_remove()
+        self._pw_pass_entry.grid_remove()
+        row += 1
+
+        # Trace: bei Auth-Modus-Wechsel Felder dynamisch ein-/ausblenden
+        self._vars["paperless.auth_mode"].trace_add(
+            "write", lambda *_: self._update_auth_fields()
+        )
 
         section("Log4OM")
         field("log4om.db_path", "Datenbank *", browse=True)
@@ -140,6 +171,29 @@ class SetupWizard(tk.Toplevel):
 
         self.update_idletasks()
         self.minsize(500, 400)
+
+    # ------------------------------------------------------------------
+    # Auth-Felder dynamisch umschalten
+    # ------------------------------------------------------------------
+
+    def _update_auth_fields(self) -> None:
+        from qsl73.gui.wizard_logic import auth_fields_for_mode
+        mode = self._vars["paperless.auth_mode"].get()
+        vis = auth_fields_for_mode(mode)
+        if vis["show_token"]:
+            self._token_lbl.grid()
+            self._token_entry.grid()
+            self._pw_user_lbl.grid_remove()
+            self._pw_user_entry.grid_remove()
+            self._pw_pass_lbl.grid_remove()
+            self._pw_pass_entry.grid_remove()
+        else:
+            self._token_lbl.grid_remove()
+            self._token_entry.grid_remove()
+            self._pw_user_lbl.grid()
+            self._pw_user_entry.grid()
+            self._pw_pass_lbl.grid()
+            self._pw_pass_entry.grid()
 
     # ------------------------------------------------------------------
     # Aktionen
@@ -169,6 +223,14 @@ class SetupWizard(tk.Toplevel):
             val = self._vars[key].get().strip()
             if not val or val == "https://":
                 errors.append(f"{label} ist erforderlich.")
+        from qsl73.gui.wizard_logic import validate_auth_fields
+        mode = self._vars["paperless.auth_mode"].get()
+        errors.extend(validate_auth_fields(
+            mode,
+            token=self._vars["paperless.token"].get(),
+            username=self._pw_username_var.get(),
+            password=self._pw_password_var.get(),
+        ))
         return errors
 
     def _on_ok(self) -> None:
@@ -177,9 +239,20 @@ class SetupWizard(tk.Toplevel):
             messagebox.showerror("Fehlende Felder", "\n".join(errors), parent=self)
             return
         try:
+            overrides = self._collect_overrides()
+            # Passwort-Modus: Token via PaperlessClient holen; Passwort nie persistieren (§4)
+            if overrides.get("paperless.auth_mode") == "password":
+                from qsl73.paperless import PaperlessClient
+                _pc, token = PaperlessClient.from_password(
+                    overrides["paperless.url"],
+                    self._pw_username_var.get(),
+                    self._pw_password_var.get(),
+                )
+                overrides["paperless.token"] = token
+                overrides["paperless.auth_mode"] = "token"
             cfg = create_initial_config(
                 crypto=self._crypto,
-                overrides=self._collect_overrides(),
+                overrides=overrides,
             )
             self.result = cfg
             self.destroy()

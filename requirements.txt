@@ -4,9 +4,8 @@ rapidfuzz>=3.0
 # QR-Code-Decoding (Schritt 4b, ADR-0011, ADR-0017):
 pymupdf>=1.24      # PDF → Rasterbild (alle Seiten)
 Pillow>=10.0       # PIL-Bild-Konvertierung für zxingcpp
-# Windows only (kein Linux-Wheel verfügbar) — als Soft-Dependency implementiert (skip wenn absent):
-# zxingcpp>=2.0   # QR-Decoder; Windows-only; für lokale Entwicklung: pip install zxingcpp
-# Windows only (DPAPI-Verschlüsselung) — separat installieren:
-# pywin32>=306
-# pyzbar>=0.1.9 wurde geprüft, scheitert aber an fehlender libzbar-64.dll-Abhängigkeit
-# auf Windows Server 2025 (Issue #7). Ersatz: zxingcpp (s.o.).
+# Windows-only (PEP-508-Marker: werden auf Linux/CI automatisch ignoriert):
+# Installationsname: zxing-cpp (Bindestrich); Importname im Code: zxingcpp (ohne Bindestrich)
+zxing-cpp>=3.0 ; sys_platform == "win32"    # QR-Decoder; verifiziert mit cp312-Wheel (fixes #11)
+pywin32>=306 ; sys_platform == "win32"       # DPAPI-Verschlüsselung (fixes #10)
+# pyzbar wurde geprüft, scheitert an fehlender libzbar-64.dll auf Windows (Issue #7, ADR-0017).
