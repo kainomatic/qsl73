@@ -23,6 +23,28 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     bureau/direct/undefined korrekt; andere CT-Typen/Spalten/QSOs unverändert;
     Original-DB-Integrität per SHA-256 verifiziert
 
+- **Schritt 5b — Sicherheits- & Transaktionsschicht:**
+  - `src/qsl73/log4om_db.py`: Orchestrierungsmodul für sichere DB-Schreibvorgänge
+    - `validate_schema(conn)`: prüft Tabelle/Spalte/Stichprobe (CT='QSL'+R-Feld);
+      gibt None (ok) oder Abweichungsbeschreibung (nicht-ok) zurück (ADR-0004, §3.3)
+    - `open_wal_connection(db_path)`: öffnet SQLite-Verbindung im WAL-Modus (§3.1)
+    - `create_backup(db_path, backup_dir, max_count)`: WAL-Checkpoint (PRAGMA
+      wal_checkpoint(FULL)) + Datei-Kopie + Rotation auf max_count (Default 5) (§7, ADR-0020)
+    - `write_confirmations(db_path, items, backup_dir, backup_count)`: Reihenfolge
+      Schema-Check → Backup → atomare Transaktion; jeder Fehler → ROLLBACK (ADR-0003)
+    - `SchemaError`: Schema-Abweichung signalisiert Schreibsperre
+    - `WriteResult`: strukturiertes Schreibergebnis (written, skipped) für GUI/audit.log
+  - ADR-0020: WAL-Checkpoint-Strategie für Vor-Backup (FULL-Checkpoint vor Kopieren)
+  - `tests/test_log4om_db.py`: 22 Unit-Tests gegen synthetische Mini-DBs (CI-grün):
+    Schema-Check (9 Tests), Backup-Rotation/WAL-Konsistenz (6 Tests),
+    Transaktion/Atomarität (7 Tests)
+  - `tests/acceptance/test_db_orchestration_acceptance.py`: 5 Acceptance-Tests A–E
+    gegen DB-Kopie — Schema-OK, Erfolg, Rollback, Reihenfolge, Backup-Rotation;
+    Original-DB-Integrität per SHA-256; skip ohne `docs/testdateien/`
+  - Abgrenzung 5c (bewusst NICHT in 5b): SQLITE_BUSY-Retry, data_version-Check,
+    optimistic locking (Pro-QSO-Gegenprüfung), Log4OM-Running-Erkennung,
+    Paperless-Tags (kommen mit GUI/Orchestrierung)
+
 - **RV-Hand-Test empirisch bestätigt** (2026-06-17): exaktes Schreibformat für Papier-QSL-
   Bestätigung in Log4OM bewiesen — `docs/discovery.md §3`, ADR-0005/0006 aktualisiert.
   Schritt 5 (Schreiblogik) damit spezifikationsseitig entsperrt. Issue #1 geschlossen.
