@@ -78,7 +78,7 @@ _RE_FROM = re.compile(
 _RE_TO = re.compile(
     r'(?i)\b(?:to|ur|dest)\b\s*[:\s]\s*([A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}(?:/[A-Z0-9]+)?)'
 )
-_RE_DATE = re.compile(r'(?i)(?:date|datum|dat)\s*[:\s]\s*(\S+(?:\s+\S+)?)')
+_RE_DATE = re.compile(r'(?i)(?:date|datum|dat)\s*[:\s]\s*(\S+)')
 _RE_BAND = re.compile(r'(?i)(?:band|freq(?:uency)?)\s*[:\s]\s*(\S+)')
 _RE_MODE = re.compile(r'(?i)(?:mode?|mod|emission)\s*[:\s]\s*(\S+)')
 _RE_TIME = re.compile(r'(?i)(?:time|zeit|utc|gmt)\s*[:\s]\s*(\d{1,2}:\d{2})')

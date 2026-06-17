@@ -303,3 +303,21 @@ def test_parse_ocr_from_to_labels():
     card, source = _parse_ocr_text(text)
     assert card.call_from == "DL5ABC"
     assert card.call_to == "DH3KR"
+
+
+def test_parse_ocr_date_not_overcaptured_multiline():
+    """Datum wird auch dann korrekt extrahiert, wenn weitere Felder auf der nächsten Zeile folgen."""
+    from qsl73.run import _parse_ocr_text
+
+    text = "DATE: 2024-06-21\nBAND: 40m"
+    card, source = _parse_ocr_text(text)
+    assert card.date == "2024-06-21"
+    assert card.band == "40m"
+
+
+def test_parse_ocr_mode_de_not_matched_as_from():
+    """'de' in 'Mode:' darf nicht als From-Label erkannt werden (\b-Fix)."""
+    from qsl73.run import _parse_ocr_text
+
+    card, _ = _parse_ocr_text("Mode: FT8")
+    assert card.call_from is None
