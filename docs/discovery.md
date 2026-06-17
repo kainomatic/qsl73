@@ -91,54 +91,61 @@ ProgramName = 'LOG4OM2', ProgramVersion = '0.6', DBVersion = 1
 
 ### Vorfilter (zu verarbeitende QSOs)
 
-QSOs, die **noch nicht** Papier-QSL-bestätigt sind:
+QSOs, die **noch nicht** Papier-QSL-bestätigt sind (Kandidaten für QSL73):
 
-```sql
--- in Python zu parsen, da SQLite-JSON-Funktionen nicht garantiert vorhanden:
--- Alle Rows laden, dann per json.loads() filtern:
--- entry["CT"] == "QSL" and entry["R"] == "No"  (oder kein QSL-Eintrag)
+| `R`-Wert | Bedeutung | Verhalten QSL73 |
+|----------|-----------|-----------------|
+| `"No"` | Offen, noch nicht bestätigt | **Kandidat** — bei Treffer auf `"Yes"` setzen |
+| `"Requested"` | Karte wurde angefordert, noch nicht erhalten | **Kandidat** — bei Eingang und Treffer auf `"Yes"` setzen |
+| `"Yes"` | Bereits bestätigt | **Überspringen** — nie als Kandidat anzeigen |
+| `"Invalid"` | Sonderzustand (Log4OM-intern, Semantik unklar) | **Überspringen** — nicht anfassen, um keinen gesetzten Sonderzustand zu überschreiben |
+
+```python
+# Vorfilter in Python (SQLite-JSON-Funktionen nicht vorausgesetzt):
+# entry["CT"] == "QSL" and entry["R"] in ("No", "Requested")
 ```
 
-In der Testdatei: alle 428 QSOs sind noch nicht bestätigt.
+**Normalzustand der Test-DB:** Alle 463 QSOs haben `CT="QSL", R="No", RV="Electronic"`.
+`"Requested"` und `"Invalid"` kommen in der Test-DB aktuell nicht vor, sind aber laut
+Log4OM-UI (Dropdown: No / Requested / Yes / Invalid) mögliche Werte.
 
-### Schreibformat (was QSL73 schreiben soll)
+### Schreibformat — empirisch bestätigt (RV-Hand-Test, 2026-06-17)
 
-Beim Markieren eines QSOs als „Papier-QSL bestätigt" ist das `qsoconfirmations`-JSON-Array zu aktualisieren:
+Drei Test-QSOs wurden in Log4OM manuell als Papier-QSL bestätigt (je einmal
+undefined, bureau, direct). Vorher/Nachher-Vergleich der DB-Kopie durch Claude Desktop.
 
-**Vorher** (unbestätigt):
+**Vorher** (offen, unbestätigt) — Ausgangszustand aller Test-QSOs:
 ```json
 {"CT":"QSL","S":"No","R":"No","SV":"Electronic","RV":"Electronic"}
 ```
 
-**Nachher** (bestätigt, von QSL73 zu schreiben — Design-Entscheidung, empirisch noch zu bestätigen):
-```json
-{"CT":"QSL","S":"No","R":"Yes","SV":"Electronic","RV":"<qsl_route_default>","RD":"2026-06-16T00:00:00Z"}
-```
+**Nachher — je nach gewähltem Übertragungsweg:**
 
-**Design-Entscheidungen (festgeschrieben, Quelle: KONZEPT.md §3.3/§9):**
+| Weg | Ergebnis-JSON |
+|-----|---------------|
+| Undefined | `{"CT":"QSL","S":"No","R":"Yes","SV":"Electronic"}` |
+| Bureau | `{"CT":"QSL","S":"No","R":"Yes","SV":"Electronic","RV":"Bureau"}` |
+| Direct | `{"CT":"QSL","S":"No","R":"Yes","SV":"Electronic","RV":"Direct"}` |
 
-| Feld | Wert | Begründung |
-|------|------|------------|
-| `R` | `"Yes"` | Papier-QSL empfangen/bestätigt. Nie `"V"` — das ist DXCC-Verifizierung durch den Nutzer selbst, setzt QSL73 nicht. |
-| `RD` | `"YYYY-MM-DDT00:00:00Z"` | Bestätigungsdatum UTC, ISO 8601 mit `T`-Trenner (analog SD/RD anderer CT-Typen). |
-| `RV` | Aus Config (`qsl_route_default`) | Pauschaler Standardwert: **Undefined** (Default), Bureau oder Direct. `"Electronic"` wird nicht angeboten — das ist der Weg für LOTW/eQSL, fachlich falsch für Papier. ADIF-Enum: Undefined/Bureau/Direct/Electronic (M=Manager nur Import). |
-| `SV` | Unverändert beibehalten | QSL73 bestätigt Empfang, nicht den Versand. `S`/`SV` bleiben wie vorgefunden. |
+**Empirisch bewiesene Regeln** (maßgeblich für die Implementierung in Schritt 5):
 
-**⚠️ Wartet auf Hand-Test:** Das exakte Format (insb. Groß-/Kleinschreibung von `RV`-Werten,
-ob Log4OM `"Undefined"` sauber akzeptiert/anzeigt, ob weitere Felder gesetzt werden) ist
-empirisch noch nicht bestätigt. Der Hand-Test durch DF1DS steht aus (Log4OM: 1–2 QSOs manuell
-als Papier-QSL bestätigen, je einmal Bureau und Direct, optional Undefined; dann Kopie ziehen
-und diesen Abschnitt aktualisieren).
-
-**Ableitung (bis Hand-Test):** Basiert auf dem beobachteten LOTW-Muster bei `R="Yes"` + `RD`-Datumsfeld. In der Test-DB gibt es **keine** QSOs mit `CT="QSL", R="Yes"`.
+| # | Regel | Befund |
+|---|-------|--------|
+| 1 | `R` | Wechselt `"No"` → `"Yes"`. Nie `"V"` (DXCC-Verifizierung bleibt dem Nutzer). |
+| 2 | `RV` | `"Bureau"` / `"Direct"` (großer Anfangsbuchstabe). Bei **Undefined**: RV-Feld wird **ganz entfernt** (kein Wert `"Undefined"` geschrieben). Ein vorhandener RV-Wert (z. B. `"Electronic"`) wird dabei überschrieben bzw. entfernt. |
+| 3 | `RD` | **Wird nicht geschrieben.** Die frühere Annahme (RD auf Bestätigungsdatum setzen) ist widerlegt. Log4OM schreibt kein Empfangsdatum für Papier-QSL. |
+| 4 | `S`, `CT`, `SV` | Bleiben unverändert. Alle anderen Bestätigungstypen (EQSL, LOTW, QRZCOM, HAMQTH, HRDLOG, CLUBLOG) werden byte-genau nicht berührt. |
 
 ### Schreiboperation (Ablauf)
 
 1. `qsoconfirmations` aus der DB lesen und per `json.loads()` parsen.
 2. Eintrag mit `CT == "QSL"` suchen (immer vorhanden, da Log4OM alle 7 Typen anlegt).
-3. `R` auf `"Yes"` setzen (nie `"V"`); `RD` auf Bestätigungsdatum UTC (`"YYYY-MM-DDT00:00:00Z"`); `RV` auf konfigurierten `qsl_route_default`-Wert setzen.
-4. Array zurück in JSON serialisieren (`json.dumps()`).
-5. Spalte `qsoconfirmations` per UPDATE in der SQLite-DB schreiben.
+3. `R` auf `"Yes"` setzen (nie `"V"`).
+4. `RV` je nach `qsl_route_default` setzen: `"bureau"` → `"Bureau"`, `"direct"` → `"Direct"`,
+   `"undefined"` → RV-Schlüssel aus dem Dict entfernen (falls vorhanden).
+5. `RD` **nicht** setzen (kein Datum schreiben).
+6. Array zurück in JSON serialisieren (`json.dumps()`).
+7. Spalte `qsoconfirmations` per UPDATE in der SQLite-DB schreiben.
 
 ---
 
@@ -298,7 +305,7 @@ Analyse der echten Test-DB (428 QSOs, 403 eindeutige Gegenstationen):
 
 | # | Frage | Status |
 |---|-------|--------|
-| 1 | `RV`-Wert bei bestätigtem Papier-QSL: welche Werte schreibt Log4OM exakt (Groß-/Kleinschreibung, akzeptiert Log4OM `"Undefined"`?) | **Wartet auf Hand-Test** durch DF1DS |
+| 1 | `RV`-Wert bei bestätigtem Papier-QSL: welche Werte schreibt Log4OM exakt (Groß-/Kleinschreibung, akzeptiert Log4OM `"Undefined"`?) | **Erledigt** → RV-Hand-Test 2026-06-17; exaktes Format in §3 dokumentiert (→ ADR-0005/0006 aktualisiert) |
 | 2 | Muss `S` auf `"Yes"` gesetzt werden, wenn Karte empfangen wird? | **Entschieden:** Nein — `S`/`SV` bleiben unverändert; QSL73 bestätigt nur Empfang |
 | 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | Offen / Niedrig; →Schema-Validierung §3.3 fängt das ab |
 | 4 | OCR-Qualität (Paperless-OCR) und Paperless-API-Details | **Erledigt** → §5.2/§5.3 (Schritt 3b) |

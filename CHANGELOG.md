@@ -8,6 +8,16 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- RV-Hand-Test empirisch bestätigt (2026-06-17): exaktes Schreibformat für Papier-QSL-
+  Bestätigung in Log4OM jetzt bewiesen — discovery.md §3, ADR-0005/0006 aktualisiert.
+  Schritt 5 (Schreiblogik) damit spezifikationsseitig entsperrt. Issue #1 geschlossen.
+  Kernbefunde:
+  - R: "No" → "Yes" (nie "V")
+  - RV: "Bureau" / "Direct" (Großbuchstabe); Undefined = RV-Feld entfernen
+  - RD: wird NICHT geschrieben (frühere Annahme widerlegt)
+  - Vorfilter: R="No" und R="Requested" sind Kandidaten; R="Invalid" wird übersprungen
+- normalize_band: 4m (70.0–70.5 MHz) und 23cm (1240–1300 MHz) ergänzt
+
 - QR-Code-Auswertung (Schritt 4b):
   - `src/qsl73/qr.py`: QR-Dekodierung aus PDF-Bytes (ADR-0011, ADR-0012, ADR-0017)
     - `decode_qr_from_pdf(pdf_bytes)`: rendert alle PDF-Seiten (pymupdf, 300 dpi),
