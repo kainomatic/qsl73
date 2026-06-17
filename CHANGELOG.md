@@ -9,6 +9,26 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 6b — GUI-Grundgerüst (tkinter):**
+  - `python -m qsl73` startet die Anwendung; Einstiegspunkt `src/qsl73/__main__.py`
+  - `InstanceLock` (PID-Lockfile, `%APPDATA%\QSL73\qsl73.lock`): verhindert mehrfache
+    Instanzen ohne pywin32; stale Locks (tote PID) werden überschrieben
+  - `SetupWizard` (tk.Toplevel): erster-Start-Assistent mit allen Config-Feldern;
+    Token-Feld mit `show="*"` (nie Klartext sichtbar); dateiauswahl für DB-Pfad
+  - `MainWindow` (tk.Tk): Treeview mit allen Karten (Rufzeichen, Datum, Band, Modus,
+    Quelle, Status); Klick-Selektion; Filter (alle/sicher/unsicher/kein Treffer);
+    „Durchlauf starten" / „Jetzt schreiben"-Flow mit Bestätigungs-Dialog;
+    BETA-Kennzeichnung im Fenstertitel wenn `CHANNEL = "beta"`
+  - `RunController` (thread-/tk-frei): Queue-Pattern (ADR-0023); `start_run()` +
+    `start_write()` laufen in Daemon-Threads; GUI pollt via `root.after(100)`
+  - `filter_results()`: reine Funktion, `RunResult → list[CardResult]`; testbar ohne tk
+  - `show_error()`: modaler Fehler-Dialog mit aufklappbarem Traceback
+  - `CHANNEL = "stable"` in `__version__.py` für Kanalsteuerung
+  - ADR-0023: GUI-Architektur-Entscheidungen (Controller-Pattern, PID-Lock)
+  - Unit-Tests für alle GUI-Logik-Module ohne tk-Abhängigkeit (CI-kompatibel):
+    `test_filter_util.py` (6), `test_controller.py` (6), `test_instance_lock.py` (5),
+    `test_setup_wizard_logic.py` (7)
+
 - **Schritt 6a — Lauf-Orchestrierung (`src/qsl73/run.py`):**
   - `run_pass(paperless_client, db_path, config, on_progress)`: rein lesender
     Durchgang Sammeln→Auswerten→Matchen, liefert `RunResult` mit Einteilung

@@ -1,0 +1,192 @@
+# QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
+"""Setup-Assistent — erster Start oder fehlende/ungültige Konfiguration."""
+from __future__ import annotations
+
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+from typing import Optional
+
+from qsl73.config import Config
+from qsl73.crypto import CryptoBackend, get_default_backend
+from qsl73.setup_assistant import create_initial_config
+
+
+class SetupWizard(tk.Toplevel):
+    """Modaler Dialog für Erstkonfiguration. Nach Schließen: result ist Config oder None."""
+
+    def __init__(self, parent: tk.Misc, crypto: Optional[CryptoBackend] = None) -> None:
+        super().__init__(parent)
+        self.title("QSL73 — Erstkonfiguration")
+        self.resizable(True, True)
+        self.result: Optional[Config] = None
+        self._crypto = crypto if crypto is not None else get_default_backend()
+
+        self._build_ui()
+        self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+        self.wait_window()
+
+    # ------------------------------------------------------------------
+    # UI-Aufbau
+    # ------------------------------------------------------------------
+
+    def _build_ui(self) -> None:
+        outer = ttk.Frame(self, padding=12)
+        outer.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(outer, borderwidth=0, highlightthickness=0)
+        vsb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        vsb.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        inner = ttk.Frame(canvas)
+        inner_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _on_frame_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def _on_canvas_configure(event):
+            canvas.itemconfig(inner_id, width=event.width)
+
+        inner.bind("<Configure>", _on_frame_configure)
+        canvas.bind("<Configure>", _on_canvas_configure)
+
+        self._vars: dict[str, tk.Variable] = {}
+        row = 0
+
+        def section(label: str) -> None:
+            nonlocal row
+            ttk.Separator(inner, orient="horizontal").grid(
+                row=row, column=0, columnspan=3, sticky="ew", pady=(10, 2)
+            )
+            row += 1
+            ttk.Label(inner, text=label, font=("", 10, "bold")).grid(
+                row=row, column=0, columnspan=3, sticky="w", pady=(0, 4)
+            )
+            row += 1
+
+        def field(key: str, label: str, default: str = "", password: bool = False,
+                  browse: bool = False) -> None:
+            nonlocal row
+            var = tk.StringVar(value=default)
+            self._vars[key] = var
+            ttk.Label(inner, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8))
+            show = "*" if password else ""
+            entry = ttk.Entry(inner, textvariable=var, width=42, show=show)
+            entry.grid(row=row, column=1, sticky="ew")
+            if browse:
+                ttk.Button(
+                    inner, text="…",
+                    command=lambda: var.set(
+                        filedialog.askopenfilename(
+                            parent=self,
+                            title="Log4OM-Datenbank auswählen",
+                            filetypes=[("SQLite-Datenbank", "*.sqlite *.db"), ("Alle Dateien", "*.*")],
+                        ) or var.get()
+                    ),
+                    width=3,
+                ).grid(row=row, column=2, padx=(4, 0))
+            row += 1
+
+        def bool_field(key: str, label: str, default: bool = True) -> None:
+            nonlocal row
+            var = tk.BooleanVar(value=default)
+            self._vars[key] = var
+            ttk.Checkbutton(inner, text=label, variable=var).grid(
+                row=row, column=0, columnspan=2, sticky="w"
+            )
+            row += 1
+
+        def combo_field(key: str, label: str, values: list[str], default: str) -> None:
+            nonlocal row
+            var = tk.StringVar(value=default)
+            self._vars[key] = var
+            ttk.Label(inner, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8))
+            ttk.Combobox(inner, textvariable=var, values=values, state="readonly", width=20).grid(
+                row=row, column=1, sticky="w"
+            )
+            row += 1
+
+        inner.columnconfigure(1, weight=1)
+
+        section("Paperless-ngx")
+        field("paperless.url", "URL *", "https://")
+        combo_field("paperless.auth_mode", "Authentifizierung", ["token", "password"], "token")
+        field("paperless.token", "API-Token", password=True)
+
+        section("Log4OM")
+        field("log4om.db_path", "Datenbank *", browse=True)
+        field("log4om.own_callsign", "Eigenes Rufzeichen *")
+
+        section("Tags")
+        field("tags.input", "Eingangs-Tag", "qsl-card")
+        field("tags.confirmed", "Bestätigt-Tag", "qsl-bestätigt")
+        field("tags.uncertain", "Unsicher-Tag", "qsl-nicht-bestätigt")
+
+        section("Einstellungen")
+        bool_field("matching.fuzzy_enabled", "Fuzzy-Matching aktivieren", True)
+        combo_field("confirm.qsl_route_default", "QSL-Route-Default",
+                    ["undefined", "bureau", "direct"], "undefined")
+        combo_field("app.language", "Sprache", ["de", "en"], "de")
+        field("app.backup_count", "Anzahl Backups", "5")
+        bool_field("app.update_check", "Update-Prüfung beim Start", True)
+
+        # Buttons
+        btn_frame = ttk.Frame(self, padding=(12, 0, 12, 12))
+        btn_frame.pack(fill="x")
+        ttk.Button(btn_frame, text="Abbrechen", command=self._on_cancel).pack(side="right", padx=(4, 0))
+        ttk.Button(btn_frame, text="Speichern", command=self._on_ok).pack(side="right")
+
+        self.update_idletasks()
+        self.minsize(500, 400)
+
+    # ------------------------------------------------------------------
+    # Aktionen
+    # ------------------------------------------------------------------
+
+    def _collect_overrides(self) -> dict:
+        overrides: dict = {}
+        for key, var in self._vars.items():
+            value = var.get()
+            if key == "app.backup_count":
+                try:
+                    overrides[key] = int(value)
+                except ValueError:
+                    overrides[key] = 5
+            else:
+                overrides[key] = value
+        return overrides
+
+    def _validate(self) -> list[str]:
+        required = {
+            "paperless.url": "Paperless-URL",
+            "log4om.db_path": "Log4OM-Datenbankpfad",
+            "log4om.own_callsign": "Eigenes Rufzeichen",
+        }
+        errors = []
+        for key, label in required.items():
+            val = self._vars[key].get().strip()
+            if not val or val == "https://":
+                errors.append(f"{label} ist erforderlich.")
+        return errors
+
+    def _on_ok(self) -> None:
+        errors = self._validate()
+        if errors:
+            messagebox.showerror("Fehlende Felder", "\n".join(errors), parent=self)
+            return
+        try:
+            cfg = create_initial_config(
+                crypto=self._crypto,
+                overrides=self._collect_overrides(),
+            )
+            self.result = cfg
+            self.destroy()
+        except Exception as exc:
+            from qsl73.gui.error_dialog import show_error
+            show_error(self, "Fehler beim Speichern", str(exc))
+
+    def _on_cancel(self) -> None:
+        self.result = None
+        self.destroy()

@@ -32,9 +32,17 @@ Weiterentwicklungen, die verbreitet werden, müssen ebenfalls unter GPLv3 offeng
 - [Log4OM](https://www.log4om.com/) mit lokaler SQLite-Datenbank
 - [Paperless-ngx](https://docs.paperless-ngx.com/) Instanz mit QSL-Karten (Tag `qsl-card`)
 
+## Starten (Entwicklungsumgebung)
+
+```
+python -m qsl73
+```
+
+Beim ersten Start öffnet sich der Setup-Assistent. Die Konfiguration wird unter `%APPDATA%\QSL73\config.yaml` gespeichert (Token DPAPI-verschlüsselt).
+
 ## Konfiguration
 
-Kopiere `config.example.yaml` nach `%APPDATA%\QSL73\config.yaml` und trage deine Werte ein. Echte Konfigurationsdateien (mit Token/Pfad) gehören **nicht ins Repo**.
+Beim ersten Start öffnet sich automatisch der Setup-Assistent mit allen erforderlichen Feldern. Echte Konfigurationsdateien (mit Token/Pfad) gehören **nicht ins Repo**.
 
 ## Entwicklungs-Doku
 
