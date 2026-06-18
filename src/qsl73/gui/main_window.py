@@ -499,6 +499,14 @@ class MainWindow(tk.Tk):
             auto_selections, auto_doc_ids, self._manual_pending
         )
 
+        # Für Audit-Logging: welche qsoids wurden manuell zugeordnet?
+        manual_qsoids_for_audit = {
+            qsoid for _doc_id, (qsoid, _route) in self._manual_pending.items()
+        }
+        candidates_for_audit = (
+            self._run_result.candidates if self._run_result is not None else []
+        )
+
         if not selections:
             messagebox.showwarning(
                 "Keine schreibbaren Karten",
@@ -543,4 +551,6 @@ class MainWindow(tk.Tk):
             paperless_client=pc,
             confirmed_doc_ids=confirmed_doc_ids,
             tags_config=cfg.tags,
+            manual_qsoids=manual_qsoids_for_audit,   # NEU: für Audit-Logging
+            candidates=candidates_for_audit,          # NEU: für Audit-Logging
         )

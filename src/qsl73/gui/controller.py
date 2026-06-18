@@ -84,6 +84,8 @@ class RunController:
         paperless_client: Optional[PaperlessClient],
         confirmed_doc_ids: list[int],
         tags_config: Optional[TagsConfig],
+        manual_qsoids: Optional[set[str]] = None,   # NEU: für Audit-Logging
+        candidates: Optional[list] = None,            # NEU: list[QsoCandidate], kein Import nötig
     ) -> None:
         """Startet write_selected im Daemon-Thread. Ergebnis → Queue."""
         if self._run_result is None:
@@ -106,6 +108,8 @@ class RunController:
                     paperless_client=paperless_client,
                     confirmed_doc_ids=confirmed_doc_ids,
                     tags_config=tags_config,
+                    manual_qsoids=manual_qsoids,   # NEU
+                    candidates=candidates,          # NEU
                 )
                 self._queue.put(WriteDoneEvent(result, confirmed_doc_ids, tag_warnings, selections))
             except Exception as exc:
