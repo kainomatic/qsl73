@@ -23,7 +23,13 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0040.
+Nächste freie Nummer: ADR-0041.
+
+## Index
+
+| ADR | Titel |
+|-----|-------|
+| ADR-0040 | PyInstaller-Build — onedir-Bundle für Windows |
 
 ## Abgrenzung
 

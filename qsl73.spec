@@ -3,9 +3,7 @@
 # Erfordert: pyinstaller (NICHT in requirements.txt)
 # Bauen: cd C:\Entwicklung\qsl73 && pyinstaller qsl73.spec
 
-import sys
-import os
-from PyInstaller.utils.hooks import collect_all, collect_data_files
+from PyInstaller.utils.hooks import collect_all
 
 # ---------------------------------------------------------------------------
 # Bibliotheken bündeln

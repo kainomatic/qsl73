@@ -56,6 +56,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **PyInstaller-Build (Schritt 9a, ADR-0040):** onedir Windows-.exe; alle Abhängigkeiten
+  gebündelt (zxingcpp als Einzel-.pyd manuell, pymupdf+fitz via collect_all, tkcalendar+
+  babel via collect_all, pywin32 via collect_all+hiddenimports). Verifikation auf
+  Windows Server 2025: Start, QR, DPAPI, Datepicker — alle grün.
+- **Windows-Icon (Issue #5):** `assets/qsl73.ico` (16 / 32 / 48 / 256 px) aus
+  `assets/qsl73logo.png`; erzeugt von `tools/make_icon.py`.
+- **Build-Dokumentation:** `docs/BUILD.md` (kopierbare Bau-Anleitung mit Fallstricken),
+  `tools/build.ps1` (PS-Hilfsskript für lokale Build-Wiederholung).
+
 - **Durcharbeiten-Workflow für manuelle Zuordnung (ADR-0037):** Doppelklick auf
   UNCERTAIN/NO_MATCH-Karten öffnet jetzt den Dialog mit Workflow-Kontext. Neue Buttons
   „Speichern und nächste" + „Nächste" springen automatisch zur nächsten Karte; Phasen-

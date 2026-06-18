@@ -338,9 +338,31 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 
 ## Schritt 9 — Build, Test, erstes Release
 
+### ✅ Schritt 9a — PyInstaller-Build + Icon — ABGESCHLOSSEN
+
+- **PyInstaller-Build (ADR-0040):** onedir-Bundle (`dist\QSL73\QSL73.exe`);
+  alle Abhängigkeiten korrekt gebündelt:
+  - zxingcpp: Einzel-.pyd, manuell als `binaries` in `qsl73.spec`
+  - pymupdf + fitz: beide `collect_all` (native DLLs + Namespace-Wrapper)
+  - tkcalendar + babel: `collect_all` (Locale-Daten erforderlich)
+  - pywin32: `collect_all('win32')` + `hiddenimports` (DPAPI)
+  - `!qsl73.spec` als Ausnahme in `.gitignore` eingetragen
+- **Windows-Icon (Issue #5):** `assets/qsl73.ico` (16/32/48/256 px) aus
+  `assets/qsl73logo.png`, erzeugt via `tools/make_icon.py`.
+- **Verifikation auf Windows Server 2025:** Start, QR-Decoding, DPAPI, Datepicker — grün.
+  Issue #6 (pywin32-Bundle) und Issue #16 (Python 3.12 + zxingcpp) verifiziert.
+- **Build-Doku:** `docs/BUILD.md` + `tools/build.ps1`.
+- **Finaler Realtest durch DF1DS** auf frischem System: ausstehend.
+
+### Schritt 9b — Inno-Setup-Paket
+
+- Inno-Setup-Skript für Stable + Beta-Installer, stille Installation, Deinstaller mit
+  Nutzerdaten-Abfrage. Grundlage: `dist\QSL73\` aus Schritt 9a.
+
+### Schritt 9c — Erstes Release
+
 - PyInstaller-Build (64-Bit), Inno-Setup-Paket, Test auf Win10/11. Versionspflege +
-  CHANGELOG, Tag `v0.x.0`, GitHub-Release. Logo/Icon final (Freistellen + .ico durch
-  Claude Code).
+  CHANGELOG, Tag `v0.x.0`, GitHub-Release.
 - **README finalisieren:** Feature-Doku für neue Features (Menüleiste, Einstellungen-Dialog,
   Durcharbeiten-Workflow, Audit-Log, „Fehler melden") wird hier ergänzt — bewusst erst
   im Release-Schritt.
@@ -361,8 +383,8 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   dominieren oft; manueller Pfad wird häufig genutzt.
 - Bild-Auflösung für lesbare Handschrift (Preview vs. Original) — noch offen.
 - ~~pyzbar/libzbar-64.dll auf Windows~~ — **entschärft durch zxingcpp (ADR-0017)**; kein
-  nativer DLL-Ballast mehr. Offen bleibt: `zxing-cpp` + `pywin32` im PyInstaller-Bundle
-  einbetten (Issue #6, Schritt 9, ADR-0024).
+  nativer DLL-Ballast mehr. ~~`zxing-cpp` + `pywin32` im PyInstaller-Bundle einbetten~~
+  — **erledigt in Schritt 9a (ADR-0040, Issue #6 geschlossen)**.
 
 ## V2 — Vorgemerkte Features
 
