@@ -9,6 +9,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Prozesslücke geschlossen: Push als DoD-Pflichtpunkt** — ADR-0027 und CLAUDE.md um
+  Punkt 6 erweitert: Nach dem Commit muss `git push origin dev` ausgeführt und der
+  resultierende `origin/dev`-Hash im Abschluss-Bericht genannt werden. Auslöser: 7 lokale
+  Commits, die nie gepusht wurden, ließen DF1DS einen veralteten Stand testen
+  (Realtest-Runde verloren). „working tree clean" allein gilt nicht mehr als Abschluss.
+
 - **Diagnoseschritt: `_on_double_click`-Bugfix-Vorlauf** — Doppelklick auf UNCERTAIN/NO_MATCH
   öffnete im Realtest keinen Dialog. Lückenlosem DEBUG-Logging in `_on_double_click`
   (`main_window.py`) hinzugefügt (jeder Abbruchpfad mit Grund); bei Early-Return wird

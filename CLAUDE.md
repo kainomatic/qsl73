@@ -88,7 +88,7 @@ verwenden bedeutet: Reviewer kann nicht reviewen.
 ```
 Desktop spezifiziert Auftrag (Kontext + Aufgabe + Akzeptanzkriterien)
   → DF1DS überbringt an Claude Code
-    → Claude Code baut, committet, meldet zurück
+    → Claude Code baut, committet, pusht nach origin/dev, meldet zurück
       → Desktop liest Repo und reviewt gegen Akzeptanzkriterien
         → Korrektur-Auftrag oder Freigabe
           → nächster Schritt
@@ -100,7 +100,7 @@ Desktop spezifiziert Auftrag (Kontext + Aufgabe + Akzeptanzkriterien)
 
 ## Definition of Done je Bau-Schritt
 
-Ein Schritt (oder Teilschritt) gilt erst als **fertig**, wenn alle fünf Punkte erfüllt
+Ein Schritt (oder Teilschritt) gilt erst als **fertig**, wenn alle sechs Punkte erfüllt
 sind. → Begründung und Kontext: **ADR-0027**
 
 | # | Kriterium | Wie |
@@ -110,10 +110,15 @@ sind. → Begründung und Kontext: **ADR-0027**
 | 3 | **CHANGELOG.md `[Unreleased]`** um die Änderung ergänzt | Unter passendem Abschnitt (`### Added` / `### Fixed` / …) |
 | 4 | **Zugehörige GitHub-Issues geschlossen** | Bevorzugt per `Fixes #N` im Commit; sonst mit Schließkommentar inkl. belegendem Commit-Hash. Issue nur schließen wenn Fix im Code belegt. |
 | 5 | **ADR angelegt**, falls im Schritt eine Design-/Grundentscheidung gefallen ist | → bestehende ADR-Pflicht (Abschnitt „Entscheidungen und Aufgaben festhalten") |
+| 6 | **Nach `origin` gepusht** (`git push origin dev`) **+ `origin/dev`-Hash im Bericht genannt** | `git log --oneline -1 origin/dev` → Hash im Abschluss-Bericht. „working tree clean" allein genügt nicht. → ADR-0027 |
 
 **Hinweis:** Diese Checkliste ergänzt die ADR-Pflicht und ADR-0009 — sie ersetzt sie nicht.
-Punkte 1 und 5 sind bereits anderweitig verankert; die Liste macht alle fünf Kriterien an
+Punkte 1 und 5 sind bereits anderweitig verankert; die Liste macht alle sechs Kriterien an
 einer Stelle sichtbar, damit kein Punkt beim Schritt-Abschluss vergessen wird.
+
+**Routinemäßiges Pushen auf `dev` ist unkritisch und erwünscht.** Die Update-Prüfung der
+App richtet sich gegen `main`-Releases und explizit getaggte Pre-Releases (→ ADR-0021),
+nicht gegen jeden `dev`-Push. Es besteht kein Grund, mit dem Push zu warten.
 
 ---
 

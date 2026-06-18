@@ -17,7 +17,7 @@ Aufgabe mit, statt als fester Bestandteil jedes Commits.
 
 ## Entscheidung
 
-Ein Bau-Schritt (bzw. Teilschritt) gilt erst als **fertig**, wenn alle fünf Punkte erfüllt
+Ein Bau-Schritt (bzw. Teilschritt) gilt erst als **fertig**, wenn alle sechs Punkte erfüllt
 sind:
 
 1. **pytest grün** (lokal) und **CI grün** (GitHub Actions).
@@ -28,6 +28,10 @@ sind:
    Fix im Code belegt ist.
 5. **ADR angelegt**, falls im Schritt eine Design- oder Grundentscheidung gefallen ist
    (→ bestehende ADR-Pflicht in CLAUDE.md).
+6. **Nach `origin` gepusht** (`git push origin dev`) **und der resultierende
+   `origin/dev`-Commit-Hash im Abschluss-Bericht an DF1DS genannt.** Der Hash ist der
+   Nachweis, dass der Remote-Stand tatsächlich aktualisiert wurde — nicht nur lokal
+   committet. „working tree clean" allein genügt nicht.
 
 Die Checkliste ist in CLAUDE.md im Abschnitt „Definition of Done je Bau-Schritt"
 verankert und wird beim Onboarding jeder neuen Session mitgelesen.
@@ -48,8 +52,20 @@ verankert und wird beim Onboarding jeder neuen Session mitgelesen.
 - Bei sehr kleinen Fixes (die kein eigenes Issue haben) ist Punkt 4 ein No-op — das ist
   gewollt; die Checkliste skaliert.
 
+**Ergänzung Juni 2026 — Auslöser für Punkt 6:**
+Im Juni 2026 blieben 7 Commits über mehrere Aufträge hinweg lokal liegen — `origin/dev`
+stand auf `57c2c5f`, während der lokale `dev` bei `1b20d82` war. DF1DS testete deshalb
+einen Stand ohne den gesamten 6c-Code (Schritte 6c-1 bis 6c-3 + Diagnose-Logging) und
+verlor eine komplette Realtest-Runde. Ursache: Die DoD verlangte Commit, aber keinen Push.
+Punkt 6 schließt dieses Loch dauerhaft.
+
+Routinemäßiges Pushen auf `dev` ist unkritisch: Die integrierte Update-Prüfung der App
+richtet sich gegen `main`-Releases und explizit getaggte Pre-Releases (→ ADR-0021), nicht
+gegen jeden `dev`-Push. Es gibt keinen Grund, mit dem Push zu warten.
+
 **Abgrenzung:**
 - Punkt 1 (Tests) ist bereits in ADR-0009 verankert; diese Liste macht ihn sichtbar,
   nicht redundant.
 - Punkt 5 (ADR) ist bereits in der ADR-Pflicht (CLAUDE.md) verankert; diese Liste
   bündelt alle Punkte nur an einer Stelle.
+- Punkt 6 (Push) ist neu; er ergänzt die bisherigen fünf Punkte und ersetzt keinen.
