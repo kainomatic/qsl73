@@ -25,7 +25,7 @@ from qsl73.log4om_write import write_paper_qsl
 
 DB_ORIG = Path("docs/testdateien/TESTDB_DF1DS_Mai24_backup.sqlite")
 
-pytestmark = pytest.mark.acceptance
+pytestmark = [pytest.mark.acceptance, pytest.mark.slow]
 
 # qsoid des Anker-QSO, das im Test verwendet wird (eingefügt via Fixture)
 WRITE_TEST_QSOID = "20250402194200099"

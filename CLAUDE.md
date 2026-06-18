@@ -187,6 +187,24 @@ unerwarteter Skip (z. B. DPAPI-Test skippt obwohl pywin32 laut `pip list` instal
 wäre ein echtes Problem. Stand Dev-Maschine: pywin32 installiert → 3 Skips erwartet
 (Linux-only-Test + 2× "Windows-ohne-pywin32"-Sicherheitstests).
 
+### Test-Ausführung — Tool-Wahl und Laufzeiten
+
+**Bash bevorzugen, nicht PowerShell** — das PowerShell-Tool hat ein kurzes internes
+Timeout und kennt kein `tail`; pytest-Läufe > ~5 s brechen mit Exit 137 (OS-Kill) ab.
+Exit 137 in diesem Kontext ist ein Tool-Timeout, kein Test-Fehler.
+
+| Lauf | Befehl | Wann |
+|------|--------|------|
+| Schnell (Zwischenlauf) | `pytest -m "not slow"` | Jederzeit während der Entwicklung |
+| Vollständig (Pflicht) | `pytest` | Vor jedem Schritt-Abschluss (DoD, ADR-0027) |
+
+Die Acceptance-Tests (`tests/acceptance/`) tragen den Marker `slow` und brauchen ~25 s
+(DB-Kopie-Läufe). Der schnelle Zwischenlauf überspringt sie; der vollständige grüne Lauf
+bleibt Pflicht laut Definition of Done — `-m "not slow"` ersetzt ihn nicht.
+
+`pytest-timeout` setzt ein Default-Timeout von 60 s pro Test, damit ein hängender
+einzelner Test gezielt fehlschlägt statt die gesamte Suite zu killen.
+
 ---
 
 ## Weiterführende Dokumente

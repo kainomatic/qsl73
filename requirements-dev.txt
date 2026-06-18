@@ -1,5 +1,6 @@
 -r requirements.txt
 pytest>=7.4
+pytest-timeout>=0.5  # Default-Timeout pro Test (60 s in pyproject.toml); verhindert dass ein hängender Test die Suite killt
 responses>=0.25
 qrcode[pil]>=8.0   # QR-Bild für Decode-Tests generieren (test_qr.py)
 

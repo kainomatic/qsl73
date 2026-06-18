@@ -638,6 +638,7 @@ def _make_busy_db(tmp_path: Path, name: str = "busy.sqlite") -> Path:
     return db_path
 
 
+@pytest.mark.slow
 def test_busy_raises_database_busy_error(tmp_path):
     """Andere Verbindung hält Schreibsperre → DatabaseBusyError nach erschöpften Versuchen."""
     db_path = _make_busy_db(tmp_path)
@@ -662,6 +663,7 @@ def test_busy_raises_database_busy_error(tmp_path):
         locker.close()
 
 
+@pytest.mark.slow
 def test_busy_no_partial_write(tmp_path):
     """Nach DatabaseBusyError bleibt die DB im Originalzustand (kein Teilschreiben)."""
     db_path = _make_busy_db(tmp_path)
@@ -688,6 +690,7 @@ def test_busy_no_partial_write(tmp_path):
     assert original_hash == final_hash, "DB darf nach DatabaseBusyError nicht verändert sein"
 
 
+@pytest.mark.slow
 def test_busy_retry_count_respected(tmp_path, monkeypatch):
     """sleep() wird genau (retry_count - 1) mal aufgerufen."""
     db_path = _make_busy_db(tmp_path)

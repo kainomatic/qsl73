@@ -24,7 +24,7 @@ from qsl73.log4om_db import SchemaError, open_wal_connection, validate_schema, w
 
 DB_ORIG = Path("docs/testdateien/TESTDB_DF1DS_Mai24_backup.sqlite")
 
-pytestmark = pytest.mark.acceptance
+pytestmark = [pytest.mark.acceptance, pytest.mark.slow]
 
 # Eindeutige Test-qsoids (kein Konflikt mit echten QSOs)
 QSOID_A = "20230101120000900"

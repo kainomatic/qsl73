@@ -33,7 +33,7 @@ DK8NE_QR_TEXT = (
     "Prop_Mode: TR  RST: -24  QSL: TNX"
 )
 
-pytestmark = pytest.mark.acceptance
+pytestmark = [pytest.mark.acceptance, pytest.mark.slow]
 
 
 # ---------------------------------------------------------------------------

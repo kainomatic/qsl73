@@ -22,4 +22,6 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
     "acceptance: Abnahme-Tests gegen echte DB-Kopie (erfordert docs/testdateien/TESTDB_DF1DS_Mai24_backup.sqlite)",
+    "slow: Tests mit langer Laufzeit (Acceptance-Tests gegen DB-Kopie); lokal mit -m 'not slow' überspringen",
 ]
+timeout = 60
