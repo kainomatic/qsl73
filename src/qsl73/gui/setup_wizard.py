@@ -31,6 +31,12 @@ class SetupWizard(tk.Toplevel):
     # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
+        self._available_tags: list = []
+        self._connection_ok: bool = False
+        self._tag_combos: dict = {}
+        self._new_tag_vars: dict = {}
+        self._tag_warning_lbls: dict = {}
+
         outer = ttk.Frame(self, padding=12)
         outer.pack(fill="both", expand=True)
 
@@ -146,14 +152,77 @@ class SetupWizard(tk.Toplevel):
             "write", lambda *_: self._update_auth_fields()
         )
 
+        ttk.Button(
+            inner, text="Verbindung testen", command=self._test_connection,
+        ).grid(row=row, column=1, sticky="w", pady=(6, 0))
+        row += 1
+        self._conn_status_lbl = ttk.Label(
+            inner, text="", foreground="#555555", wraplength=380,
+        )
+        self._conn_status_lbl.grid(row=row, column=1, columnspan=2, sticky="w", pady=(0, 4))
+        row += 1
+
         section("Log4OM")
         field("log4om.db_path", "Datenbank *", browse=True)
         field("log4om.own_callsign", "Eigenes Rufzeichen *")
 
         section("Tags")
-        field("tags.input", "Eingangs-Tag", "qsl-card")
-        field("tags.confirmed", "Bestätigt-Tag", "qsl-bestätigt")
-        field("tags.uncertain", "Unsicher-Tag", "qsl-nicht-bestätigt")
+        ttk.Label(
+            inner,
+            text="ℹ QSL73 legt Schreib-Tags ohne automatisches Matching an. "
+                 "Bitte diese Einstellung in Paperless nicht auf 'Auto' ändern.",
+            foreground="#555555", font=("", 8), wraplength=400,
+        ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        row += 1
+
+        for _tag_key, _tag_label, _tag_default in [
+            ("tags.input", "Eingangs-Tag", "qsl-card"),
+            ("tags.confirmed", "Bestätigt-Tag", "qsl-bestätigt"),
+            ("tags.uncertain", "Unsicher-Tag", "qsl-nicht-bestätigt"),
+        ]:
+            _var = tk.StringVar(value=_tag_default)
+            self._vars[_tag_key] = _var
+            ttk.Label(inner, text=_tag_label).grid(
+                row=row, column=0, sticky="w", padx=(0, 8)
+            )
+            _tag_frame = ttk.Frame(inner)
+            _tag_frame.grid(row=row, column=1, columnspan=2, sticky="ew")
+            _tag_frame.columnconfigure(0, weight=1)
+
+            _combo = ttk.Combobox(
+                _tag_frame, textvariable=_var, values=[], state="disabled", width=22,
+            )
+            _combo.grid(row=0, column=0, sticky="ew")
+            self._tag_combos[_tag_key] = _combo
+
+            _new_var = tk.StringVar()
+            self._new_tag_vars[_tag_key] = _new_var
+            ttk.Entry(_tag_frame, textvariable=_new_var, width=14).grid(
+                row=0, column=1, padx=(4, 0)
+            )
+            ttk.Button(
+                _tag_frame, text="Anlegen", width=8,
+                command=lambda k=_tag_key: self._create_tag(k),
+            ).grid(row=0, column=2, padx=(4, 0))
+            row += 1
+
+            if _tag_key != "tags.input":
+                _warn_lbl = ttk.Label(
+                    inner, text="", foreground="#cc4400",
+                    wraplength=400, font=("", 8),
+                )
+                _warn_lbl.grid(
+                    row=row, column=1, columnspan=2, sticky="w", pady=(0, 2)
+                )
+                self._tag_warning_lbls[_tag_key] = _warn_lbl
+                row += 1
+
+            _var.trace_add("write", lambda *_, k=_tag_key: self._check_tag_warning(k))
+
+        ttk.Button(
+            inner, text="Tags neu laden", command=self._reload_tags,
+        ).grid(row=row, column=1, sticky="w", pady=(4, 4))
+        row += 1
 
         section("Einstellungen")
         bool_field("matching.fuzzy_enabled", "Fuzzy-Matching aktivieren", True)
@@ -282,3 +351,127 @@ class SetupWizard(tk.Toplevel):
     def _on_cancel(self) -> None:
         self.result = None
         self.destroy()
+
+    # ------------------------------------------------------------------
+    # Verbindung + Tag-Verwaltung
+    # ------------------------------------------------------------------
+
+    def _test_connection(self) -> None:
+        from qsl73.gui.wizard_logic import format_connection_error, format_connection_ok
+        from qsl73.paperless import PaperlessClient
+
+        url = self._vars["paperless.url"].get().strip()
+        mode = self._vars["paperless.auth_mode"].get()
+
+        try:
+            if mode == "password":
+                pc, _ = PaperlessClient.from_password(
+                    url,
+                    self._pw_username_var.get(),
+                    self._pw_password_var.get(),
+                )
+            else:
+                token = self._vars["paperless.token"].get().strip()
+                pc = PaperlessClient(url, token)
+
+            tags = pc.list_tags()
+            self._available_tags = tags
+            self._connection_ok = True
+            self._conn_status_lbl.configure(
+                text=format_connection_ok(len(tags)),
+                foreground="#1a7a1a",
+            )
+        except Exception as exc:
+            self._connection_ok = False
+            self._available_tags = []
+            self._conn_status_lbl.configure(
+                text=format_connection_error(exc),
+                foreground="#cc0000",
+            )
+        finally:
+            self._update_tag_combos()
+
+    def _reload_tags(self) -> None:
+        if not self._connection_ok:
+            messagebox.showwarning(
+                "Verbindung nicht getestet",
+                "Bitte zuerst 'Verbindung testen' ausführen.",
+                parent=self,
+            )
+            return
+        self._test_connection()
+
+    def _update_tag_combos(self) -> None:
+        from qsl73.gui.wizard_logic import retain_selection_if_valid
+
+        tag_names = [t["name"] for t in self._available_tags]
+        state = "readonly" if self._connection_ok else "disabled"
+
+        for key in ("tags.input", "tags.confirmed", "tags.uncertain"):
+            combo = self._tag_combos.get(key)
+            if combo is None:
+                continue
+            current = self._vars[key].get()
+            new_val = retain_selection_if_valid(current, tag_names)
+            combo.configure(values=tag_names, state=state)
+            self._vars[key].set(new_val)
+
+        for key in ("tags.confirmed", "tags.uncertain"):
+            self._check_tag_warning(key)
+
+    def _check_tag_warning(self, key: str) -> None:
+        lbl = self._tag_warning_lbls.get(key)
+        if lbl is None:
+            return
+        from qsl73.gui.wizard_logic import auto_matching_warning
+
+        var = self._vars.get(key)
+        tag_name = var.get() if var is not None else ""
+        warning = auto_matching_warning(tag_name, self._available_tags)
+        lbl.configure(text=warning or "")
+
+    def _create_tag(self, key: str) -> None:
+        from qsl73.gui.wizard_logic import validate_tag_name
+        from qsl73.paperless import PaperlessClient
+
+        if not self._connection_ok:
+            messagebox.showwarning(
+                "Verbindung nicht getestet",
+                "Bitte zuerst 'Verbindung testen' ausführen.",
+                parent=self,
+            )
+            return
+
+        new_var = self._new_tag_vars.get(key)
+        if new_var is None:
+            return
+        name = new_var.get().strip()
+
+        errors = validate_tag_name(name)
+        if errors:
+            messagebox.showerror("Ungültiger Tag-Name", "\n".join(errors), parent=self)
+            return
+
+        url = self._vars["paperless.url"].get().strip()
+        mode = self._vars["paperless.auth_mode"].get()
+
+        try:
+            if mode == "password":
+                pc, _ = PaperlessClient.from_password(
+                    url,
+                    self._pw_username_var.get(),
+                    self._pw_password_var.get(),
+                )
+            else:
+                token = self._vars["paperless.token"].get().strip()
+                pc = PaperlessClient(url, token)
+
+            pc.create_tag(name, matching_algorithm=0)
+            new_tags = pc.list_tags()
+            self._available_tags = new_tags
+            self._update_tag_combos()
+            self._vars[key].set(name)
+            new_var.set("")
+        except Exception as exc:
+            from qsl73.gui.error_dialog import show_error
+            show_error(self, "Fehler beim Anlegen", str(exc))
