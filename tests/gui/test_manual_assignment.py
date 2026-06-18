@@ -13,8 +13,12 @@ import pytest
 
 from qsl73.gui.manual_assignment import (
     card_fields_to_query,
+    distinct_bands,
+    distinct_modes,
     field_values_to_query,
+    last_page_index,
     render_pdf_first_page,
+    render_pdf_pages,
 )
 from qsl73.matching import CardFields, QsoCandidate
 
@@ -149,7 +153,7 @@ def test_field_values_partial():
 
 
 # ---------------------------------------------------------------------------
-# 3. Reine Helfer — render_pdf_first_page
+# 3. Reine Helfer — render_pdf_first_page / render_pdf_pages
 # ---------------------------------------------------------------------------
 
 
@@ -167,6 +171,123 @@ def test_render_pdf_no_exception_on_error():
     """Kein Absturz bei defekten Daten — gibt None zurück."""
     result = render_pdf_first_page(b"\x00\x01\x02\x03")
     assert result is None
+
+
+def test_render_pdf_pages_empty_bytes_returns_empty_list():
+    """render_pdf_pages gibt leere Liste zurück bei leeren Bytes."""
+    pages = render_pdf_pages(b"")
+    assert pages == []
+
+
+def test_render_pdf_pages_garbage_returns_empty_list():
+    pages = render_pdf_pages(b"not a pdf at all")
+    assert pages == []
+
+
+def test_render_pdf_pages_no_exception_on_corrupt():
+    """Kein Absturz bei defekten Bytes — gibt leere Liste zurück."""
+    pages = render_pdf_pages(b"\x00\x01\x02\x03")
+    assert isinstance(pages, list)
+    assert pages == []
+
+
+def test_render_pdf_first_page_delegates_to_pages():
+    """render_pdf_first_page und render_pdf_pages müssen konsistent sein: None ↔ []."""
+    result_first = render_pdf_first_page(b"garbage")
+    pages = render_pdf_pages(b"garbage")
+    assert result_first is None
+    assert pages == []
+
+
+# ---------------------------------------------------------------------------
+# 3b. Reine Helfer — last_page_index
+# ---------------------------------------------------------------------------
+
+
+def test_last_page_index_zero():
+    """Leerfall: 0 Seiten → Index 0 (kein Absturz)."""
+    assert last_page_index(0) == 0
+
+
+def test_last_page_index_one_page():
+    """Einseitiges PDF → letzte Seite = Seite 0."""
+    assert last_page_index(1) == 0
+
+
+def test_last_page_index_two_pages():
+    """Zweiseitiges PDF → letzte Seite = Index 1."""
+    assert last_page_index(2) == 1
+
+
+def test_last_page_index_multiple_pages():
+    """Mehrseitiges PDF → letzter Index ist page_count - 1."""
+    assert last_page_index(5) == 4
+
+
+def test_last_page_index_never_negative():
+    """Negative Seitenzahl → Index 0 (Schutz gegen Laufzeitfehler)."""
+    assert last_page_index(-1) == 0
+
+
+# ---------------------------------------------------------------------------
+# 3c. Reine Helfer — distinct_bands / distinct_modes
+# ---------------------------------------------------------------------------
+
+
+def test_distinct_bands_basic():
+    """Eindeutige Bandwerte aus Kandidaten — korrekt dedup und sortiert."""
+    cands = [
+        _make_cand("Q1", band="40m"),
+        _make_cand("Q2", band="20m"),
+        _make_cand("Q3", band="40m"),  # Duplikat
+    ]
+    assert distinct_bands(cands) == ["20m", "40m"]
+
+
+def test_distinct_bands_empty_candidates():
+    assert distinct_bands([]) == []
+
+
+def test_distinct_bands_none_values_skipped():
+    """None-Bandwerte werden nicht in die Vorschlagsliste aufgenommen."""
+    cands = [_make_cand("Q1", band="20m")]
+    # Manuell None setzen
+    cands[0] = QsoCandidate(
+        qsoid="Q1", callsign="DK1AA", date="2025-01-01", band=None, mode="SSB"
+    )
+    result = distinct_bands(cands)
+    assert result == []
+
+
+def test_distinct_bands_sorted():
+    """Ergebnis ist alphabetisch sortiert."""
+    cands = [_make_cand(f"Q{i}", band=b) for i, b in enumerate(["80m", "2m", "10m"])]
+    assert distinct_bands(cands) == ["10m", "2m", "80m"]
+
+
+def test_distinct_modes_basic():
+    cands = [
+        _make_cand("Q1", mode="SSB"),
+        _make_cand("Q2", mode="CW"),
+        _make_cand("Q3", mode="SSB"),  # Duplikat
+    ]
+    assert distinct_modes(cands) == ["CW", "SSB"]
+
+
+def test_distinct_modes_empty_candidates():
+    assert distinct_modes([]) == []
+
+
+def test_distinct_modes_sorted():
+    cands = [_make_cand(f"Q{i}", mode=m) for i, m in enumerate(["SSB", "FT8", "CW"])]
+    assert distinct_modes(cands) == ["CW", "FT8", "SSB"]
+
+
+def test_distinct_modes_none_values_skipped():
+    cands = [
+        QsoCandidate(qsoid="Q1", callsign="DK1AA", date="2025-01-01", band="20m", mode=None)
+    ]
+    assert distinct_modes(cands) == []
 
 
 # ---------------------------------------------------------------------------

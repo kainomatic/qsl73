@@ -194,6 +194,14 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Issues: Bild-DPI für handschriftliche Karten (Issue #19), Rückseite anzeigbar (Issue #20).
 - **Review:** Akzeptanzkriterien §9; pytest grün, CI grün; Schritt 6 komplett.
 
+#### ✅ Schritt 6c-UX — UX-Nachbesserung manueller Zuordnungs-Dialog (ADR-0029)
+
+- Realtest-Feedback umgesetzt: drei UX-Verbesserungen an `manual_assignment.py`.
+- Rückseite zuerst + Blättern (`◀/▶`); 150 DPI; `render_pdf_pages()` für alle Seiten.
+- Band/Mode als editierbare Combobox; Vorschläge aus DB-Kandidaten (`distinct_bands/modes`).
+- Datum per tkcalendar DateEntry (Fallback Textfeld, kein Absturz ohne tkcalendar).
+- Issues #19 (Bild-DPI) und #20 (Rückseite) geschlossen. ADR-0029.
+
 ## 🔧 Schritt 7 — Logging & Fehler-Reporting — IN ARBEIT
 
 ### ✅ Schritt 7a — Diagnose-Logging + QR-Startwarnung (Issue #14)

@@ -7,6 +7,25 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Schritt 6c-UX — Drei UX-Verbesserungen im manuellen Zuordnungs-Dialog (ADR-0029):**
+  - **Rückseite zuerst + Blättern (Issue #20 → geschlossen):** `render_pdf_pages()` rendert alle
+    PDF-Seiten (150 DPI statt 100 — Issue #19 → geschlossen). Dialog zeigt standardmäßig die
+    letzte Seite (Rückseite); Blättern per `◀`/`▶`-Buttons. `render_pdf_first_page` bleibt als
+    Abwärtskompatibilitäts-Wrapper.
+  - **Band/Mode als Combobox (editierbar):** `distinct_bands()` und `distinct_modes()` leiten
+    Vorschlagswerte aus `RunResult.candidates` ab (nur tatsächlich vorkommende Werte, sortiert).
+    Tippen weiterhin möglich (state="normal").
+  - **Datum per tkcalendar DateEntry:** Kalender-Picker mit Fallback auf Textfeld wenn
+    `tkcalendar` fehlt (WARNING + kein Absturz). DateEntry-Wert filtert nur wenn Nutzer oder
+    OCR-Vorbefüllung ein Datum explizit gesetzt hat (`_date_explicit`-Flag).
+  - `last_page_index(page_count) → int` als reine, testbare Hilfsfunktion.
+  - `requirements.txt`: `tkcalendar>=1.6` ergänzt (beim PyInstaller-Bundle Schritt 9 beachten).
+  - `tests/gui/test_manual_assignment.py`: +17 Tests (distinct_bands/modes, render_pdf_pages,
+    last_page_index); gesamt 38 Tests.
+  - ADR-0029 angelegt; README-ADR-Index auf ADR-0030.
+
 ### Fixed
 
 - **Prozesslücke geschlossen: Push als DoD-Pflichtpunkt** — ADR-0027 und CLAUDE.md um

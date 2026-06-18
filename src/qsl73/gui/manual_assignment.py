@@ -1,10 +1,16 @@
 # QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
-"""Manueller Zuordnungs-Dialog (Schritt 6c-2).
+"""Manueller Zuordnungs-Dialog (Schritt 6c-2/6c-UX).
 
-Öffentliche API:
-  card_fields_to_query   — tk-frei: CardFields → ManualQuery (OCR-Vorbefüllung)
-  field_values_to_query  — tk-frei: Eingabefeld-Strings → ManualQuery
-  render_pdf_first_page  — tk-frei: PDF-Bytes → PIL-Image | None (lazy-Bildhilfe)
+Öffentliche API (tk-frei, vollständig ohne Display testbar):
+  card_fields_to_query   — CardFields → ManualQuery (OCR-Vorbefüllung)
+  field_values_to_query  — Eingabefeld-Strings → ManualQuery
+  render_pdf_pages       — PDF-Bytes → list[PIL.Image] (alle Seiten, 150 DPI, Issue #19)
+  render_pdf_first_page  — PDF-Bytes → PIL.Image | None (Seite 1; Abwärtskomp.)
+  distinct_bands         — list[QsoCandidate] → sortierte Band-Werte aus DB-Kandidaten
+  distinct_modes         — list[QsoCandidate] → sortierte Mode-Werte aus DB-Kandidaten
+  last_page_index        — Seitenanzahl → Index der letzten Seite (0-basiert)
+
+tk-abhängig:
   ManualAssignmentDialog — modales tk.Toplevel; result = (qsoid, route) | None
 """
 from __future__ import annotations
@@ -54,27 +60,74 @@ def field_values_to_query(call: str, date: str, band: str, mode: str) -> ManualQ
     )
 
 
-def render_pdf_first_page(pdf_bytes: bytes):
-    """Rendert erste PDF-Seite als PIL-Image (~100 DPI) für die Kartenvorschau.
+def render_pdf_pages(pdf_bytes: bytes) -> list:
+    """Rendert alle PDF-Seiten als PIL-Image-Liste (150 DPI — Issue #19/Lesbarkeit).
 
-    Gibt None zurück wenn pymupdf/Pillow fehlen oder ein Fehler auftritt.
+    Gibt leere Liste zurück wenn pymupdf/Pillow fehlen oder ein Fehler auftritt.
     Kein Absturz; Aufrufer zeigt dann einen Platzhaltertext.
     """
     try:
         import fitz
-        from PIL import Image  # noqa: F401 — Existenzprüfung
+        PIL_Image = __import__("PIL.Image", fromlist=["Image"])
 
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         if doc.page_count == 0:
-            return None
-        mat = fitz.Matrix(100 / 72, 100 / 72)
-        pix = doc[0].get_pixmap(matrix=mat)
-        return __import__("PIL.Image", fromlist=["Image"]).open(
-            io.BytesIO(pix.tobytes("png"))
-        )
+            return []
+        mat = fitz.Matrix(150 / 72, 150 / 72)
+        pages = []
+        for i in range(doc.page_count):
+            pix = doc[i].get_pixmap(matrix=mat)
+            img = PIL_Image.open(io.BytesIO(pix.tobytes("png")))
+            pages.append(img)
+        return pages
     except Exception as exc:
         _log.debug("PDF-Rendering fehlgeschlagen: %s", exc)
-        return None
+        return []
+
+
+def render_pdf_first_page(pdf_bytes: bytes):
+    """Rendert erste PDF-Seite als PIL-Image für die Kartenvorschau.
+
+    Delegiert an render_pdf_pages; gibt None zurück bei Fehler oder leerem PDF.
+    Abwärtskompatibel — intern wird jetzt render_pdf_pages (150 DPI) genutzt.
+    """
+    pages = render_pdf_pages(pdf_bytes)
+    return pages[0] if pages else None
+
+
+def distinct_bands(candidates: list) -> list:
+    """Gibt sortierte Liste aller eindeutigen Band-Werte aus den Kandidaten zurück.
+
+    Leere/None-Werte werden übersprungen. Grundlage für Combobox-Vorschläge (ADR-0029).
+    """
+    seen: set = set()
+    result = []
+    for c in candidates:
+        val = (getattr(c, "band", None) or "").strip()
+        if val and val not in seen:
+            seen.add(val)
+            result.append(val)
+    return sorted(result)
+
+
+def distinct_modes(candidates: list) -> list:
+    """Gibt sortierte Liste aller eindeutigen Mode-Werte aus den Kandidaten zurück.
+
+    Leere/None-Werte werden übersprungen. Grundlage für Combobox-Vorschläge (ADR-0029).
+    """
+    seen: set = set()
+    result = []
+    for c in candidates:
+        val = (getattr(c, "mode", None) or "").strip()
+        if val and val not in seen:
+            seen.add(val)
+            result.append(val)
+    return sorted(result)
+
+
+def last_page_index(page_count: int) -> int:
+    """Index der letzten Seite (0-basiert). Gibt 0 zurück wenn page_count == 0."""
+    return max(0, page_count - 1)
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +150,8 @@ if _TK_OK:
         Danach ist ``self.result`` entweder (qsoid, route) oder None.
 
         Kein DB-Zugriff, kein Schreiben (ADR-0028). Suchraum = übergebene candidates.
+        UX: Band/Mode als editierbare Combobox, Datum per tkcalendar DateEntry (mit
+        Fallback), Bildanzeige zeigt letzte Seite (Rückseite) zuerst (ADR-0029).
         """
 
         def __init__(
@@ -115,6 +170,10 @@ if _TK_OK:
             self._image_loader = image_loader
             self._img_ref = None          # PIL/tk PhotoImage — vor GC schützen
             self._iid_to_qsoid: dict[str, str] = {}
+            self._pages: list = []        # gerenderte Seiten (PIL-Images)
+            self._page_idx: int = 0       # aktuell angezeigte Seite
+            self._use_datepicker: bool = False  # tkcalendar verfügbar?
+            self._date_explicit: bool = False   # True sobald Nutzer/OCR Datum gesetzt hat
 
             self.title("Manuelle Zuordnung")
             self.resizable(True, True)
@@ -144,6 +203,7 @@ if _TK_OK:
             # Kartenbild-Bereich
             img_frame = ttk.LabelFrame(top, text="QSL-Karte", padding=4)
             img_frame.pack(side="left", fill="both", padx=(0, 8))
+
             self._img_label = ttk.Label(
                 img_frame,
                 text="Bild wird geladen…",
@@ -153,12 +213,28 @@ if _TK_OK:
             )
             self._img_label.pack(fill="both", expand=True)
 
+            # Blättern-Navigation unter dem Bild
+            nav_frame = ttk.Frame(img_frame)
+            nav_frame.pack(fill="x", pady=(4, 0))
+            self._prev_btn = ttk.Button(
+                nav_frame, text="◀", width=3,
+                command=self._on_prev_page, state="disabled",
+            )
+            self._prev_btn.pack(side="left")
+            self._page_label = ttk.Label(nav_frame, text="", anchor="center")
+            self._page_label.pack(side="left", expand=True, fill="x")
+            self._next_btn = ttk.Button(
+                nav_frame, text="▶", width=3,
+                command=self._on_next_page, state="disabled",
+            )
+            self._next_btn.pack(side="right")
+
             # Suchfelder
             fld_frame = ttk.LabelFrame(top, text="Suchfelder (editierbar)", padding=4)
             fld_frame.pack(side="left", fill="both", expand=True)
 
             self._var_call = tk.StringVar()
-            self._var_date = tk.StringVar()
+            self._var_date = tk.StringVar()   # für Fallback-Entry oder DateEntry-Textwert
             self._var_band = tk.StringVar()
             self._var_mode = tk.StringVar()
 
@@ -166,28 +242,81 @@ if _TK_OK:
             q = card_fields_to_query(self._card.card_fields)
             if q.call:
                 self._var_call.set(q.call)
-            if q.date:
-                self._var_date.set(q.date)
             if q.band:
                 self._var_band.set(q.band)
             if q.mode:
                 self._var_mode.set(q.mode)
 
-            for var in (self._var_call, self._var_date, self._var_band, self._var_mode):
+            # Traces für Rufzeichen, Band, Mode
+            for var in (self._var_call, self._var_band, self._var_mode):
                 var.trace_add("write", self._on_field_change)
 
-            for row, (lbl, var) in enumerate([
-                ("Rufzeichen:", self._var_call),
-                ("Datum:", self._var_date),
-                ("Band:", self._var_band),
-                ("Mode:", self._var_mode),
-            ]):
-                ttk.Label(fld_frame, text=lbl).grid(
-                    row=row, column=0, sticky="w", padx=(0, 4), pady=2
+            # Row 0 — Rufzeichen
+            ttk.Label(fld_frame, text="Rufzeichen:").grid(
+                row=0, column=0, sticky="w", padx=(0, 4), pady=2
+            )
+            ttk.Entry(fld_frame, textvariable=self._var_call, width=20).grid(
+                row=0, column=1, sticky="ew", pady=2
+            )
+
+            # Row 1 — Datum: DateEntry (tkcalendar) mit Fallback auf Entry
+            ttk.Label(fld_frame, text="Datum:").grid(
+                row=1, column=0, sticky="w", padx=(0, 4), pady=2
+            )
+            try:
+                from tkcalendar import DateEntry
+                self._date_entry = DateEntry(
+                    fld_frame, width=18, date_pattern="yyyy-MM-dd"
                 )
-                ttk.Entry(fld_frame, textvariable=var, width=20).grid(
-                    row=row, column=1, sticky="ew", pady=2
+                if q.date:
+                    try:
+                        from datetime import datetime as _dt
+                        self._date_entry.set_date(
+                            _dt.strptime(q.date, "%Y-%m-%d").date()
+                        )
+                        self._date_explicit = True
+                    except Exception:
+                        pass
+                self._date_entry.bind(
+                    "<<DateEntrySelected>>", self._on_date_changed
                 )
+                self._date_entry.bind(
+                    "<KeyRelease>", self._on_date_changed
+                )
+                self._use_datepicker = True
+            except ImportError:
+                _log.warning(
+                    "tkcalendar nicht verfügbar — Datum als Textfeld (Format: YYYY-MM-DD)"
+                )
+                self._date_entry = ttk.Entry(
+                    fld_frame, textvariable=self._var_date, width=20
+                )
+                if q.date:
+                    self._var_date.set(q.date)
+                self._var_date.trace_add("write", self._on_field_change)
+                self._use_datepicker = False
+            self._date_entry.grid(row=1, column=1, sticky="ew", pady=2)
+
+            # Row 2 — Band: Combobox mit DB-Kandidaten-Werten
+            bands = distinct_bands(self._candidates)
+            ttk.Label(fld_frame, text="Band:").grid(
+                row=2, column=0, sticky="w", padx=(0, 4), pady=2
+            )
+            ttk.Combobox(
+                fld_frame, textvariable=self._var_band,
+                values=bands, width=18,
+            ).grid(row=2, column=1, sticky="ew", pady=2)
+
+            # Row 3 — Mode: Combobox mit DB-Kandidaten-Werten
+            modes = distinct_modes(self._candidates)
+            ttk.Label(fld_frame, text="Mode:").grid(
+                row=3, column=0, sticky="w", padx=(0, 4), pady=2
+            )
+            ttk.Combobox(
+                fld_frame, textvariable=self._var_mode,
+                values=modes, width=18,
+            ).grid(row=3, column=1, sticky="ew", pady=2)
+
             fld_frame.columnconfigure(1, weight=1)
 
             # --- Trefferliste ---
@@ -233,6 +362,11 @@ if _TK_OK:
         def _on_field_change(self, *_args) -> None:
             self._update_search()
 
+        def _on_date_changed(self, _event=None) -> None:
+            """DateEntry-Event: Nutzer hat Datum explizit gesetzt → Datumsfilter aktiv."""
+            self._date_explicit = True
+            self._update_search()
+
         def _on_tree_select(self, _event=None) -> None:
             has_sel = bool(self._tree.selection())
             self._btn_ok.config(state="normal" if has_sel else "disabled")
@@ -255,14 +389,39 @@ if _TK_OK:
             self.result = None
             self.destroy()
 
+        def _on_prev_page(self) -> None:
+            if self._page_idx > 0:
+                self._show_page(self._page_idx - 1)
+
+        def _on_next_page(self) -> None:
+            if self._page_idx < len(self._pages) - 1:
+                self._show_page(self._page_idx + 1)
+
         # ------------------------------------------------------------------
         # Such-Logik
         # ------------------------------------------------------------------
 
+        def _get_date_str(self) -> str:
+            """Gibt aktuellen Datumswert als YYYY-MM-DD-String zurück.
+
+            Bei DateEntry nur wenn der Nutzer (oder OCR-Vorbefüllung) explizit ein
+            Datum gesetzt hat (_date_explicit). Sonst leer → kein Datumsfilter.
+            DateEntry zeigt immer ein Datum (Standard: heute), aber das darf nicht
+            als impliziter Filter gelten.
+            """
+            if self._use_datepicker:
+                if not self._date_explicit:
+                    return ""
+                try:
+                    return self._date_entry.get_date().strftime("%Y-%m-%d")
+                except Exception:
+                    return self._date_entry.get()
+            return self._var_date.get()
+
         def _update_search(self) -> None:
             query = field_values_to_query(
                 self._var_call.get(),
-                self._var_date.get(),
+                self._get_date_str(),
                 self._var_band.get(),
                 self._var_mode.get(),
             )
@@ -282,28 +441,49 @@ if _TK_OK:
                 self._iid_to_qsoid[iid] = cand.qsoid
 
         # ------------------------------------------------------------------
-        # Bildladen (lazy, nicht-blockierend)
+        # Bildladen und Seitennavigation (lazy, nicht-blockierend)
         # ------------------------------------------------------------------
 
         def _load_image(self) -> None:
-            """Lädt Kartenbild im Hintergrund nach Dialog-Anzeige (ADR-Stufe-2)."""
+            """Lädt alle PDF-Seiten; zeigt standardmäßig die letzte (Rückseite) zuerst."""
             if self._image_loader is None:
                 self._img_label.config(text="[Kein Bild-Loader konfiguriert]")
                 return
             try:
                 pdf_bytes = self._image_loader(self._card.doc_id)
-                pil_img = render_pdf_first_page(pdf_bytes)
-                if pil_img is None:
+                self._pages = render_pdf_pages(pdf_bytes)
+                if not self._pages:
                     self._img_label.config(text="[Kein Bild verfügbar]")
                     return
-                pil_img.thumbnail((300, 400))
+                # Rückseite zuerst (Discovery §5.3, ADR-0029)
+                self._page_idx = last_page_index(len(self._pages))
+                self._show_page(self._page_idx)
+            except Exception as exc:
+                _log.debug("Bild konnte nicht geladen werden: %s", exc)
+                self._img_label.config(text="[Bild konnte nicht geladen werden]")
+
+        def _show_page(self, idx: int) -> None:
+            """Zeigt Seite idx an und aktualisiert Blättern-Buttons."""
+            if not self._pages:
+                return
+            idx = max(0, min(idx, len(self._pages) - 1))
+            self._page_idx = idx
+
+            pil_img = self._pages[idx].copy()
+            pil_img.thumbnail((300, 400))
+            try:
                 from PIL import ImageTk
                 photo = ImageTk.PhotoImage(pil_img)
                 self._img_ref = photo
                 self._img_label.config(image=photo, text="")
             except Exception as exc:
-                _log.debug("Bild konnte nicht geladen werden: %s", exc)
-                self._img_label.config(text="[Bild konnte nicht geladen werden]")
+                _log.debug("Bild-Anzeige fehlgeschlagen: %s", exc)
+                self._img_label.config(text="[Bild-Anzeige fehlgeschlagen]")
+
+            n = len(self._pages)
+            self._page_label.config(text=f"Seite {idx + 1}/{n}")
+            self._prev_btn.config(state="normal" if idx > 0 else "disabled")
+            self._next_btn.config(state="normal" if idx < n - 1 else "disabled")
 
 else:
     # Stub damit Tests den Import nicht brechen wenn tk fehlt
