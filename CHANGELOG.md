@@ -9,6 +9,10 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **main-Branch auf aktuellen dev-Stand gebracht (ADR-0034):** Kein Release — reine
+  Branch-Synchronisation per Fast-Forward, um die öffentlich sichtbare GPLv3-Lizenz und
+  den aktuellen Codestand auf main herzustellen.
+
 - **Schritt 7b-1 — Config-Robustheit: Backups + robuster Start-Check (ADR-0033):**
   `config_backup.py` mit rotierenden Sicherungen von `config.yaml` vor jedem
   Überschreiben (`%APPDATA%\QSL73\config_backups\`, Default 5 Backups, kein Klartext-Token).
