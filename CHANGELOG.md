@@ -16,6 +16,11 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Nur tatsächlich geschriebene Karten werden als bestätigt markiert (#21):**
+  Übersprungene QSOs (R=Yes, expected_states-Mismatch, unbekannter R-Wert) wurden
+  fälschlich als „Bestätigt ✓" angezeigt. `written_doc_ids()` (filter_util.py)
+  berechnet die tatsächlich geschriebenen doc_ids aus der selections/skipped-Paarung.
+
 - **Manuell zugeordnete Karten behalten nach dem Schreiben ihre QSO-Werte:** Nach
   „Jetzt schreiben" zeigte die Treeview-Zeile für manuell zugeordnete Karten wieder „–"
   statt Rufzeichen/Datum/Band/Mode des zugeordneten QSO. Ursache: `_manual_pending`

@@ -33,6 +33,7 @@ class WriteDoneEvent:
     result: WriteResult
     confirmed_doc_ids: list
     tag_warnings: list[str]
+    selections: list  # paarweise mit confirmed_doc_ids: [(qsoid, route), ...]
 
 
 @dataclass
@@ -106,7 +107,7 @@ class RunController:
                     confirmed_doc_ids=confirmed_doc_ids,
                     tags_config=tags_config,
                 )
-                self._queue.put(WriteDoneEvent(result, confirmed_doc_ids, tag_warnings))
+                self._queue.put(WriteDoneEvent(result, confirmed_doc_ids, tag_warnings, selections))
             except Exception as exc:
                 self._queue.put(ErrorEvent(exc, tb.format_exc()))
 

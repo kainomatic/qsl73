@@ -22,7 +22,7 @@ from qsl73.gui.controller import (
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
-from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last
+from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last, written_doc_ids
 
 
 _log = logging.getLogger("qsl73")
@@ -224,13 +224,18 @@ class MainWindow(tk.Tk):
             self._update_write_btn()
         elif isinstance(event, WriteDoneEvent):
             res = event.result
-            self._written.update(event.confirmed_doc_ids)
-            for doc_id in event.confirmed_doc_ids:
+            actually_written = written_doc_ids(
+                event.confirmed_doc_ids, event.selections, res.skipped
+            )
+            self._written.update(actually_written)
+            for doc_id in actually_written:
                 if doc_id in self._manual_pending:
                     self._written_qso[doc_id] = self._manual_pending[doc_id][0]
             self._manual_pending.clear()
             self._selected.clear()
             status = f"Geschrieben: {res.written} QSO(s), übersprungen: {len(res.skipped)}."
+            if res.skipped:
+                status += " Übersprungene Karten behalten ihren Status."
             if event.tag_warnings:
                 status += " ⚠ Tag-Fehler — Details im Dialog."
             self._status_var.set(status)

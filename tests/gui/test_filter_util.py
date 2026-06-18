@@ -1,6 +1,6 @@
-"""Tests für filter_results(), merge_selections(), qso_by_id(), sort_cards_written_last(), qso_display_values() — reine Funktionen."""
+"""Tests für filter_results(), merge_selections(), written_doc_ids(), qso_by_id(), sort_cards_written_last(), qso_display_values() — reine Funktionen."""
 import pytest
-from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last, FILTER_MODES
+from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last, written_doc_ids, FILTER_MODES
 from qsl73.run import RunResult, CardResult
 from qsl73.matching import MatchOutcome, MatchResult, CardFields, QsoCandidate
 
@@ -271,3 +271,37 @@ def test_qso_display_values_partial_fields():
     assert date == "–"
     assert band == "–"
     assert mode == "–"
+
+
+class TestWrittenDocIds:
+    def test_no_skips_all_confirmed_written(self):
+        ids = written_doc_ids([10, 20, 30], [("Q1","b"),("Q2","b"),("Q3","b")], [])
+        assert ids == {10, 20, 30}
+
+    def test_one_skip_removes_corresponding_doc_id(self):
+        ids = written_doc_ids([10, 20, 30], [("Q1","b"),("Q2","b"),("Q3","b")],
+                              [{"qsoid": "Q2", "reason": "R=Yes"}])
+        assert ids == {10, 30}
+
+    def test_multiple_skips(self):
+        ids = written_doc_ids([10, 20, 30], [("Q1","b"),("Q2","b"),("Q3","b")],
+                              [{"qsoid": "Q1"}, {"qsoid": "Q3"}])
+        assert ids == {20}
+
+    def test_all_skipped_returns_empty(self):
+        ids = written_doc_ids([10, 20], [("Q1","b"),("Q2","b")],
+                              [{"qsoid": "Q1"}, {"qsoid": "Q2"}])
+        assert ids == set()
+
+    def test_unknown_skip_qsoid_ignored(self):
+        ids = written_doc_ids([10, 20], [("Q1","b"),("Q2","b")],
+                              [{"qsoid": "Q_UNKNOWN"}])
+        assert ids == {10, 20}
+
+    def test_empty_inputs(self):
+        assert written_doc_ids([], [], []) == set()
+
+    def test_selections_longer_than_skips(self):
+        ids = written_doc_ids([1, 2, 3, 4], [("A","b"),("B","b"),("C","b"),("D","b")],
+                              [{"qsoid": "B"}])
+        assert ids == {1, 3, 4}

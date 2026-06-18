@@ -90,6 +90,30 @@ def qso_by_id(candidates: list, qsoid: str):
     return None
 
 
+def written_doc_ids(
+    confirmed_doc_ids: list[int],
+    selections: list[tuple[str, str]],
+    skipped: list[dict],
+) -> set[int]:
+    """Gibt die Menge der tatsächlich geschriebenen doc_ids zurück.
+
+    confirmed_doc_ids und selections sind index-paarig (merge_selections-Invariante).
+    skipped enthält [{"qsoid": str, ...}, ...] aus WriteResult.
+    Übersprungene qsoids werden via Mapping auf ihre doc_ids übersetzt und
+    aus der Ergebnismenge ausgeschlossen. Unbekannte skip-qsoids werden ignoriert.
+    """
+    qsoid_to_doc_id: dict[str, int] = {
+        qsoid: doc_id
+        for (qsoid, _route), doc_id in zip(selections, confirmed_doc_ids)
+    }
+    skipped_doc_ids: set[int] = set()
+    for entry in skipped:
+        qsoid = entry.get("qsoid", "")
+        if qsoid in qsoid_to_doc_id:
+            skipped_doc_ids.add(qsoid_to_doc_id[qsoid])
+    return set(confirmed_doc_ids) - skipped_doc_ids
+
+
 def merge_selections(
     auto_selections: list[tuple[str, str]],
     auto_doc_ids: list[int],

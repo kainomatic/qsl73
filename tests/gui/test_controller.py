@@ -123,6 +123,7 @@ def test_start_write_produces_done_event():
     assert len(done) == 1
     assert done[0].result.written == 1
     assert done[0].tag_warnings == []
+    assert done[0].selections == [("q1", "undefined")]
 
 
 def test_start_write_without_run_result_raises():
