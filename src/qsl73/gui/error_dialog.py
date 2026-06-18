@@ -14,7 +14,7 @@ def show_error(
 ) -> None:
     """Zeigt einen modalen Fehler-Dialog. detail wird in einem aufklappbaren Bereich angezeigt."""
     dlg = tk.Toplevel(parent)
-    dlg.title(title)
+    dlg.title(f"{title} — by DF1DS")
     dlg.resizable(False, False)
     dlg.grab_set()
 

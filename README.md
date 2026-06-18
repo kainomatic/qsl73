@@ -16,7 +16,7 @@ Funkamateure sammeln QSL-Karten als Belege für ihre Verbindungen. QSL73 schlie�
 
 ## Inhaber & Kontakt
 
-- Entwickler / Maintainer: **DF1DS**
+- Entwickler / Maintainer: **DF1DS — Stephan Dahmen (DOK: G16)**
 - GitHub: [kainomatic](https://github.com/kainomatic)
 - QRZ.com: [DF1DS](https://www.qrz.com/db/DF1DS)
 - Issues & Feature-Requests: [GitHub Issues](https://github.com/kainomatic/qsl73/issues)
@@ -30,7 +30,7 @@ Weiterentwicklungen, die verbreitet werden, müssen ebenfalls unter GPLv3 offeng
 
 - Windows 10 / 11 (64-Bit)
 - [Log4OM](https://www.log4om.com/) mit lokaler SQLite-Datenbank
-- [Paperless-ngx](https://docs.paperless-ngx.com/) Instanz mit QSL-Karten (Tag `qsl-card`)
+- [Paperless-ngx](https://docs.paperless-ngx.com/) Instanz mit QSL-Karten (Tag frei wählbar im Setup-Assistenten, Standardvorschlag: `qsl-card`)
 
 ## Installation (Entwicklungsumgebung)
 

@@ -77,7 +77,7 @@ class _ConfigErrorDialog:
         self._selected_backup: Path | None = None
 
         dlg = tk.Toplevel(parent)
-        dlg.title("QSL73 – Konfigurationsfehler")
+        dlg.title("QSL73 – Konfigurationsfehler — by DF1DS")
         dlg.resizable(True, False)
         dlg.grab_set()
         dlg.focus_force()

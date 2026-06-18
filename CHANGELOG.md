@@ -9,6 +9,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Autor in allen Fenstertiteln:** Jedes echte Toplevel-Fenster trägt jetzt „— by DF1DS"
+  im Titel (MainWindow, SetupWizard, ManualAssignmentDialog, Zoom-Fenster, Über-Dialog,
+  Neustart-Dialog, Fehler-Dialog, Fehlerbericht-Dialog, Konfigurationsfehler-Dialog).
+  Format bei BETA: „QSL73 v{v} [BETA] — by DF1DS".
+- **Über-Dialog — vollständiger Autor:** Autor-Zeile zeigt jetzt
+  „DF1DS | Stephan Dahmen | DOK: G16" (fett hervorgehoben).
+- **README:** Autor-Eintrag um Klarname und DOK ergänzt; Paperless-Tag als frei
+  wählbar (Standardvorschlag `qsl-card`) formuliert; README-Feature-Doku in
+  Schritt 9 (ROADMAP) vorgemerkt.
 - **Über-Dialog verfeinert:** Luftigeres Layout (mehr Padding, Separator, Mindestbreite 340 px);
   Titel als klare Überschrift; Autor „DF1DS" fett hervorgehoben; Links „GitHub" und „QRZ.com"
   als kurze Texte nebeneinander mit Hover-Unterstreichung; nutzersichtbare Texte als

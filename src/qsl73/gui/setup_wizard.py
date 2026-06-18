@@ -40,7 +40,11 @@ class SetupWizard(tk.Toplevel):
         super().__init__(parent)
         self._existing_config = existing_config
         self._is_edit_mode = existing_config is not None
-        self.title("QSL73 — Einstellungen" if self._is_edit_mode else "QSL73 — Erstkonfiguration")
+        self.title(
+            "QSL73 — Einstellungen — by DF1DS"
+            if self._is_edit_mode
+            else "QSL73 — Erstkonfiguration — by DF1DS"
+        )
         self.resizable(True, True)
         self.result: Optional[Config] = None
         self._crypto = crypto if crypto is not None else get_default_backend()

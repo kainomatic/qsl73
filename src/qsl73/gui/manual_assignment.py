@@ -212,7 +212,7 @@ if _TK_OK:
             self._use_datepicker: bool = False  # tkcalendar verfügbar?
             self._date_explicit: bool = False   # True sobald Nutzer/OCR Datum gesetzt hat
 
-            self.title("Manuelle Zuordnung")
+            self.title("Manuelle Zuordnung — by DF1DS")
             self.resizable(True, True)
             self.grab_set()
 
@@ -552,7 +552,7 @@ if _TK_OK:
                 return
 
             win = tk.Toplevel(self)
-            win.title(f"QSL-Karte — Seite {self._page_idx + 1}/{len(self._pages)}")
+            win.title(f"QSL-Karte — Seite {self._page_idx + 1}/{len(self._pages)} — by DF1DS")
             win.resizable(False, False)
 
             lbl = ttk.Label(win, image=photo, cursor="hand2")

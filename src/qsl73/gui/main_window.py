@@ -41,7 +41,7 @@ from qsl73.gui.filter_util import (
 _log = logging.getLogger("qsl73")
 
 # i18n-Vorbereitung: nutzersichtbare Texte als Konstanten
-_MSG_RESTART_TITLE = "Einstellungen gespeichert"
+_MSG_RESTART_TITLE = "Einstellungen gespeichert — by DF1DS"
 _MSG_RESTART_BODY = (
     "Einstellungen wurden gespeichert.\n\n"
     "Bitte QSL73 neu starten, damit alle Änderungen wirksam werden."
@@ -58,7 +58,7 @@ _MSG_WORKFLOW_DONE_TITLE = "Workflow abgeschlossen"
 _MSG_WORKFLOW_DONE_BODY = "Alle Karten wurden durchgearbeitet."
 
 # Über-Dialog
-_ABOUT_TITLE = "Über QSL73"
+_ABOUT_TITLE = "Über QSL73 — by DF1DS"
 _ABOUT_DESC = (
     "Gleicht gescannte Papier-QSL-Karten aus Paperless-ngx\n"
     "mit QSOs im Log4OM-Logbuch ab und markiert\n"
@@ -66,7 +66,7 @@ _ABOUT_DESC = (
 )
 _ABOUT_LICENSE = "Lizenz: GNU General Public License v3 (GPLv3)"
 _ABOUT_AUTHOR_LABEL = "Autor:"
-_ABOUT_AUTHOR = "DF1DS"
+_ABOUT_AUTHOR = "DF1DS | Stephan Dahmen | DOK: G16"
 _ABOUT_LINK_GITHUB = "GitHub"
 _ABOUT_LINK_QRZ = "QRZ.com"
 _ABOUT_BTN_CLOSE = "Schließen"
@@ -117,6 +117,7 @@ class MainWindow(tk.Tk):
         title = f"QSL73 v{__version__}"
         if CHANNEL == "beta":
             title += " [BETA]"
+        title += " — by DF1DS"
         self.title(title)
         self.minsize(750, 450)
 

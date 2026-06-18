@@ -324,6 +324,9 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - PyInstaller-Build (64-Bit), Inno-Setup-Paket, Test auf Win10/11. Versionspflege +
   CHANGELOG, Tag `v0.x.0`, GitHub-Release. Logo/Icon final (Freistellen + .ico durch
   Claude Code).
+- **README finalisieren:** Feature-Doku für neue Features (Menüleiste, Einstellungen-Dialog,
+  Durcharbeiten-Workflow, Audit-Log, „Fehler melden") wird hier ergänzt — bewusst erst
+  im Release-Schritt.
 - **Python 3.12** als Referenzversion für Build und Bundle (ADR-0024; Issue #16).
 - **Beta-Kanal:** zweiter Installer (`QSL73-Beta-Setup.exe`) mit eigenem Installationspfad
   (`C:\Program Files\QSL73 Beta`), eigenem APPDATA-Verzeichnis (`%APPDATA%\QSL73-Beta\`),

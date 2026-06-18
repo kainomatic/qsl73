@@ -29,7 +29,7 @@ class ErrorReportDialog:
         self._log_dir = log_dir
 
         self._top = tk.Toplevel(parent)
-        self._top.title("Fehler melden — QSL73")
+        self._top.title("Fehler melden — QSL73 — by DF1DS")
         self._top.minsize(600, 400)
         self._top.resizable(True, True)
         self._build_ui()
