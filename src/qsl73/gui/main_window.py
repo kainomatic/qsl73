@@ -21,7 +21,7 @@ from qsl73.gui.controller import (
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
-from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable
+from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections
 
 
 def _reset_progress(progress: ttk.Progressbar) -> None:
@@ -55,8 +55,10 @@ class MainWindow(tk.Tk):
         self._event_queue: queue.Queue = queue.Queue()
         self._controller = RunController(self._event_queue)
         self._run_result: Optional[RunResult] = None
-        self._selected: set[int] = set()      # doc_ids der selektierten Karten
+        self._selected: set[int] = set()      # doc_ids der selektierten CERTAIN-Karten
         self._displayed: list[CardResult] = []  # aktuell angezeigte Karten
+        self._manual_pending: dict[int, tuple[str, str]] = {}  # doc_id → (qsoid, route)
+        self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
 
         title = f"QSL73 v{__version__}"
         if CHANNEL == "beta":
@@ -117,13 +119,13 @@ class MainWindow(tk.Tk):
             side="left", padx=(4, 0)
         )
 
-        # Hinweis: nur sichere Treffer sind sammel-bestätigbar
+        # Hinweis: Bedienhinweise
         hint = ttk.Frame(self, padding=(8, 0, 8, 4))
         hint.grid(row=1, column=0, sticky="ew")
         ttk.Label(
             hint,
-            text="ℹ Nur sichere Treffer können hier bestätigt werden. "
-                 "Unsichere Karten folgen über die manuelle Zuordnung (Schritt 6c).",
+            text="ℹ Sichere Treffer: Klick zum Auswählen. "
+                 "Unsichere/Kein-Treffer-Karten: Doppelklick öffnet manuellen Zuordnungs-Dialog.",
             foreground="#555555",
             font=("", 8),
         ).pack(side="left")
@@ -165,8 +167,10 @@ class MainWindow(tk.Tk):
         self._tree.tag_configure("uncertain", foreground="#b36b00")
         self._tree.tag_configure("no_match", foreground="#888888")
         self._tree.tag_configure("selected", background="#cce5ff")
+        self._tree.tag_configure("manual_assigned", background="#e8d8f8", foreground="#5a0090")
 
         self._tree.bind("<ButtonRelease-1>", self._on_tree_click)
+        self._tree.bind("<Double-1>", self._on_double_click)
 
         # Statusleiste
         status_bar = ttk.Frame(self, padding=(8, 2))
@@ -213,13 +217,16 @@ class MainWindow(tk.Tk):
             self._update_write_btn()
         elif isinstance(event, WriteDoneEvent):
             res = event.result
-            self._status_var.set(f"Geschrieben: {res.written} QSO(s), übersprungen: {res.skipped}.")
+            self._manual_pending.clear()
+            self._selected.clear()
+            self._status_var.set(f"Geschrieben: {res.written} QSO(s), übersprungen: {len(res.skipped)}.")
             _reset_progress(self._progress)
             self._run_btn.configure(state="normal")
             self._write_btn.configure(state="disabled")
+            self._refresh_tree()
             messagebox.showinfo(
                 "Schreiben abgeschlossen",
-                f"{res.written} QSO(s) bestätigt, {res.skipped} übersprungen.",
+                f"{res.written} QSO(s) bestätigt, {len(res.skipped)} übersprungen.",
                 parent=self,
             )
         elif isinstance(event, ErrorEvent):
@@ -260,6 +267,9 @@ class MainWindow(tk.Tk):
             tags = [tag] if tag else []
             if card.doc_id in self._selected:
                 tags.append("selected")
+            if card.doc_id in self._manual_pending:
+                tags.append("manual_assigned")
+                status_label = "Manuell zugeordnet"
 
             self._tree.insert(
                 "",
@@ -297,6 +307,47 @@ class MainWindow(tk.Tk):
         self._update_sel_count()
         self._update_write_btn()
 
+    def _on_double_click(self, event: tk.Event) -> None:
+        """Doppelklick auf UNCERTAIN/NO_MATCH-Karte öffnet manuellen Zuordnungs-Dialog."""
+        row_id = self._tree.identify_row(event.y)
+        if not row_id or self._run_result is None:
+            return
+        try:
+            doc_id = int(row_id)
+        except ValueError:
+            return
+
+        card = next((c for c in self._displayed if c.doc_id == doc_id), None)
+        if card is None or card.outcome.result == MatchResult.CERTAIN:
+            return  # CERTAIN-Karten nutzen Einfach-Klick-Selektion
+
+        from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+        pc = self._paperless_client
+
+        def _image_loader(doc_id_arg: int) -> bytes:
+            if pc is None:
+                raise RuntimeError("Kein Paperless-Client verfügbar")
+            return pc.get_document_download(doc_id_arg)
+
+        cfg = self._config
+        dlg = ManualAssignmentDialog(
+            parent=self,
+            card=card,
+            candidates=self._run_result.candidates,
+            default_route=cfg.confirm.qsl_route_default,
+            image_loader=_image_loader if pc is not None else None,
+        )
+
+        if dlg.result is not None:
+            self._manual_pending[doc_id] = dlg.result
+        else:
+            # Abbrechen = Vormerkung aufheben (Erneuter Doppelklick → aufheben)
+            self._manual_pending.pop(doc_id, None)
+
+        self._refresh_tree()
+        self._update_write_btn()
+
     def _select_all(self) -> None:
         for card in self._displayed:
             if is_batch_writable(card):
@@ -312,7 +363,7 @@ class MainWindow(tk.Tk):
         self._sel_count_var.set(f"{n} ausgewählt" if n else "")
 
     def _update_write_btn(self) -> None:
-        can_write = bool(self._selected) and self._run_result is not None
+        can_write = (bool(self._selected) or bool(self._manual_pending)) and self._run_result is not None
         self._write_btn.configure(state="normal" if can_write else "disabled")
 
     # ------------------------------------------------------------------
@@ -338,7 +389,9 @@ class MainWindow(tk.Tk):
             )
             return
 
+        self._paperless_client = pc
         self._selected.clear()
+        self._manual_pending.clear()
         self._run_result = None
         self._displayed = []
         self._tree.delete(*self._tree.get_children())
@@ -351,36 +404,53 @@ class MainWindow(tk.Tk):
         self._controller.start_run(pc, db_path, cfg)
 
     def _on_write(self) -> None:
-        if not self._selected:
-            messagebox.showwarning("Keine Auswahl", "Bitte mindestens eine Karte auswählen.", parent=self)
-            return
-
-        cfg = self._config
-        selected_cards = [c for c in self._displayed if c.doc_id in self._selected]
-        selections, confirmed_doc_ids = build_write_selections(
-            selected_cards, route=cfg.confirm.qsl_route_default
-        )
-        if not selections:
+        if not self._selected and not self._manual_pending:
             messagebox.showwarning(
-                "Keine schreibbaren Karten",
-                "Nur sichere Treffer können hier bestätigt werden.\n\n"
-                "Unsichere Karten über den Zuordnungs-Bildschirm — folgt in einer späteren Version.",
+                "Keine Auswahl",
+                "Bitte mindestens eine Karte auswählen oder manuell zuordnen.",
                 parent=self,
             )
             return
 
-        count = len(selections)
+        cfg = self._config
+
+        # Auto-Selektionen aus gewählten CERTAIN-Karten
+        selected_cards = [c for c in self._displayed if c.doc_id in self._selected]
+        auto_selections, auto_doc_ids = build_write_selections(
+            selected_cards, route=cfg.confirm.qsl_route_default
+        )
+
+        # Auto + manuell zusammenführen (dedup by qsoid)
+        selections, confirmed_doc_ids = merge_selections(
+            auto_selections, auto_doc_ids, self._manual_pending
+        )
+
+        if not selections:
+            messagebox.showwarning(
+                "Keine schreibbaren Karten",
+                "Keine schreibbaren Karten gefunden.",
+                parent=self,
+            )
+            return
+
+        n_auto = len(auto_selections)
+        n_manual = len(self._manual_pending)
+        n_total = len(selections)
+
+        detail = f"{n_auto} automatisch + {n_manual} manuell = {n_total} Karte(n)"
         if not messagebox.askyesno(
             "Bestätigen",
-            f"{count} Karte(n) in Log4OM bestätigen und Tags in Paperless setzen?\n\n"
+            f"{detail} in Log4OM bestätigen und Tags in Paperless setzen?\n\n"
             "Dieser Schritt schreibt in die Datenbank und kann nicht automatisch rückgängig "
             "gemacht werden (Backup wird erstellt).",
             parent=self,
         ):
             return
 
-        from qsl73.paperless import PaperlessClient
-        pc = PaperlessClient(cfg.paperless.url, cfg.paperless.token)
+        pc = self._paperless_client
+        if pc is None:
+            from qsl73.paperless import PaperlessClient
+            pc = PaperlessClient(cfg.paperless.url, cfg.paperless.token)
 
         db_path = Path(cfg.log4om.db_path)
         backup_dir = db_path.parent / "QSL73_Backups"

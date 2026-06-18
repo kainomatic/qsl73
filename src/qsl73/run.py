@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -58,6 +58,7 @@ class RunResult:
     no_match: list[CardResult]         # kein Treffer
     fingerprint: dict                  # DB-Fingerabdruck aus Sammelphase → write_selected
     expected_states: dict[str, str]    # qsoid → R-Wert aus Sammelphase → write_selected
+    candidates: list[QsoCandidate] = field(default_factory=list)  # offene QSO-Kandidaten für manuellen Zuordnungs-Dialog
 
 
 @dataclass
@@ -463,6 +464,7 @@ def run_pass(
         no_match=no_match,
         fingerprint=data.fingerprint,
         expected_states=data.expected_states,
+        candidates=data.candidates,
     )
 
 

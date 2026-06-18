@@ -9,6 +9,19 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 6c-3 — Integration ins Hauptfenster (Schritt 6 komplett, KONZEPT §9):**
+  - `src/qsl73/gui/main_window.py`: `<Double-1>`-Handler für UNCERTAIN/NO_MATCH-Karten öffnet
+    `ManualAssignmentDialog`; Ergebnis in `_manual_pending` vorgemerkt; Karte lila hervorgehoben
+    und als „Manuell zugeordnet" gekennzeichnet; erneuter Doppelklick ändert/hebt auf.
+    `_on_write()` führt Auto + manuell zusammen (eine Transaktion); Bestätigung zeigt
+    „X auto + Y manuell = Z Karten"; nach Schreiben alles geleert.
+  - `src/qsl73/gui/filter_util.py`: `merge_selections()` — dedup by qsoid, Auto hat Vorrang.
+  - `src/qsl73/run.py`: `RunResult.candidates` — offene QSO-Kandidaten exponiert (Feld mit
+    Default `[]`; bestehende Tests unberührt).
+  - `tests/gui/test_filter_util.py`: 7 neue Tests für `merge_selections()`.
+  - Offene Punkte als Issues: #19 (Bild-DPI handschriftliche Karten), #20 (Rückseite anzeigen).
+  - ADR: keiner nötig (Schreibmodell in KONZEPT §5/§7 + ADR-0028).
+
 - **Schritt 6c-2 — Manueller Zuordnungs-Dialog (`src/qsl73/gui/manual_assignment.py`):**
   Modales `ManualAssignmentDialog`-Toplevel für UNCERTAIN-Karten.
   - `card_fields_to_query`: befüllt `ManualQuery` aus OCR/QR-`CardFields` (call_from → Suche).

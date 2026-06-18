@@ -126,7 +126,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Review:** Akzeptanzkriterien §5/§7 erfüllt; 60 Unit-Tests + 5 Acceptance-Tests A–E;
   pytest grün, CI grün.
 
-## 🔧 Schritt 6 — GUI — IN ARBEIT
+## ✅ Schritt 6 — GUI — ABGESCHLOSSEN
 
 ### ✅ Schritt 6a — Lauf-Orchestrierung (`run.py`)
 
@@ -180,11 +180,19 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Tests: `tests/gui/test_manual_assignment.py` (17 reine + 4 tk-Tests, CI-skippt tk);
   pytest grün, CI grün.
 
-#### ➡️ Schritt 6c-3 — Integration ins Hauptfenster (offen)
+#### ✅ Schritt 6c-3 — Integration ins Hauptfenster
 
-- Manuelle Zuordnung → QSO markieren + Tag `qsl-bestätigt` (wie Auto-Match).
-- Zuordnung fließt in denselben Korb wie Auto-Treffer → gemeinsame Transaktion (§5/§7).
-- **Review:** Akzeptanzkriterien §9; Live-Suche bei gültigem Rufzeichen; pytest grün, CI grün.
+- `main_window.py`: Doppelklick-Handler (`<Double-1>`) für UNCERTAIN/NO_MATCH-Karten öffnet
+  `ManualAssignmentDialog`; Ergebnis in `_manual_pending` (doc_id → (qsoid, route)) vorgemerkt;
+  Karte als „Manuell zugeordnet" visuell markiert (lila Hervorhebung); erneuter Doppelklick
+  ändert/hebt Vormerkung auf.
+- `filter_util.py`: `merge_selections()` führt Auto + manuell zusammen (dedup by qsoid).
+- `_on_write()`: Auto + manuell in EINER Transaktion; Bestätigung zeigt „X auto + Y manuell
+  = Z Karten"; nach Schreiben Vormerkungen + Selektion geleert.
+- `RunResult.candidates`: offene QSO-Kandidaten jetzt exponiert (Feld mit Default `[]`);
+  GUI fasst keine DB-Logik direkt an.
+- Issues: Bild-DPI für handschriftliche Karten (Issue #19), Rückseite anzeigbar (Issue #20).
+- **Review:** Akzeptanzkriterien §9; pytest grün, CI grün; Schritt 6 komplett.
 
 ## 🔧 Schritt 7 — Logging & Fehler-Reporting — IN ARBEIT
 

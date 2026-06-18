@@ -41,3 +41,41 @@ def build_write_selections(
     selections = [(c.outcome.matched_qso.qsoid, route) for c in writable]
     confirmed_doc_ids = [c.doc_id for c in writable]
     return selections, confirmed_doc_ids
+
+
+def merge_selections(
+    auto_selections: list[tuple[str, str]],
+    auto_doc_ids: list[int],
+    manual_pending: dict[int, tuple[str, str]],
+) -> tuple[list[tuple[str, str]], list[int]]:
+    """Führt Auto- und manuelle Selektionen zusammen; dedup by qsoid.
+
+    Auto-Einträge haben Vorrang: eine qsoid wird nur einmal in selections
+    aufgenommen; taucht sie bereits in auto_selections auf, wird der manuelle
+    Eintrag mit derselben qsoid übersprungen.
+
+    Args:
+        auto_selections: (qsoid, route)-Liste aus build_write_selections.
+        auto_doc_ids: zugehörige doc_ids (1:1 mit auto_selections).
+        manual_pending: doc_id → (qsoid, route) aus manuellen Vormerkungen.
+
+    Returns:
+        (merged_selections, merged_doc_ids) — paarweise, ohne doppelte qsoid.
+    """
+    seen: set[str] = set()
+    merged_sel: list[tuple[str, str]] = []
+    merged_ids: list[int] = []
+
+    for (qsoid, route), doc_id in zip(auto_selections, auto_doc_ids):
+        if qsoid not in seen:
+            seen.add(qsoid)
+            merged_sel.append((qsoid, route))
+            merged_ids.append(doc_id)
+
+    for doc_id, (qsoid, route) in manual_pending.items():
+        if qsoid not in seen:
+            seen.add(qsoid)
+            merged_sel.append((qsoid, route))
+            merged_ids.append(doc_id)
+
+    return merged_sel, merged_ids
