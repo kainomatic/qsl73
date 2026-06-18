@@ -7,6 +7,17 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Audit-Log (`audit.log`, getrennt von `qsl73.log`): fachliches Änderungsprotokoll
+  aller tatsächlich geschriebenen QSO-Bestätigungen (Zeitstempel, Rufzeichen, Band,
+  Mode, Route, Quelle auto/manuell, Backup-Pfad). Dauerhaft, nicht rotierend (ADR-0035).
+- On-demand-Fehlerbericht: „Fehler melden…"-Button in der Statusleiste öffnet einen
+  Dialog mit bereinigte Bericht-Vorschau (keine Secrets, keine QSO-Daten); Buttons
+  „Lokal speichern" und „Auf GitHub melden" (vorausgefüllte Issue-URL, kein Auto-Send).
+- „Log-Ordner öffnen"-Button in der Statusleiste öffnet `%APPDATA%\QSL73\logs\`.
+- `WriteResult.backup_path`: Schreibergebnis enthält Pfad zur erstellten Backup-Datei.
+- `write_selected` um `manual_qsoids` und `candidates` erweitert (abwärtskompatibel).
+
 ### Fixed
 
 - **KONZEPT.md: Umlaut-Artefakte korrigiert (Fixes #3):**

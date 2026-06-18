@@ -239,7 +239,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - `run.py`: `run_pass` übergibt `exclude_tag_name=config.tags.confirmed` → bereits bestätigte
   Karten erscheinen im zweiten Durchlauf nicht mehr als „Kein Treffer". ADR-0032.
 
-## 🔧 Schritt 7 — Logging & Fehler-Reporting — IN ARBEIT
+## ✅ Schritt 7 — Logging & Fehler-Reporting — KOMPLETT (7a + 7b-1 + 7b-2)
 
 ### ✅ Schritt 7a — Diagnose-Logging + QR-Startwarnung (Issue #14)
 
@@ -265,13 +265,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - `gui/app.py`: fängt `ConfigError` getrennt von `SetupNeeded` ab; ruft Fehlerdialog auf.
 - 881 Tests grün (3 erwartete Skips), CI grün.
 
-### ➡️ Schritt 7b-2 — Audit-Log + Fehler-Reporting (offen)
+### ✅ Schritt 7b-2 — Audit-Log + Fehler-Reporting (ADR-0035)
 
-- `audit.log`: fachliche Änderungen (Zeitstempel, Dok-ID, QSO-Rufzeichen/Datum/Band/Mode,
-  auto vs. manuell, Backup ja/nein).
-- On-demand-Bericht: „Auf GitHub melden" (vorausgefülltes Issue) + „Lokal speichern",
-  Bericht bereinigt (keine Secrets/QSO-Inhalte; Nutzer sieht ihn vor Versand).
-- „Log-Ordner öffnen"-Button in §9-GUI (nutzt `get_log_dir()` aus 7a).
+- `audit.py`: `AuditEntry`, `write_audit_entries` — dauerhaftes Fachprotokoll in
+  `audit.log` (getrennt von qsl73.log); nur tatsächlich geschriebene QSOs; auto vs. manuell.
+- `error_report.py`: bereinigter Fehlerbericht (keine Secrets/QSO-Daten);
+  vorausgefüllte GitHub-Issue-URL; lokal speichern; nichts automatisch gesendet.
+- `gui/error_report_dialog.py`: Vorschau-Dialog mit „Lokal speichern" / „Auf GitHub melden".
+- `main_window.py`: Buttons „Log-Ordner öffnen" + „Fehler melden…" in Statusleiste.
+- `WriteResult.backup_path` ergänzt; `write_selected` abwärtskompatibel um
+  `manual_qsoids` + `candidates` erweitert.
 - **Review:** Akzeptanzkriterien §10; Bericht ohne Secrets nachgewiesen; pytest grün, CI grün.
 
 ## Schritt 8 — Update-Lifecycle + Installer/Deinstaller
