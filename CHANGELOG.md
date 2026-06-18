@@ -7,6 +7,14 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Diagnoseschritt: `_on_double_click`-Bugfix-Vorlauf** — Doppelklick auf UNCERTAIN/NO_MATCH
+  öffnete im Realtest keinen Dialog. Lückenlosem DEBUG-Logging in `_on_double_click`
+  (`main_window.py`) hinzugefügt (jeder Abbruchpfad mit Grund); bei Early-Return wird
+  zusätzlich ein Statuszeilen-Hinweis gesetzt. Kein Logikeingriff — reine Diagnose
+  für Realtest mit `QSL73_DEBUG=1`.
+
 ### Added
 
 - **Schritt 6c-3 — Integration ins Hauptfenster (Schritt 6 komplett, KONZEPT §9):**

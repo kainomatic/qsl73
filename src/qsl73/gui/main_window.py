@@ -2,6 +2,7 @@
 """Hauptfenster mit Treeview, Filter, Lauf- und Schreib-Integration."""
 from __future__ import annotations
 
+import logging
 import queue
 from pathlib import Path
 from typing import Optional
@@ -22,6 +23,9 @@ from qsl73.gui.controller import (
 )
 from qsl73.gui.error_dialog import show_error
 from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections
+
+
+_log = logging.getLogger("qsl73")
 
 
 def _reset_progress(progress: ttk.Progressbar) -> None:
@@ -309,21 +313,50 @@ class MainWindow(tk.Tk):
 
     def _on_double_click(self, event: tk.Event) -> None:
         """Doppelklick auf UNCERTAIN/NO_MATCH-Karte öffnet manuellen Zuordnungs-Dialog."""
+        _log.debug("_on_double_click betreten — event.y=%s", event.y)
+
         row_id = self._tree.identify_row(event.y)
-        if not row_id or self._run_result is None:
+        _log.debug("identify_row(%s) → %r", event.y, row_id or "<leer>")
+
+        if not row_id:
+            _log.debug("Early-return: row_id leer (Klick neben Zeile oder leerer Baum)")
+            self._status_var.set("Doppelklick erkannt, aber keine Zeile getroffen.")
             return
+
+        if self._run_result is None:
+            _log.debug("Early-return: _run_result ist None (kein Durchlauf bisher)")
+            self._status_var.set("Doppelklick erkannt — bitte zuerst einen Durchlauf starten.")
+            return
+
         try:
             doc_id = int(row_id)
+            _log.debug("row_id %r → doc_id=%s", row_id, doc_id)
         except ValueError:
+            _log.debug("Early-return: row_id %r nicht als int parsbar", row_id)
+            self._status_var.set("Doppelklick erkannt, aber Zeile nicht identifizierbar.")
             return
 
         card = next((c for c in self._displayed if c.doc_id == doc_id), None)
-        if card is None or card.outcome.result == MatchResult.CERTAIN:
-            return  # CERTAIN-Karten nutzen Einfach-Klick-Selektion
+        if card is None:
+            _log.debug("Early-return: doc_id=%s nicht in self._displayed (%d Karten)", doc_id, len(self._displayed))
+            self._status_var.set(f"Doppelklick auf doc_id={doc_id} — Karte nicht in Ansicht.")
+            return
+
+        _log.debug("Karte gefunden: doc_id=%s outcome.result=%s", doc_id, card.outcome.result.name)
+
+        if card.outcome.result == MatchResult.CERTAIN:
+            _log.debug("Early-return: Karte ist CERTAIN — Einfach-Klick nutzen")
+            self._status_var.set("Karte ist ein sicherer Treffer — Einfach-Klick zum Auswählen.")
+            return
 
         from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
         pc = self._paperless_client
+        n_candidates = len(self._run_result.candidates)
+        _log.debug(
+            "Öffne ManualAssignmentDialog — doc_id=%s candidates=%d image_loader=%s",
+            doc_id, n_candidates, "ja (pc vorhanden)" if pc is not None else "nein (pc=None)",
+        )
 
         def _image_loader(doc_id_arg: int) -> bytes:
             if pc is None:
@@ -338,6 +371,8 @@ class MainWindow(tk.Tk):
             default_route=cfg.confirm.qsl_route_default,
             image_loader=_image_loader if pc is not None else None,
         )
+
+        _log.debug("Dialog geschlossen — dlg.result=%r", dlg.result)
 
         if dlg.result is not None:
             self._manual_pending[doc_id] = dlg.result
