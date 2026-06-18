@@ -12,14 +12,12 @@ Reine Logik — tk-frei, testbar. Keine Secrets, keine QSO-Inhalte.
 """
 from __future__ import annotations
 
-import logging
 import platform
+import re
 import sys
 import urllib.parse
 import webbrowser
 from pathlib import Path
-
-_log = logging.getLogger("qsl73")
 
 GITHUB_REPO = "kainomatic/qsl73"
 
@@ -27,15 +25,38 @@ _SECRET_KEYWORDS = (
     "token", "passwort", "password", "secret", "credential", "apikey", "api_key",
 )
 
+# Härtung ADR-0035: URL-eingebettete Credentials zeilenweise bereinigen.
+# Userinfo (scheme://user:pass@host) — die gesamte userinfo-Komponente wird ersetzt.
+_USERINFO_RE = re.compile(r'(\w+://)([^@/\s]+)@')
+# Sensible Query-Parameter (?token=VALUE, &key=VALUE …) — nur der Wert wird ersetzt.
+_SENSITIVE_PARAM_RE = re.compile(
+    r'(?i)((?:[?&])(?:token|password|secret|apikey|api_key|key|access_token)=)[^\s&\#"\']*'
+)
+
+
+def _strip_url_secrets(line: str) -> str:
+    """Bereinigt URL-eingebettete Credentials in einer einzelnen Zeile.
+
+    Ersetzt gezielt die sensible URL-Stelle, nicht die ganze Zeile — der
+    Diagnosewert (Pfad, Host, Parameter-Namen) bleibt erhalten.
+    """
+    line = _USERINFO_RE.sub(r'\1[gefiltert]@', line)
+    line = _SENSITIVE_PARAM_RE.sub(r'\1[gefiltert]', line)
+    return line
+
 
 def _strip_secrets(text: str) -> str:
-    """Entfernt Zeilen, die mögliche Secrets enthalten (case-insensitiv).
+    """Bereinigt Secrets aus Log-Text: URL-Credentials + Schlüsselwort-Zeilen.
 
-    Ersetzt betroffene Zeilen durch einen Platzhalter; lässt alle anderen Zeilen
-    unverändert. Kein Regex — einfache Substring-Suche genügt für diesen Zweck.
+    Strategie (Belt-and-Suspenders):
+    1. URL-Filter ersetzt zeilenweise nur die sensible URL-Stelle (Userinfo,
+       sensible Query-Parameter) — Diagnosewert der übrigen Zeile bleibt erhalten.
+    2. Schlüsselwort-Filter verwirft danach Zeilen, die noch immer ein bekanntes
+       Schlüsselwort enthalten (fängt Nicht-URL-Fälle wie 'token: abc').
     """
     result = []
     for line in text.splitlines():
+        line = _strip_url_secrets(line)
         lower = line.lower()
         if any(kw in lower for kw in _SECRET_KEYWORDS):
             result.append("[Zeile gefiltert — mögliche sensible Daten]")

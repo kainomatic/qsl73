@@ -8,6 +8,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+
 - Audit-Log (`audit.log`, getrennt von `qsl73.log`): fachliches Änderungsprotokoll
   aller tatsächlich geschriebenen QSO-Bestätigungen (Zeitstempel, Rufzeichen, Band,
   Mode, Route, Quelle auto/manuell, Backup-Pfad). Dauerhaft, nicht rotierend (ADR-0035).
@@ -17,14 +18,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - „Log-Ordner öffnen"-Button in der Statusleiste öffnet `%APPDATA%\QSL73\logs\`.
 - `WriteResult.backup_path`: Schreibergebnis enthält Pfad zur erstellten Backup-Datei.
 - `write_selected` um `manual_qsoids` und `candidates` erweitert (abwärtskompatibel).
-
-### Fixed
-
-- **KONZEPT.md: Umlaut-Artefakte korrigiert (Fixes #3):**
-  ae/oe/ue-Ersetzungen in §5, §7 und §17 durch korrekte Umlaute (ä/ö/ü) ersetzt —
-  rein kosmetisch.
-
-### Added
 
 - **main-Branch auf aktuellen dev-Stand gebracht (ADR-0034):** Kein Release — reine
   Branch-Synchronisation per Fast-Forward, um die öffentlich sichtbare GPLv3-Lizenz und
@@ -42,32 +35,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `get_documents_by_tag` akzeptiert `exclude_tag_name`; `run_pass` übergibt
   `config.tags.confirmed` als Ausschluss, damit bereits bestätigte Karten im
   zweiten Durchlauf nicht mehr als „Kein Treffer" erscheinen.
-
-### Fixed
-
-- **Nur tatsächlich geschriebene Karten werden als bestätigt markiert (#21):**
-  Übersprungene QSOs (R=Yes, expected_states-Mismatch, unbekannter R-Wert) wurden
-  fälschlich als „Bestätigt ✓" angezeigt. `written_doc_ids()` (filter_util.py)
-  berechnet die tatsächlich geschriebenen doc_ids aus der selections/skipped-Paarung.
-
-- **Manuell zugeordnete Karten behalten nach dem Schreiben ihre QSO-Werte:** Nach
-  „Jetzt schreiben" zeigte die Treeview-Zeile für manuell zugeordnete Karten wieder „–"
-  statt Rufzeichen/Datum/Band/Mode des zugeordneten QSO. Ursache: `_manual_pending`
-  wurde vor `_refresh_tree` geleert, und der `written`-Zweig löste keine QSO-Werte auf.
-  Fix: neues Feld `_written_qso: dict[int, str]` (doc_id → qsoid) rettet die Verknüpfung
-  vor dem Clear. `_refresh_tree` nutzt es im `written`-Zweig zur QSO-Wert-Anzeige.
-  `qso_display_values(matched) → (call, date, band, mode)` in `filter_util.py` als
-  gemeinsame, testbare Funktion ausgelagert (Duplikat-Logik entfernt).
-
-- **SyntaxError in `setup_wizard.py` behoben:** `nonlocal row` im Hauptkörper von
-  `SetupWizard._build_ui` (eingefügt mit dem Trefferlimit-Block in 0bc7832) verursachte
-  einen `SyntaxError` beim App-Start. `nonlocal` ist nur in verschachtelten Funktionen
-  zulässig; im Hauptkörper ist `row` direkt verfügbar — die Zeile wurde entfernt.
-- **GUI-Import-Smoke-Tests ergänzt** (`tests/gui/test_gui_imports.py`): 9 parametrisierte
-  Tests importieren alle zentralen GUI-Module ohne Display (headless, CI-kompatibel).
-  Deckt Syntaxfehler und Import-Fehler ab, die tk-Tests mangels Display überspringen.
-
-### Added
 
 - **Schritt 6 UX-3 — Geschriebene Karten sichtbar markieren + Trefferlimit (ADR-0030):**
   - **Teil A — Bestätigt-Markierung im Hauptfenster:** Nach „Jetzt schreiben" erhalten
@@ -143,22 +110,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `tests/gui/test_manual_assignment.py`: +17 Tests (distinct_bands/modes, render_pdf_pages,
     last_page_index); gesamt 38 Tests.
   - ADR-0029 angelegt; README-ADR-Index auf ADR-0030.
-
-### Fixed
-
-- **Prozesslücke geschlossen: Push als DoD-Pflichtpunkt** — ADR-0027 und CLAUDE.md um
-  Punkt 6 erweitert: Nach dem Commit muss `git push origin dev` ausgeführt und der
-  resultierende `origin/dev`-Hash im Abschluss-Bericht genannt werden. Auslöser: 7 lokale
-  Commits, die nie gepusht wurden, ließen DF1DS einen veralteten Stand testen
-  (Realtest-Runde verloren). „working tree clean" allein gilt nicht mehr als Abschluss.
-
-- **Diagnoseschritt: `_on_double_click`-Bugfix-Vorlauf** — Doppelklick auf UNCERTAIN/NO_MATCH
-  öffnete im Realtest keinen Dialog. Lückenlosem DEBUG-Logging in `_on_double_click`
-  (`main_window.py`) hinzugefügt (jeder Abbruchpfad mit Grund); bei Early-Return wird
-  zusätzlich ein Statuszeilen-Hinweis gesetzt. Kein Logikeingriff — reine Diagnose
-  für Realtest mit `QSL73_DEBUG=1`.
-
-### Added
 
 - **Schritt 6c-3 — Integration ins Hauptfenster (Schritt 6 komplett, KONZEPT §9):**
   - `src/qsl73/gui/main_window.py`: `<Double-1>`-Handler für UNCERTAIN/NO_MATCH-Karten öffnet
@@ -259,7 +210,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `InstanceLock` (PID-Lockfile, `%APPDATA%\QSL73\qsl73.lock`): verhindert mehrfache
     Instanzen ohne pywin32; stale Locks (tote PID) werden überschrieben
   - `SetupWizard` (tk.Toplevel): erster-Start-Assistent mit allen Config-Feldern;
-    Token-Feld mit `show="*"` (nie Klartext sichtbar); dateiauswahl für DB-Pfad
+    Token-Feld mit `show="*"` (nie Klartext sichtbar); Dateiauswahl für DB-Pfad
   - `MainWindow` (tk.Tk): Treeview mit allen Karten (Rufzeichen, Datum, Band, Modus,
     Quelle, Status); Klick-Selektion; Filter (alle/sicher/unsicher/kein Treffer);
     „Durchlauf starten" / „Jetzt schreiben"-Flow mit Bestätigungs-Dialog;
@@ -440,7 +391,55 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (`.github/workflows/ci.yml`) bei Push auf `dev` und `main`
   - ADR-0010: Kryptographie-Abstraktionsschicht (DPAPI-Backend, fail-closed)
 
+### Changed
+
+- Lizenz von MIT auf **GPLv3** gewechselt (ADR-0018). `LICENSE`-Datei ersetzt;
+  README, KONZEPT §15, Quelldatei-Header angepasst. Copyleft sichert, dass
+  Weiterentwicklungen offen bleiben.
+- `crypto.py`: `get_default_backend()` wirft `CryptoUnavailableError` auf Windows ohne
+  pywin32 statt still auf `NullBackend` zurückzufallen (fail closed)
+- `config.py`: `save_config()` verweigert das Speichern eines Tokens ohne Crypto-Backend
+- `NullBackend` als UNSICHER/nur Test-CI dokumentiert; `CryptoUnavailableError` ergänzt
+
 ### Fixed
+
+- **KONZEPT.md: Umlaut-Artefakte korrigiert (Fixes #3):**
+  ae/oe/ue-Ersetzungen in §5, §7 und §17 durch korrekte Umlaute (ä/ö/ü) ersetzt —
+  rein kosmetisch.
+
+- **Nur tatsächlich geschriebene Karten werden als bestätigt markiert (#21):**
+  Übersprungene QSOs (R=Yes, expected_states-Mismatch, unbekannter R-Wert) wurden
+  fälschlich als „Bestätigt ✓" angezeigt. `written_doc_ids()` (filter_util.py)
+  berechnet die tatsächlich geschriebenen doc_ids aus der selections/skipped-Paarung.
+
+- **Manuell zugeordnete Karten behalten nach dem Schreiben ihre QSO-Werte:** Nach
+  „Jetzt schreiben" zeigte die Treeview-Zeile für manuell zugeordnete Karten wieder „–"
+  statt Rufzeichen/Datum/Band/Mode des zugeordneten QSO. Ursache: `_manual_pending`
+  wurde vor `_refresh_tree` geleert, und der `written`-Zweig löste keine QSO-Werte auf.
+  Fix: neues Feld `_written_qso: dict[int, str]` (doc_id → qsoid) rettet die Verknüpfung
+  vor dem Clear. `_refresh_tree` nutzt es im `written`-Zweig zur QSO-Wert-Anzeige.
+  `qso_display_values(matched) → (call, date, band, mode)` in `filter_util.py` als
+  gemeinsame, testbare Funktion ausgelagert (Duplikat-Logik entfernt).
+
+- **SyntaxError in `setup_wizard.py` behoben:** `nonlocal row` im Hauptkörper von
+  `SetupWizard._build_ui` (eingefügt mit dem Trefferlimit-Block in 0bc7832) verursachte
+  einen `SyntaxError` beim App-Start. `nonlocal` ist nur in verschachtelten Funktionen
+  zulässig; im Hauptkörper ist `row` direkt verfügbar — die Zeile wurde entfernt.
+- **GUI-Import-Smoke-Tests ergänzt** (`tests/gui/test_gui_imports.py`): 9 parametrisierte
+  Tests importieren alle zentralen GUI-Module ohne Display (headless, CI-kompatibel).
+  Deckt Syntaxfehler und Import-Fehler ab, die tk-Tests mangels Display überspringen.
+
+- **Prozesslücke geschlossen: Push als DoD-Pflichtpunkt** — ADR-0027 und CLAUDE.md um
+  Punkt 6 erweitert: Nach dem Commit muss `git push origin dev` ausgeführt und der
+  resultierende `origin/dev`-Hash im Abschluss-Bericht genannt werden. Auslöser: 7 lokale
+  Commits, die nie gepusht wurden, ließen DF1DS einen veralteten Stand testen
+  (Realtest-Runde verloren). „working tree clean" allein gilt nicht mehr als Abschluss.
+
+- **Diagnoseschritt: `_on_double_click`-Bugfix-Vorlauf** — Doppelklick auf UNCERTAIN/NO_MATCH
+  öffnete im Realtest keinen Dialog. Lückenlosem DEBUG-Logging in `_on_double_click`
+  (`main_window.py`) hinzugefügt (jeder Abbruchpfad mit Grund); bei Early-Return wird
+  zusätzlich ein Statuszeilen-Hinweis gesetzt. Kein Logikeingriff — reine Diagnose
+  für Realtest mit `QSL73_DEBUG=1`.
 
 - **P1 Installations-Fixes (Issues #9, #10, #11, #12, #13):**
   - **#9 — Build-Backend** (`pyproject.toml`): `setuptools.backends.legacy:build` →
@@ -471,18 +470,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     Funktionen in `gui/filter_util.py`; 8 neue Tests in `test_batch_writable.py`
   - ADR-0023 um Punkt 4 ergänzt (GUI-Durchsetzung ADR-0007)
 
-### Changed
-
-- Lizenz von MIT auf **GPLv3** gewechselt (ADR-0018). `LICENSE`-Datei ersetzt;
-  README, KONZEPT §15, Quelldatei-Header angepasst. Copyleft sichert, dass
-  Weiterentwicklungen offen bleiben.
-- `crypto.py`: `get_default_backend()` wirft `CryptoUnavailableError` auf Windows ohne
-  pywin32 statt still auf `NullBackend` zurückzufallen (fail closed)
-- `config.py`: `save_config()` verweigert das Speichern eines Tokens ohne Crypto-Backend
-- `NullBackend` als UNSICHER/nur Test-CI dokumentiert; `CryptoUnavailableError` ergänzt
-
 ### Security
 
+- `_strip_secrets`: URL-eingebettete Credentials werden jetzt zeilenweise bereinigt —
+  Userinfo (`scheme://user:pass@host` → `scheme://[gefiltert]@host`) und sensible
+  Query-Parameter (`?token=`, `?key=`, `?access_token=` u. a. → Wert durch `[gefiltert]`
+  ersetzt). Der Diagnosewert der übrigen Zeile bleibt erhalten. Härtung zu ADR-0035.
 - Kein stiller Fallback auf unsicheres NullBackend bei fehlendem pywin32 auf Windows
 - Token wird nie unverschlüsselt persistiert; bei fehlendem Backend klare Exception
 

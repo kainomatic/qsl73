@@ -40,6 +40,57 @@ class TestStripSecrets:
         assert "abc" not in result
 
 
+class TestStripUrlSecrets:
+    """N3-Härtung: URL-eingebettete Credentials werden bereinigt (ADR-0035)."""
+
+    def test_userinfo_password_removed(self):
+        """Passwort in user:pass@host darf nicht im Ergebnis erscheinen."""
+        from qsl73.error_report import _strip_secrets
+        line = "Connecting to https://admin:pass123@paperless.local/api/"
+        result = _strip_secrets(line)
+        assert "pass123" not in result
+        assert "admin" not in result
+
+    def test_userinfo_replaced_with_placeholder(self):
+        """userinfo-Block wird durch [gefiltert] ersetzt, Host bleibt sichtbar."""
+        from qsl73.error_report import _strip_url_secrets
+        line = "GET https://user:secret123@host.local/path"
+        result = _strip_url_secrets(line)
+        assert "[gefiltert]" in result
+        assert "secret123" not in result
+        assert "host.local" in result
+
+    def test_query_token_value_removed(self):
+        """Wert eines ?token=… Query-Parameters darf nicht erscheinen."""
+        from qsl73.error_report import _strip_secrets
+        line = "Request https://host/api?token=SECRET_VALUE_ABC&limit=10"
+        result = _strip_secrets(line)
+        assert "SECRET_VALUE_ABC" not in result
+
+    def test_query_key_value_removed(self):
+        """?key= wird gefiltert (nicht im Schlüsselwort-Filter, aber sensibel)."""
+        from qsl73.error_report import _strip_url_secrets
+        line = "GET https://host/?key=MY_API_KEY_123&format=json"
+        result = _strip_url_secrets(line)
+        assert "MY_API_KEY_123" not in result
+        assert "format=json" in result
+
+    def test_normal_url_unchanged(self):
+        """Normale URL ohne Credentials bleibt unverändert."""
+        from qsl73.error_report import _strip_secrets
+        line = "Connected to https://paperless.local/api/documents/"
+        result = _strip_secrets(line)
+        assert result == line
+
+    def test_keyword_lines_still_filtered(self):
+        """Regression: bestehende Schlüsselwort-Filterung bleibt aktiv."""
+        from qsl73.error_report import _strip_secrets
+        text = "normal line\ntoken: abc\nanother line"
+        result = _strip_secrets(text)
+        assert "abc" not in result
+        assert "normal line" in result
+
+
 class TestBuildErrorReport:
     def test_contains_version(self, tmp_path):
         from qsl73.error_report import build_error_report
@@ -129,8 +180,11 @@ class TestBuildGithubUrl:
 
     def test_title_is_url_encoded(self):
         from qsl73.error_report import build_github_url
-        url = build_github_url("Fehler in QSL73", "body")
-        assert "Fehler" in url or "Fehler%20in%20QSL73" in url or "%20" in url
+        url = build_github_url("Fehler #1 / Bug", "body")
+        query = url.split("?", 1)[1]
+        assert " " not in query          # kein Leerzeichen im Query-Teil
+        assert "%23" in query.lower()    # # → %23
+        assert "%2f" in query.lower()    # / → %2F
 
     def test_body_is_url_encoded(self):
         from qsl73.error_report import build_github_url
