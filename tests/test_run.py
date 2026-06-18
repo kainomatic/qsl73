@@ -604,7 +604,7 @@ def test_write_selected_writes_to_db(tmp_path):
     fp = get_db_fingerprint(db_path)
     backup_dir = tmp_path / "backups"
 
-    result = write_selected(
+    result, warnings = write_selected(
         selections=[("QSO1", "bureau")],
         db_path=db_path,
         backup_dir=backup_dir,
@@ -615,6 +615,7 @@ def test_write_selected_writes_to_db(tmp_path):
 
     assert result.written == 1
     assert result.skipped == []
+    assert warnings == []
 
     # DB-Inhalt verifizieren
     verify_conn = sqlite3.connect(str(db_path))
@@ -639,7 +640,7 @@ def test_write_selected_paperless_tags_set_after_db(tmp_path):
     mock_client = MagicMock()
     tags_cfg = TagsConfig(confirmed="qsl-bestätigt", uncertain="qsl-nicht-bestätigt")
 
-    write_selected(
+    result, warnings = write_selected(
         selections=[("QSO1", "undefined")],
         db_path=db_path,
         backup_dir=tmp_path / "bak",
@@ -668,7 +669,7 @@ def test_write_selected_tag_error_nonfatal(tmp_path):
     mock_client.add_tag_to_document.side_effect = PaperlessConnectionError("Timeout")
     tags_cfg = TagsConfig()
 
-    result = write_selected(
+    result, warnings = write_selected(
         selections=[("QSO1", "undefined")],
         db_path=db_path,
         backup_dir=tmp_path / "bak",
@@ -680,6 +681,7 @@ def test_write_selected_tag_error_nonfatal(tmp_path):
     )
 
     assert result.written == 1  # DB erfolgreich, Tag-Fehler ignoriert
+    assert len(warnings) > 0
 
 
 def test_write_selected_no_paperless_no_tags(tmp_path):
@@ -692,7 +694,7 @@ def test_write_selected_no_paperless_no_tags(tmp_path):
 
     fp = get_db_fingerprint(db_path)
 
-    result = write_selected(
+    result, warnings = write_selected(
         selections=[("QSO1", "direct")],
         db_path=db_path,
         backup_dir=tmp_path / "bak",
@@ -702,6 +704,7 @@ def test_write_selected_no_paperless_no_tags(tmp_path):
     )
 
     assert result.written == 1
+    assert warnings == []
 
 
 def test_write_selected_uncertain_tags(tmp_path):
@@ -717,7 +720,7 @@ def test_write_selected_uncertain_tags(tmp_path):
     mock_client = MagicMock()
     tags_cfg = TagsConfig(confirmed="qsl-bestätigt", uncertain="qsl-nicht-bestätigt")
 
-    write_selected(
+    result, warnings = write_selected(
         selections=[],  # nichts schreiben
         db_path=db_path,
         backup_dir=tmp_path / "bak",
@@ -729,6 +732,64 @@ def test_write_selected_uncertain_tags(tmp_path):
     )
 
     mock_client.add_tag_to_document.assert_called_once_with(99, "qsl-nicht-bestätigt")
+
+
+def test_write_selected_tag_warning_returned_when_tag_missing(tmp_path):
+    """PaperlessNotFoundError beim Tag-Setzen → Warnung im zurückgegebenen list."""
+    from qsl73.config import TagsConfig
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.paperless import PaperlessNotFoundError
+    from qsl73.run import write_selected
+
+    conn, db_path = _make_writable_db(tmp_path)
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+    mock_client = MagicMock()
+    mock_client.add_tag_to_document.side_effect = PaperlessNotFoundError("nicht gefunden")
+    tags_cfg = TagsConfig(confirmed="qsl-bestätigt")
+
+    result, warnings = write_selected(
+        selections=[("QSO1", "bureau")],
+        db_path=db_path,
+        backup_dir=tmp_path / "bak",
+        snapshot_fingerprint=fp,
+        expected_states={"QSO1": "No"},
+        paperless_client=mock_client,
+        confirmed_doc_ids=[1, 2],
+        tags_config=tags_cfg,
+    )
+
+    assert result.written == 1
+    assert len(warnings) == 1
+    assert "qsl-bestätigt" in warnings[0]
+
+
+def test_write_selected_no_warnings_on_success(tmp_path):
+    """Kein Tag-Fehler → leere Warnings-Liste."""
+    from qsl73.config import TagsConfig
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.run import write_selected
+
+    conn, db_path = _make_writable_db(tmp_path)
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+    mock_client = MagicMock()
+    tags_cfg = TagsConfig(confirmed="qsl-bestätigt")
+
+    result, warnings = write_selected(
+        selections=[("QSO1", "bureau")],
+        db_path=db_path,
+        backup_dir=tmp_path / "bak",
+        snapshot_fingerprint=fp,
+        expected_states={"QSO1": "No"},
+        paperless_client=mock_client,
+        confirmed_doc_ids=[1],
+        tags_config=tags_cfg,
+    )
+
+    assert warnings == []
 
 
 # ---------------------------------------------------------------------------

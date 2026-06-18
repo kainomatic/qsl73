@@ -484,7 +484,7 @@ def write_selected(
     confirmed_doc_ids: Optional[list[int]] = None,
     uncertain_doc_ids: Optional[list[int]] = None,
     tags_config: Optional[TagsConfig] = None,
-) -> WriteResult:
+) -> tuple[WriteResult, list[str]]:
     """Schreibt die bestätigte Auswahl in Log4OM-DB und setzt Paperless-Tags.
 
     Delegiert an log4om_db.write_confirmations (Schema-Check, WAL, Backup,
@@ -506,7 +506,8 @@ def write_selected(
         tags_config: Tag-Namen aus Config; erforderlich wenn paperless_client gesetzt.
 
     Returns:
-        WriteResult mit Anzahl geschriebener und übersprungener QSOs.
+        Tuple aus WriteResult (Anzahl geschriebener/übersprungener QSOs) und
+        list[str] mit Warnmeldungen pro fehlgeschlagenem Tag-Namen (leer bei Erfolg).
     """
     _log.info("Schreibe %d Auswahl(en)", len(selections))
     for qsoid, route in selections:
@@ -521,27 +522,44 @@ def write_selected(
         expected_states=expected_states,
     )
 
+    tag_warnings: list[str] = []
+
     # Paperless-Tags NUR nach erfolgreicher DB-Transaktion (ADR-0003)
     if paperless_client and tags_config:
+        confirmed_failures = 0
         for doc_id in (confirmed_doc_ids or []):
             try:
                 paperless_client.add_tag_to_document(doc_id, tags_config.confirmed)
             except Exception as exc:
+                confirmed_failures += 1
                 _log.warning(
                     "Tag '%s' konnte für Dok. %s nicht gesetzt werden: %s",
                     tags_config.confirmed, doc_id, exc,
                 )
+        if confirmed_failures:
+            tag_warnings.append(
+                f"Tag '{tags_config.confirmed}' konnte nicht gesetzt werden "
+                f"({confirmed_failures} Dok.) — existiert er in Paperless?"
+            )
+
+        uncertain_failures = 0
         for doc_id in (uncertain_doc_ids or []):
             try:
                 paperless_client.add_tag_to_document(doc_id, tags_config.uncertain)
             except Exception as exc:
+                uncertain_failures += 1
                 _log.warning(
                     "Tag '%s' konnte für Dok. %s nicht gesetzt werden: %s",
                     tags_config.uncertain, doc_id, exc,
                 )
+        if uncertain_failures:
+            tag_warnings.append(
+                f"Tag '{tags_config.uncertain}' konnte nicht gesetzt werden "
+                f"({uncertain_failures} Dok.) — existiert er in Paperless?"
+            )
 
     _log.info(
-        "Schreiben abgeschlossen — geschrieben=%d übersprungen=%d",
-        result.written, len(result.skipped),
+        "Schreiben abgeschlossen — geschrieben=%d übersprungen=%d tag_warnungen=%d",
+        result.written, len(result.skipped), len(tag_warnings),
     )
-    return result
+    return result, tag_warnings

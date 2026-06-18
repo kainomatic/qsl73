@@ -32,6 +32,7 @@ class RunDoneEvent:
 class WriteDoneEvent:
     result: WriteResult
     confirmed_doc_ids: list
+    tag_warnings: list[str]
 
 
 @dataclass
@@ -94,7 +95,7 @@ class RunController:
 
         def _work() -> None:
             try:
-                result = write_selected(
+                result, tag_warnings = write_selected(
                     selections=selections,
                     db_path=db_path,
                     backup_dir=backup_dir,
@@ -105,7 +106,7 @@ class RunController:
                     confirmed_doc_ids=confirmed_doc_ids,
                     tags_config=tags_config,
                 )
-                self._queue.put(WriteDoneEvent(result, confirmed_doc_ids))
+                self._queue.put(WriteDoneEvent(result, confirmed_doc_ids, tag_warnings))
             except Exception as exc:
                 self._queue.put(ErrorEvent(exc, tb.format_exc()))
 

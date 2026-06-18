@@ -107,7 +107,7 @@ def test_start_write_produces_done_event():
 
     mock_write_result = WriteResult(written=1, skipped=[])
 
-    with patch("qsl73.gui.controller.write_selected", return_value=mock_write_result):
+    with patch("qsl73.gui.controller.write_selected", return_value=(mock_write_result, [])):
         controller.start_write(
             selections=[("q1", "undefined")],
             db_path=Path("/fake/db.sqlite"),
@@ -122,6 +122,7 @@ def test_start_write_produces_done_event():
     done = [e for e in events if isinstance(e, WriteDoneEvent)]
     assert len(done) == 1
     assert done[0].result.written == 1
+    assert done[0].tag_warnings == []
 
 
 def test_start_write_without_run_result_raises():
@@ -136,7 +137,7 @@ def test_start_write_uses_run_result_fingerprint():
     controller = RunController(q)
     controller._run_result = _make_run_result()
 
-    with patch("qsl73.gui.controller.write_selected", return_value=WriteResult(0, [])) as mock_ws:
+    with patch("qsl73.gui.controller.write_selected", return_value=(WriteResult(0, []), [])) as mock_ws:
         controller.start_write(
             selections=[("q1", "bureau")],
             db_path=Path("/fake/db.sqlite"),

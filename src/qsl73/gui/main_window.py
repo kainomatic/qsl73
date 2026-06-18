@@ -225,22 +225,23 @@ class MainWindow(tk.Tk):
         elif isinstance(event, WriteDoneEvent):
             res = event.result
             self._written.update(event.confirmed_doc_ids)
-            # Vor clear(): qsoid-Verknüpfung manuell zugeordneter + geschriebener Karten retten
             for doc_id in event.confirmed_doc_ids:
                 if doc_id in self._manual_pending:
                     self._written_qso[doc_id] = self._manual_pending[doc_id][0]
             self._manual_pending.clear()
             self._selected.clear()
-            self._status_var.set(f"Geschrieben: {res.written} QSO(s), übersprungen: {len(res.skipped)}.")
+            status = f"Geschrieben: {res.written} QSO(s), übersprungen: {len(res.skipped)}."
+            if event.tag_warnings:
+                status += " ⚠ Tag-Fehler — Details im Dialog."
+            self._status_var.set(status)
             _reset_progress(self._progress)
             self._run_btn.configure(state="normal")
             self._write_btn.configure(state="disabled")
             self._refresh_tree()
-            messagebox.showinfo(
-                "Schreiben abgeschlossen",
-                f"{res.written} QSO(s) bestätigt, {len(res.skipped)} übersprungen.",
-                parent=self,
-            )
+            msg = f"{res.written} QSO(s) bestätigt, {len(res.skipped)} übersprungen."
+            if event.tag_warnings:
+                msg += "\n\n⚠ Tag-Warnungen:\n" + "\n".join(event.tag_warnings)
+            messagebox.showinfo("Schreiben abgeschlossen", msg, parent=self)
         elif isinstance(event, ErrorEvent):
             self._status_var.set(f"Fehler: {event.exc}")
             _reset_progress(self._progress)
