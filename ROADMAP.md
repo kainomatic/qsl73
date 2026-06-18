@@ -12,8 +12,12 @@
 - **Claude Code:** baut, committet, testet, versioniert, macht GitHub/Releases/Doku.
 
 **Schleife je Schritt:** Desktop formuliert Auftrag (Kontext+Aufgabe+Akzeptanzkriterien)
-→ User überbringt → Claude Code baut & committet → Desktop liest Repo & reviewt →
-Korrektur-Auftrag oder Freigabe → nächster Schritt.
+→ User überbringt → Claude Code baut & committet **inkl. Done-Abschluss** (siehe unten) →
+Desktop liest Repo & reviewt → Korrektur-Auftrag oder Freigabe → nächster Schritt.
+
+**Done-Abschluss** (Teil jedes Commits): pytest grün + CI grün · ROADMAP-Status
+aktualisiert · CHANGELOG ergänzt · erledigte Issues geschlossen · ADR falls nötig.
+→ vollständige Checkliste: **CLAUDE.md „Definition of Done je Bau-Schritt"** (ADR-0027)
 
 **Tests ab Schritt 2:** Jeder Bau-Schritt (2–9) liefert Unit-Tests mit. Ein Schritt gilt
 erst als fertig, wenn pytest grün ist und CI (GitHub Actions) durchläuft. → ADR-0009

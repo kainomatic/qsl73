@@ -98,6 +98,25 @@ Desktop spezifiziert Auftrag (Kontext + Aufgabe + Akzeptanzkriterien)
 
 ---
 
+## Definition of Done je Bau-Schritt
+
+Ein Schritt (oder Teilschritt) gilt erst als **fertig**, wenn alle fünf Punkte erfüllt
+sind. → Begründung und Kontext: **ADR-0027**
+
+| # | Kriterium | Wie |
+|---|-----------|-----|
+| 1 | **pytest grün** (lokal) + **CI grün** (GitHub Actions) | Pflicht ab Schritt 2; Teststrategie → ADR-0009 |
+| 2 | **ROADMAP.md-Status** des Schritts/Teilschritts aktualisiert | `✅` abgeschlossen / `➡️` nächster Schritt / `🔧 IN ARBEIT` |
+| 3 | **CHANGELOG.md `[Unreleased]`** um die Änderung ergänzt | Unter passendem Abschnitt (`### Added` / `### Fixed` / …) |
+| 4 | **Zugehörige GitHub-Issues geschlossen** | Bevorzugt per `Fixes #N` im Commit; sonst mit Schließkommentar inkl. belegendem Commit-Hash. Issue nur schließen wenn Fix im Code belegt. |
+| 5 | **ADR angelegt**, falls im Schritt eine Design-/Grundentscheidung gefallen ist | → bestehende ADR-Pflicht (Abschnitt „Entscheidungen und Aufgaben festhalten") |
+
+**Hinweis:** Diese Checkliste ergänzt die ADR-Pflicht und ADR-0009 — sie ersetzt sie nicht.
+Punkte 1 und 5 sind bereits anderweitig verankert; die Liste macht alle fünf Kriterien an
+einer Stelle sichtbar, damit kein Punkt beim Schritt-Abschluss vergessen wird.
+
+---
+
 ## Entscheidungen und Aufgaben festhalten
 
 ### ADR-Pflicht (verbindlich)
