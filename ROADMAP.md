@@ -220,6 +220,18 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Datum per tkcalendar DateEntry (Fallback Textfeld, kein Absturz ohne tkcalendar).
 - Issues #19 (Bild-DPI) und #20 (Rückseite) geschlossen. ADR-0029.
 
+#### ✅ Schritt 6d — Tag-Verwaltung im Setup + Verbindungstest (ADR-0031)
+
+- `paperless.py`: `list_tags()` (alle Tags paginiert, inkl. `matching_algorithm`),
+  `create_tag()` (immer `matching_algorithm=0`, Duplikat-Schutz).
+- `wizard_logic.py`: Verbindungstest-Auswertung, Auto-Matching-Warnung, Tag-Name-Validierung,
+  Auswahl-Erhalt nach Reload (alles tk-frei, getestet).
+- `setup_wizard.py`: „Verbindung testen"-Button + Statusanzeige; Tag-Felder als Dropdowns
+  befüllt aus Paperless; „Tags neu laden"; „Anlegen" mit Freitext (matching_algorithm=0);
+  sichtbare Warnung wenn Schreib-Tag matching_algorithm != 0.
+- `run.py`: `write_selected()` gibt `(WriteResult, list[str])` zurück; fehlender Tag →
+  sichtbare Warnung in GUI-Dialog + Statuszeile statt stilles Verschlucken. ADR-0031.
+
 ## 🔧 Schritt 7 — Logging & Fehler-Reporting — IN ARBEIT
 
 ### ✅ Schritt 7a — Diagnose-Logging + QR-Startwarnung (Issue #14)

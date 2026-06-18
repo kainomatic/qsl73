@@ -65,6 +65,27 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Tests: +8 `wrap_page_index`-Tests (test_manual_assignment.py), +5 `qso_by_id`-Tests
     (test_filter_util.py); gesamt 763 passed.
 
+- **Schritt 6d — Tag-Verwaltung im Setup + Verbindungstest (ADR-0031):**
+  - **Paperless-Verbindungstest im Setup-Assistenten:** „Verbindung testen"-Button prüft URL +
+    Zugangsdaten (Token oder User/PW); zeigt Ergebnis + Tag-Anzahl an. Erst nach erfolgreichem
+    Test sind Tag-Dropdowns und „Anlegen"-Buttons aktiv.
+  - **Tag-Felder als Dropdowns aus Paperless:** Die drei Schreib-Tag-Felder (input, confirmed,
+    uncertain) werden von Freitext-Entries auf Dropdowns umgestellt, befüllt durch `list_tags()`
+    nach Verbindungstest. Tippfehler ausgeschlossen.
+  - **Tag anlegen mit Duplikat-Schutz:** Pro Tag-Feld gibt es ein Eingabefeld + „Anlegen"-Button.
+    `create_tag(name, matching_algorithm=0)` legt den Tag ohne Auto-Matching an;
+    Duplikat-Schutz via case-insensitivem `get_tag_id`-Check vor dem POST.
+  - **Auto-Matching-Warnung für Schreib-Tags:** Ist der ausgewählte confirmed/uncertain-Tag mit
+    `matching_algorithm != 0` (Auto-Matching), erscheint eine sichtbare Warnung im Wizard.
+    Der input-Tag ist ausgenommen — für ihn ist Matching unbedenklich.
+  - **Sichtbare Tag-Warnung beim Schreiben:** `write_selected()` gibt nun
+    `tuple[WriteResult, list[str]]` zurück; fehlende Tags beim Schreiben führen zu einer
+    Warnung im Abschluss-Dialog + Statuszeile (statt stilles Verschlucken). ADR-0031.
+  - `paperless.py`: `list_tags()`, `create_tag()` mit `matching_algorithm=0` Default.
+  - `wizard_logic.py`: tk-freie Test-Logik (Verbindungstest-Auswertung, Warnung, Validierung).
+  - Tests: +XX in test_paperless.py (list_tags, create_tag); +XX in test_wizard_logic.py;
+    pytest all grün.
+
 - **Schritt 6c-UX — Drei UX-Verbesserungen im manuellen Zuordnungs-Dialog (ADR-0029):**
   - **Rückseite zuerst + Blättern (Issue #20 → geschlossen):** `render_pdf_pages()` rendert alle
     PDF-Seiten (150 DPI statt 100 — Issue #19 → geschlossen). Dialog zeigt standardmäßig die
