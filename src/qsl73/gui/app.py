@@ -122,7 +122,7 @@ def run_app() -> None:
                 sys.exit(0)
 
         # Hauptfenster
-        app = MainWindow(config)
+        app = MainWindow(config, crypto=crypto)
         app.mainloop()
     finally:
         lock.release()

@@ -1,5 +1,5 @@
 # QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
-"""Setup-Assistent — erster Start oder fehlende/ungültige Konfiguration."""
+"""Setup-Assistent — Erstkonfiguration und Einstellungen-Dialog."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -12,11 +12,27 @@ from qsl73.setup_assistant import create_initial_config
 
 
 class SetupWizard(tk.Toplevel):
-    """Modaler Dialog für Erstkonfiguration. Nach Schließen: result ist Config oder None."""
+    """Modaler Dialog für Erstkonfiguration und Einstellungen (ADR-0036).
 
-    def __init__(self, parent: tk.Misc, crypto: Optional[CryptoBackend] = None) -> None:
+    existing_config=None  → Erstkonfiguration: Titel "QSL73 — Erstkonfiguration",
+                            Felder mit Defaults vorbefüllt.
+    existing_config=cfg   → Bearbeiten-Modus: Titel "QSL73 — Einstellungen",
+                            Felder mit aktuellen Config-Werten vorbefüllt.
+                            Token-Feld bleibt leer (§4: kein Klartext im Feld);
+                            leer lassen = bestehendes Token behalten.
+    Nach Schließen: result ist Config oder None.
+    """
+
+    def __init__(
+        self,
+        parent: tk.Misc,
+        crypto: Optional[CryptoBackend] = None,
+        existing_config: Optional[Config] = None,
+    ) -> None:
         super().__init__(parent)
-        self.title("QSL73 — Erstkonfiguration")
+        self._existing_config = existing_config
+        self._is_edit_mode = existing_config is not None
+        self.title("QSL73 — Einstellungen" if self._is_edit_mode else "QSL73 — Erstkonfiguration")
         self.resizable(True, True)
         self.result: Optional[Config] = None
         self._crypto = crypto if crypto is not None else get_default_backend()
@@ -36,6 +52,13 @@ class SetupWizard(tk.Toplevel):
         self._tag_combos: dict = {}
         self._new_tag_vars: dict = {}
         self._tag_warning_lbls: dict = {}
+
+        # Im Bearbeiten-Modus: Config-Werte als Feld-Defaults
+        if self._is_edit_mode:
+            from qsl73.gui.wizard_logic import config_to_field_defaults
+            _d = config_to_field_defaults(self._existing_config)
+        else:
+            _d = {}
 
         outer = ttk.Frame(self, padding=12)
         outer.pack(fill="both", expand=True)
@@ -75,7 +98,7 @@ class SetupWizard(tk.Toplevel):
         def field(key: str, label: str, default: str = "", password: bool = False,
                   browse: bool = False) -> None:
             nonlocal row
-            var = tk.StringVar(value=default)
+            var = tk.StringVar(value=_d.get(key, default))
             self._vars[key] = var
             ttk.Label(inner, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8))
             show = "*" if password else ""
@@ -97,7 +120,8 @@ class SetupWizard(tk.Toplevel):
 
         def bool_field(key: str, label: str, default: bool = True) -> None:
             nonlocal row
-            var = tk.BooleanVar(value=default)
+            val = _d.get(key, default)
+            var = tk.BooleanVar(value=bool(val))
             self._vars[key] = var
             ttk.Checkbutton(inner, text=label, variable=var).grid(
                 row=row, column=0, columnspan=2, sticky="w"
@@ -106,7 +130,7 @@ class SetupWizard(tk.Toplevel):
 
         def combo_field(key: str, label: str, values: list[str], default: str) -> None:
             nonlocal row
-            var = tk.StringVar(value=default)
+            var = tk.StringVar(value=_d.get(key, default))
             self._vars[key] = var
             ttk.Label(inner, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8))
             ttk.Combobox(inner, textvariable=var, values=values, state="readonly", width=20).grid(
@@ -121,12 +145,22 @@ class SetupWizard(tk.Toplevel):
         combo_field("paperless.auth_mode", "Authentifizierung", ["token", "password"], "token")
 
         # Token-Auth-Felder (sichtbar bei Modus "token", Standard)
-        self._vars["paperless.token"] = tk.StringVar()
+        self._vars["paperless.token"] = tk.StringVar()  # immer leer (§4: kein Klartext im Feld)
         self._token_lbl = ttk.Label(inner, text="API-Token")
         self._token_lbl.grid(row=row, column=0, sticky="w", padx=(0, 8))
         self._token_entry = ttk.Entry(inner, textvariable=self._vars["paperless.token"], width=42, show="*")
         self._token_entry.grid(row=row, column=1, sticky="ew")
         row += 1
+
+        # Hinweis im Bearbeiten-Modus: leeres Feld = Token behalten
+        if self._is_edit_mode:
+            self._token_retain_lbl = ttk.Label(
+                inner,
+                text="(leer lassen = bestehendes Token behalten)",
+                foreground="#555555", font=("", 8),
+            )
+            self._token_retain_lbl.grid(row=row, column=1, sticky="w")
+            row += 1
 
         # Passwort-Auth-Felder (sichtbar bei Modus "password", initial ausgeblendet)
         self._pw_username_var = tk.StringVar()
@@ -180,7 +214,7 @@ class SetupWizard(tk.Toplevel):
             ("tags.confirmed", "Bestätigt-Tag", "qsl-bestätigt"),
             ("tags.uncertain", "Unsicher-Tag", "qsl-nicht-bestätigt"),
         ]:
-            _var = tk.StringVar(value=_tag_default)
+            _var = tk.StringVar(value=_d.get(_tag_key, _tag_default))
             self._vars[_tag_key] = _var
             ttk.Label(inner, text=_tag_label).grid(
                 row=row, column=0, sticky="w", padx=(0, 8)
@@ -233,7 +267,7 @@ class SetupWizard(tk.Toplevel):
         bool_field("app.update_check", "Update-Prüfung beim Start", True)
 
         # Trefferlimit für manuellen Zuordnungs-Dialog (ADR-0030)
-        var_limit = tk.StringVar(value="100")
+        var_limit = tk.StringVar(value=_d.get("app.manual_match_limit", "100"))
         self._vars["app.manual_match_limit"] = var_limit
         ttk.Label(inner, text="Trefferlimit Zuordnung").grid(
             row=row, column=0, sticky="w", padx=(0, 8)
@@ -254,6 +288,9 @@ class SetupWizard(tk.Toplevel):
         self.update_idletasks()
         self.minsize(500, 400)
 
+        # Korrekte Auth-Feld-Sichtbarkeit nach Initialisierung sicherstellen
+        self._update_auth_fields()
+
     # ------------------------------------------------------------------
     # Auth-Felder dynamisch umschalten
     # ------------------------------------------------------------------
@@ -265,6 +302,8 @@ class SetupWizard(tk.Toplevel):
         if vis["show_token"]:
             self._token_lbl.grid()
             self._token_entry.grid()
+            if self._is_edit_mode:
+                self._token_retain_lbl.grid()
             self._pw_user_lbl.grid_remove()
             self._pw_user_entry.grid_remove()
             self._pw_pass_lbl.grid_remove()
@@ -272,6 +311,8 @@ class SetupWizard(tk.Toplevel):
         else:
             self._token_lbl.grid_remove()
             self._token_entry.grid_remove()
+            if self._is_edit_mode:
+                self._token_retain_lbl.grid_remove()
             self._pw_user_lbl.grid()
             self._pw_user_entry.grid()
             self._pw_pass_lbl.grid()
@@ -311,14 +352,19 @@ class SetupWizard(tk.Toplevel):
             val = self._vars[key].get().strip()
             if not val or val == "https://":
                 errors.append(f"{label} ist erforderlich.")
-        from qsl73.gui.wizard_logic import validate_auth_fields
+        from qsl73.gui.wizard_logic import is_token_retain_valid, validate_auth_fields
         mode = self._vars["paperless.auth_mode"].get()
-        errors.extend(validate_auth_fields(
-            mode,
-            token=self._vars["paperless.token"].get(),
-            username=self._pw_username_var.get(),
-            password=self._pw_password_var.get(),
-        ))
+        token = self._vars["paperless.token"].get()
+        # Im Bearbeiten-Modus: leeres Token-Feld + vorhandener Token = OK (Token bleibt erhalten)
+        if self._is_edit_mode and is_token_retain_valid(mode, token, self._existing_config):
+            pass
+        else:
+            errors.extend(validate_auth_fields(
+                mode,
+                token=token,
+                username=self._pw_username_var.get(),
+                password=self._pw_password_var.get(),
+            ))
         return errors
 
     def _on_ok(self) -> None:
@@ -338,10 +384,18 @@ class SetupWizard(tk.Toplevel):
                 )
                 overrides["paperless.token"] = token
                 overrides["paperless.auth_mode"] = "token"
-            cfg = create_initial_config(
-                crypto=self._crypto,
-                overrides=overrides,
-            )
+
+            if self._is_edit_mode:
+                # Bearbeiten-Modus: bestehende Config aktualisieren (inkl. Token-Erhalt)
+                from qsl73.config import get_config_path, save_config
+                from qsl73.gui.wizard_logic import merge_wizard_overrides
+                cfg = merge_wizard_overrides(self._existing_config, overrides)
+                save_config(cfg, get_config_path(), crypto=self._crypto)
+            else:
+                cfg = create_initial_config(
+                    crypto=self._crypto,
+                    overrides=overrides,
+                )
             self.result = cfg
             self.destroy()
         except Exception as exc:

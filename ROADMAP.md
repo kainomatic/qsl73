@@ -277,6 +277,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   `manual_qsoids` + `candidates` erweitert.
 - **Review:** Akzeptanzkriterien §10; Bericht ohne Secrets nachgewiesen; pytest grün, CI grün.
 
+### ✅ UX-Verbesserung #24 — Menüleiste + Einstellungen-Dialog (ADR-0036)
+
+- `gui/setup_wizard.py`: um Bearbeiten-Modus erweitert (`existing_config`-Parameter;
+  Token-Retain-Logik §4: leeres Feld = Token behalten, nie im Klartext).
+- `gui/wizard_logic.py`: `config_to_field_defaults`, `is_token_retain_valid`,
+  `merge_wizard_overrides` — tk-freie Logik, getestet.
+- `gui/main_window.py`: Menüleiste Datei/Bearbeiten/Hilfe; „Einstellungen…" + „Über QSL73"
+  neu; Buttons aus Statusleiste ins Hilfe-Menü verschoben. ADR-0036.
+- Issue #24 geschlossen. 923 Tests grün.
+
 ## Schritt 8 — Update-Lifecycle + Installer/Deinstaller
 
 - GitHub-Releases-Check, Updater, Inno-Installer (still, aufräumend), Deinstaller mit

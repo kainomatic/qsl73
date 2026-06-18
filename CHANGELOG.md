@@ -9,13 +9,26 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Menüleiste mit Einstellungen-Dialog (ADR-0036, Fixes #24):** Standard-Menüleiste
+  Datei / Bearbeiten / Hilfe im Hauptfenster.
+  - Bearbeiten → „Einstellungen…": öffnet den SetupWizard im Bearbeiten-Modus — alle
+    Config-Felder (URL, Auth, DB-Pfad, Rufzeichen, Tags, Matching, Route, Sprache,
+    Backup-Anzahl, Update-Check, Trefferlimit) vorbefüllt mit aktuellen Werten.
+    Token-Feld bleibt leer (§4: kein Klartext); leer lassen = bestehendes Token behalten.
+  - Hilfe → „Log-Ordner öffnen" / „Fehler melden…" (bisher Statusleisten-Buttons, ADR-0036)
+    / „Über QSL73" (Version, Channel, GPLv3-Lizenz, Repo-Link).
+  - Datei → „Beenden".
+  - `wizard_logic.py`: `config_to_field_defaults`, `is_token_retain_valid`,
+    `merge_wizard_overrides` — tk-freie Logik für Config → Feld-Vorbelegung und
+    Token-Erhalt-Regel im Bearbeiten-Modus.
+
 - Audit-Log (`audit.log`, getrennt von `qsl73.log`): fachliches Änderungsprotokoll
   aller tatsächlich geschriebenen QSO-Bestätigungen (Zeitstempel, Rufzeichen, Band,
   Mode, Route, Quelle auto/manuell, Backup-Pfad). Dauerhaft, nicht rotierend (ADR-0035).
-- On-demand-Fehlerbericht: „Fehler melden…"-Button in der Statusleiste öffnet einen
-  Dialog mit bereinigte Bericht-Vorschau (keine Secrets, keine QSO-Daten); Buttons
-  „Lokal speichern" und „Auf GitHub melden" (vorausgefüllte Issue-URL, kein Auto-Send).
-- „Log-Ordner öffnen"-Button in der Statusleiste öffnet `%APPDATA%\QSL73\logs\`.
+- On-demand-Fehlerbericht: „Fehler melden…" im Hilfe-Menü öffnet Dialog mit bereinigter
+  Bericht-Vorschau (keine Secrets, keine QSO-Daten); Buttons „Lokal speichern" und
+  „Auf GitHub melden" (vorausgefüllte Issue-URL, kein Auto-Send).
+- „Log-Ordner öffnen" im Hilfe-Menü öffnet `%APPDATA%\QSL73\logs\`.
 - `WriteResult.backup_path`: Schreibergebnis enthält Pfad zur erstellten Backup-Datei.
 - `write_selected` um `manual_qsoids` und `candidates` erweitert (abwärtskompatibel).
 

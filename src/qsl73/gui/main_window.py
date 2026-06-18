@@ -12,6 +12,7 @@ from tkinter import messagebox, ttk
 
 from qsl73.__version__ import CHANNEL, __version__
 from qsl73.config import Config
+from qsl73.crypto import CryptoBackend
 from qsl73.matching import MatchResult
 from qsl73.run import CardResult, RunResult
 from qsl73.gui.controller import (
@@ -53,9 +54,11 @@ _TREE_COLS = ("call", "date", "band", "mode", "source", "status")
 class MainWindow(tk.Tk):
     """Hauptfenster der QSL73-Anwendung."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, crypto: Optional[CryptoBackend] = None) -> None:
         super().__init__()
         self._config = config
+        from qsl73.crypto import get_default_backend
+        self._crypto = crypto if crypto is not None else get_default_backend()
         self._event_queue: queue.Queue = queue.Queue()
         self._controller = RunController(self._event_queue)
         self._run_result: Optional[RunResult] = None
@@ -91,6 +94,9 @@ class MainWindow(tk.Tk):
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
+
+        # Menüleiste (ADR-0036)
+        self._build_menu()
 
         # Toolbar
         toolbar = ttk.Frame(self, padding=(8, 6))
@@ -179,7 +185,7 @@ class MainWindow(tk.Tk):
         self._tree.bind("<ButtonRelease-1>", self._on_tree_click)
         self._tree.bind("<Double-1>", self._on_double_click)
 
-        # Statusleiste
+        # Statusleiste (Buttons "Log-Ordner öffnen" und "Fehler melden…" im Hilfe-Menü, ADR-0036)
         status_bar = ttk.Frame(self, padding=(8, 2))
         status_bar.grid(row=3, column=0, sticky="ew")
 
@@ -191,20 +197,6 @@ class MainWindow(tk.Tk):
 
         self._sel_count_var = tk.StringVar(value="")
         ttk.Label(status_bar, textvariable=self._sel_count_var).pack(side="right")
-
-        ttk.Button(
-            status_bar,
-            text="Fehler melden…",
-            command=self._on_report_error,
-            width=14,
-        ).pack(side="right", padx=(4, 0))
-
-        ttk.Button(
-            status_bar,
-            text="Log-Ordner öffnen",
-            command=self._on_open_log_folder,
-            width=16,
-        ).pack(side="right", padx=(0, 4))
 
     # ------------------------------------------------------------------
     # Queue-Polling
@@ -567,6 +559,54 @@ class MainWindow(tk.Tk):
             tags_config=cfg.tags,
             manual_qsoids=manual_qsoids_for_audit,   # NEU: für Audit-Logging
             candidates=candidates_for_audit,          # NEU: für Audit-Logging
+        )
+
+    # ------------------------------------------------------------------
+    # Menüleiste (ADR-0036)
+    # ------------------------------------------------------------------
+
+    def _build_menu(self) -> None:
+        menubar = tk.Menu(self)
+
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="Beenden", command=self.destroy)
+        menubar.add_cascade(label="Datei", menu=file_menu)
+
+        edit_menu = tk.Menu(menubar, tearoff=0)
+        edit_menu.add_command(label="Einstellungen…", command=self._on_settings)
+        menubar.add_cascade(label="Bearbeiten", menu=edit_menu)
+
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="Log-Ordner öffnen", command=self._on_open_log_folder)
+        help_menu.add_command(label="Fehler melden…", command=self._on_report_error)
+        help_menu.add_separator()
+        help_menu.add_command(label="Über QSL73", command=self._on_about)
+        menubar.add_cascade(label="Hilfe", menu=help_menu)
+
+        self.config(menu=menubar)
+
+    def _on_settings(self) -> None:
+        from qsl73.gui.setup_wizard import SetupWizard
+        wizard = SetupWizard(self, crypto=self._crypto, existing_config=self._config)
+        if wizard.result is not None:
+            self._config = wizard.result
+            messagebox.showinfo(
+                "Einstellungen gespeichert",
+                "Einstellungen wurden gespeichert.\n"
+                "Änderungen greifen beim nächsten Durchlauf.",
+                parent=self,
+            )
+
+    def _on_about(self) -> None:
+        from qsl73.__version__ import CHANNEL, __version__
+        messagebox.showinfo(
+            "Über QSL73",
+            f"QSL73  v{__version__}  ({CHANNEL})\n\n"
+            "Abgleich von Papier-QSL-Karten mit dem Log4OM-Logbuch.\n\n"
+            "Lizenz:  GNU General Public License v3 (GPLv3)\n"
+            "Repo:    https://github.com/kainomatic/qsl73\n"
+            "Autor:   DF1DS",
+            parent=self,
         )
 
     # ------------------------------------------------------------------
