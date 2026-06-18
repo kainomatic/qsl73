@@ -57,6 +57,22 @@ _MSG_WORKFLOW_NO_MATCH_BODY = (
 _MSG_WORKFLOW_DONE_TITLE = "Workflow abgeschlossen"
 _MSG_WORKFLOW_DONE_BODY = "Alle Karten wurden durchgearbeitet."
 
+# Über-Dialog
+_ABOUT_TITLE = "Über QSL73"
+_ABOUT_DESC = (
+    "Gleicht gescannte Papier-QSL-Karten aus Paperless-ngx\n"
+    "mit QSOs im Log4OM-Logbuch ab und markiert\n"
+    "bestätigte Karten automatisch."
+)
+_ABOUT_LICENSE = "Lizenz: GNU General Public License v3 (GPLv3)"
+_ABOUT_AUTHOR_LABEL = "Autor:"
+_ABOUT_AUTHOR = "DF1DS"
+_ABOUT_LINK_GITHUB = "GitHub"
+_ABOUT_LINK_QRZ = "QRZ.com"
+_ABOUT_BTN_CLOSE = "Schließen"
+_ABOUT_URL_GITHUB = "https://github.com/kainomatic/qsl73"
+_ABOUT_URL_QRZ = "https://www.qrz.com/db/DF1DS"
+
 
 def _reset_progress(progress: ttk.Progressbar) -> None:
     """Hält indeterminate-Animation an und setzt Balken auf 0 zurück."""
@@ -784,52 +800,73 @@ class MainWindow(tk.Tk):
             self._status_var.set(_MSG_RESTART_STATUS)
 
     def _on_about(self) -> None:
-        """Über-Dialog — kein Systemsound, klickbare Links (TEIL B)."""
+        """Über-Dialog — kein Systemsound, klickbare Links, luftiges Layout."""
         import webbrowser
 
         dlg = tk.Toplevel(self)
-        dlg.title("Über QSL73")
+        dlg.title(_ABOUT_TITLE)
         dlg.resizable(False, False)
         dlg.transient(self)
         dlg.grab_set()
 
-        frame = ttk.Frame(dlg, padding=20)
+        frame = ttk.Frame(dlg, padding=24)
         frame.pack(fill="both", expand=True)
 
+        # App-Titel und Version (klar als Überschrift)
         ttk.Label(
             frame,
             text=f"QSL73  v{__version__}  ({CHANNEL})",
-            font=("", 12, "bold"),
-        ).pack(pady=(0, 8))
+            font=("", 13, "bold"),
+        ).pack(pady=(0, 14))
 
+        # Kurzbeschreibung
         ttk.Label(
             frame,
-            text=(
-                "Gleicht gescannte Papier-QSL-Karten aus Paperless-ngx\n"
-                "mit QSOs im Log4OM-Logbuch ab und markiert\n"
-                "bestätigte Karten automatisch."
-            ),
+            text=_ABOUT_DESC,
             justify="center",
         ).pack(pady=(0, 12))
 
-        ttk.Label(frame, text="Lizenz: GNU General Public License v3 (GPLv3)").pack()
-        ttk.Label(frame, text="Autor: DF1DS").pack(pady=(0, 12))
+        ttk.Separator(frame, orient="horizontal").pack(fill="x", pady=(0, 12))
 
-        for link_text, url in [
-            ("GitHub: github.com/kainomatic/qsl73", "https://github.com/kainomatic/qsl73"),
-            ("QRZ.com: www.qrz.com/db/DF1DS", "https://www.qrz.com/db/DF1DS"),
-        ]:
-            lbl = ttk.Label(frame, text=link_text, foreground="#0645ad", cursor="hand2")
-            lbl.pack()
+        # Lizenz
+        ttk.Label(frame, text=_ABOUT_LICENSE).pack(pady=(0, 6))
+
+        # Autor hervorgehoben
+        author_row = ttk.Frame(frame)
+        author_row.pack(pady=(0, 14))
+        ttk.Label(author_row, text=f"{_ABOUT_AUTHOR_LABEL}  ").pack(side="left")
+        tk.Label(
+            author_row,
+            text=_ABOUT_AUTHOR,
+            font=("", 10, "bold"),
+        ).pack(side="left")
+
+        # Links nebeneinander (horizontal, mittig)
+        def _make_link(parent: tk.Misc, text: str, url: str) -> tk.Label:
+            lbl = tk.Label(
+                parent, text=text,
+                fg="#0645ad", cursor="hand2",
+                font=("", 9),
+            )
             lbl.bind("<Button-1>", lambda _e, u=url: webbrowser.open(u))
+            lbl.bind("<Enter>", lambda _e, l=lbl: l.config(font=("", 9, "underline")))
+            lbl.bind("<Leave>", lambda _e, l=lbl: l.config(font=("", 9)))
+            return lbl
 
-        ttk.Frame(frame, height=8).pack()
-        ttk.Button(frame, text="Schließen", command=dlg.destroy).pack()
+        link_row = ttk.Frame(frame)
+        link_row.pack(pady=(0, 18))
+        _make_link(link_row, _ABOUT_LINK_GITHUB, _ABOUT_URL_GITHUB).pack(
+            side="left", padx=(0, 20)
+        )
+        _make_link(link_row, _ABOUT_LINK_QRZ, _ABOUT_URL_QRZ).pack(side="left")
+
+        ttk.Button(frame, text=_ABOUT_BTN_CLOSE, command=dlg.destroy).pack()
 
         dlg.bind("<Escape>", lambda _e: dlg.destroy())
+        dlg.minsize(340, 1)
 
         dlg.update_idletasks()
-        dw = dlg.winfo_reqwidth()
+        dw = max(340, dlg.winfo_reqwidth())
         dh = dlg.winfo_reqheight()
         px = self.winfo_rootx()
         py = self.winfo_rooty()
@@ -837,7 +874,7 @@ class MainWindow(tk.Tk):
         ph = self.winfo_height()
         x = max(0, px + (pw - dw) // 2)
         y = max(0, py + (ph - dh) // 2)
-        dlg.geometry(f"+{x}+{y}")
+        dlg.geometry(f"{dw}x{dh}+{x}+{y}")
 
         dlg.wait_window()
 

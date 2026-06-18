@@ -272,7 +272,6 @@ class SetupWizard(tk.Toplevel):
         bool_field("matching.fuzzy_enabled", "Fuzzy-Matching aktivieren", True)
         combo_field("confirm.qsl_route_default", "QSL-Route-Default",
                     ["undefined", "bureau", "direct"], "undefined")
-        combo_field("app.language", "Sprache", ["de", "en"], "de")
         field("app.backup_count", "Anzahl Backups", "5")
         bool_field("app.update_check", "Update-Prüfung beim Start", True)
 

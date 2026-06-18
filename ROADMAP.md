@@ -302,6 +302,15 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   steuerung in `main_window.py` (`_continue_workflow`, `_run_workflow_phase`). ADR-0037.
 - 981 Tests grün (3 erwartete Skips), CI ausstehend.
 
+### ✅ UX-Verbesserung — Über-Dialog + Sprachauswahl-Entfernung (ADR-0038, Issue #25)
+
+- **Über-Dialog verfeinert:** Luftigeres Layout, Titel als Überschrift, Autor „DF1DS"
+  fett, Links „GitHub"/„QRZ.com" kurz und nebeneinander mit Hover-Unterstreichung.
+  Texte als Modul-Konstanten (i18n-Vorbereitung).
+- **Sprachfeld entfernt (ADR-0038):** Wirkungslose Sprach-Combo im Einstellungen-Dialog
+  entfernt; `app.language` im Config-Modell erhalten (Abwärtskompatibilität). Issue #25
+  vorgemerkt für V2-i18n. 958 Tests grün.
+
 ## Schritt 8 — Update-Lifecycle + Installer/Deinstaller
 
 - GitHub-Releases-Check, Updater, Inno-Installer (still, aufräumend), Deinstaller mit
@@ -334,3 +343,13 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - ~~pyzbar/libzbar-64.dll auf Windows~~ — **entschärft durch zxingcpp (ADR-0017)**; kein
   nativer DLL-Ballast mehr. Offen bleibt: `zxing-cpp` + `pywin32` im PyInstaller-Bundle
   einbetten (Issue #6, Schritt 9, ADR-0024).
+
+## V2 — Vorgemerkte Features
+
+- **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
+  (gettext o. ä.), alle nutzersichtbaren Texte extrahieren (Modul-Konstanten bereits
+  angelegt), englische Übersetzung, Sprachumschaltung im Einstellungen-Dialog reaktivieren.
+  `app.language` (Default `de`) bleibt im Config-Modell reserviert.
+- **Attention-Handler** (Blinken/Ton bei Klick ins gesperrte Fenster) — bewusst auf V2
+  verschoben; aktuelle Implementierung entfernt (kein FocusIn/FocusOut, kein Parent-Binding
+  mehr nach Klärung).

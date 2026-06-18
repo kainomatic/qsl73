@@ -7,6 +7,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Über-Dialog verfeinert:** Luftigeres Layout (mehr Padding, Separator, Mindestbreite 340 px);
+  Titel als klare Überschrift; Autor „DF1DS" fett hervorgehoben; Links „GitHub" und „QRZ.com"
+  als kurze Texte nebeneinander mit Hover-Unterstreichung; nutzersichtbare Texte als
+  Modul-Konstanten (i18n-Vorbereitung).
+
+### Removed
+
+- **Wirkungslose Sprachauswahl (ADR-0038, Issue #25):** Das Feld „Sprache (de/en)" im
+  Einstellungen-Dialog entfernt — es hatte keine Wirkung, da keine i18n-Infrastruktur
+  existiert. `app.language` bleibt im Config-Modell (Default: `de`); bestehende
+  `config.yaml`-Dateien laden weiterhin ohne Fehler. Mehrsprachigkeit → V2 (#25).
+
 ### Added
 
 - **Durcharbeiten-Workflow für manuelle Zuordnung (ADR-0037):** Doppelklick auf
