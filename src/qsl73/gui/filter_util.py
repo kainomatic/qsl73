@@ -43,6 +43,17 @@ def build_write_selections(
     return selections, confirmed_doc_ids
 
 
+def qso_by_id(candidates: list, qsoid: str):
+    """Gibt den QsoCandidate mit der gegebenen qsoid zurück, oder None.
+
+    Suche in-memory (kein DB-Zugriff). Für QSO-Anzeige bei manuell zugeordneten Karten.
+    """
+    for c in candidates:
+        if getattr(c, "qsoid", None) == qsoid:
+            return c
+    return None
+
+
 def merge_selections(
     auto_selections: list[tuple[str, str]],
     auto_doc_ids: list[int],

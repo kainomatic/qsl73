@@ -1,8 +1,8 @@
-"""Tests für filter_results() und merge_selections() — reine Funktionen, kein tk."""
+"""Tests für filter_results(), merge_selections(), qso_by_id() — reine Funktionen, kein tk."""
 import pytest
-from qsl73.gui.filter_util import filter_results, merge_selections, FILTER_MODES
+from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, FILTER_MODES
 from qsl73.run import RunResult, CardResult
-from qsl73.matching import MatchOutcome, MatchResult, CardFields
+from qsl73.matching import MatchOutcome, MatchResult, CardFields, QsoCandidate
 
 
 def _make_card(doc_id: int, result: MatchResult) -> CardResult:
@@ -145,3 +145,44 @@ def test_merge_removes_pending_after_cancel():
         manual_pending={},  # leer nach Aufheben
     )
     assert sel == []
+
+
+# ---------------------------------------------------------------------------
+# Tests für qso_by_id
+# ---------------------------------------------------------------------------
+
+
+def _make_qso(qsoid: str, callsign: str = "DK1AA") -> QsoCandidate:
+    return QsoCandidate(qsoid=qsoid, callsign=callsign, date="2025-01-10", band="20m", mode="SSB")
+
+
+def test_qso_by_id_found():
+    cands = [_make_qso("Q1", "DK1AA"), _make_qso("Q2", "OE3XYZ")]
+    result = qso_by_id(cands, "Q1")
+    assert result is not None
+    assert result.qsoid == "Q1"
+    assert result.callsign == "DK1AA"
+
+
+def test_qso_by_id_second_element():
+    cands = [_make_qso("Q1"), _make_qso("Q2", "OE3XYZ")]
+    result = qso_by_id(cands, "Q2")
+    assert result is not None
+    assert result.callsign == "OE3XYZ"
+
+
+def test_qso_by_id_not_found():
+    cands = [_make_qso("Q1")]
+    assert qso_by_id(cands, "Q99") is None
+
+
+def test_qso_by_id_empty_candidates():
+    assert qso_by_id([], "Q1") is None
+
+
+def test_qso_by_id_returns_first_match():
+    """Bei doppelter qsoid (Datenanomaie) wird der erste Treffer zurückgegeben."""
+    cands = [_make_qso("Q1", "DK1AA"), _make_qso("Q1", "OE3XYZ")]
+    result = qso_by_id(cands, "Q1")
+    assert result is not None
+    assert result.callsign == "DK1AA"

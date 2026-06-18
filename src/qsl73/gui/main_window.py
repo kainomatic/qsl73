@@ -22,7 +22,7 @@ from qsl73.gui.controller import (
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
-from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections
+from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id
 
 
 _log = logging.getLogger("qsl73")
@@ -274,6 +274,15 @@ class MainWindow(tk.Tk):
             if card.doc_id in self._manual_pending:
                 tags.append("manual_assigned")
                 status_label = "Manuell zugeordnet"
+                # QSO-Werte des zugeordneten Kandidaten anzeigen statt Kartenfelder
+                qsoid, _ = self._manual_pending[card.doc_id]
+                if self._run_result is not None:
+                    matched = qso_by_id(self._run_result.candidates, qsoid)
+                    if matched is not None:
+                        call = matched.callsign or "–"
+                        date = (matched.date or "")[:10] or "–"
+                        band = matched.band or "–"
+                        mode_val = matched.mode or "–"
 
             self._tree.insert(
                 "",

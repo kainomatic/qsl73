@@ -6,7 +6,7 @@ pymupdf>=1.24      # PDF → Rasterbild (alle Seiten)
 Pillow>=10.0       # PIL-Bild-Konvertierung für zxingcpp
 # Datepicker im manuellen Zuordnungs-Dialog (Schritt 6c-UX, ADR-0029):
 # reine Python-Lib, keine native DLL — beim PyInstaller-Bundle (Schritt 9) explizit einschließen
-tkcalendar>=1.6
+tkcalendar>=1.5
 # Windows-only (PEP-508-Marker: werden auf Linux/CI automatisch ignoriert):
 # Installationsname: zxing-cpp (Bindestrich); Importname im Code: zxingcpp (ohne Bindestrich)
 zxing-cpp>=3.0 ; sys_platform == "win32"    # QR-Decoder; verifiziert mit cp312-Wheel (fixes #11)

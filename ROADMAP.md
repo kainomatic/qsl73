@@ -194,6 +194,14 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Issues: Bild-DPI für handschriftliche Karten (Issue #19), Rückseite anzeigbar (Issue #20).
 - **Review:** Akzeptanzkriterien §9; pytest grün, CI grün; Schritt 6 komplett.
 
+#### ✅ Schritt 6c-UX-2 — Weitere UX-Nachbesserungen manueller Zuordnungs-Dialog
+
+- Datepicker-Grab-Fix (Klick-Durchschlag auf Band/Mode beseitigt).
+- Wrap-around-Blättern (◀/▶ läuft um); `wrap_page_index` ausgelagert + getestet.
+- Bild-Klick öffnet Zoom-Toplevel (150-DPI-Originalgröße, Bildschirm-Limit).
+- Manuell zugeordnete Zeilen zeigen QSO-Werte; `qso_by_id` in filter_util ausgelagert.
+- Kein neues ADR (UX-Details im Rahmen ADR-0029).
+
 #### ✅ Schritt 6c-UX — UX-Nachbesserung manueller Zuordnungs-Dialog (ADR-0029)
 
 - Realtest-Feedback umgesetzt: drei UX-Verbesserungen an `manual_assignment.py`.

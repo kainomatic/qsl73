@@ -19,6 +19,7 @@ from qsl73.gui.manual_assignment import (
     last_page_index,
     render_pdf_first_page,
     render_pdf_pages,
+    wrap_page_index,
 )
 from qsl73.matching import CardFields, QsoCandidate
 
@@ -227,6 +228,49 @@ def test_last_page_index_multiple_pages():
 def test_last_page_index_never_negative():
     """Negative Seitenzahl → Index 0 (Schutz gegen Laufzeitfehler)."""
     assert last_page_index(-1) == 0
+
+
+# ---------------------------------------------------------------------------
+# 3d. Reine Helfer — wrap_page_index
+# ---------------------------------------------------------------------------
+
+
+def test_wrap_page_index_forward_normal():
+    assert wrap_page_index(0, 3, +1) == 1
+
+
+def test_wrap_page_index_backward_normal():
+    assert wrap_page_index(2, 3, -1) == 1
+
+
+def test_wrap_page_index_forward_wraps():
+    """Letzte Seite → erste (Umlauf vorwärts)."""
+    assert wrap_page_index(2, 3, +1) == 0
+
+
+def test_wrap_page_index_backward_wraps():
+    """Erste Seite → letzte (Umlauf rückwärts)."""
+    assert wrap_page_index(0, 3, -1) == 2
+
+
+def test_wrap_page_index_single_page_forward():
+    """Einseitiges PDF — kein Umlauf, bleibt bei 0."""
+    assert wrap_page_index(0, 1, +1) == 0
+
+
+def test_wrap_page_index_single_page_backward():
+    assert wrap_page_index(0, 1, -1) == 0
+
+
+def test_wrap_page_index_zero_pages():
+    """Leerfall — kein Absturz, gibt current zurück."""
+    assert wrap_page_index(0, 0, +1) == 0
+
+
+def test_wrap_page_index_two_pages_wrap():
+    """Zweiseitiges PDF: letzte → erste und erste → letzte."""
+    assert wrap_page_index(1, 2, +1) == 0
+    assert wrap_page_index(0, 2, -1) == 1
 
 
 # ---------------------------------------------------------------------------

@@ -130,6 +130,17 @@ def last_page_index(page_count: int) -> int:
     return max(0, page_count - 1)
 
 
+def wrap_page_index(current: int, page_count: int, direction: int) -> int:
+    """Berechnet neuen Seitenindex mit Umlauf (wrap-around).
+
+    direction: +1 = vorwärts, -1 = rückwärts.
+    Bei page_count <= 1: gibt current unverändert zurück (kein Umlauf).
+    """
+    if page_count <= 1:
+        return current
+    return (current + direction) % page_count
+
+
 # ---------------------------------------------------------------------------
 # tk-Toplevel — nur importieren wenn tk verfügbar
 # ---------------------------------------------------------------------------
@@ -172,6 +183,7 @@ if _TK_OK:
             self._iid_to_qsoid: dict[str, str] = {}
             self._pages: list = []        # gerenderte Seiten (PIL-Images)
             self._page_idx: int = 0       # aktuell angezeigte Seite
+            self._zoom_win = None         # Zoom-Fenster (Toplevel) oder None
             self._use_datepicker: bool = False  # tkcalendar verfügbar?
             self._date_explicit: bool = False   # True sobald Nutzer/OCR Datum gesetzt hat
 
@@ -210,8 +222,10 @@ if _TK_OK:
                 width=32,
                 anchor="center",
                 justify="center",
+                cursor="hand2",
             )
             self._img_label.pack(fill="both", expand=True)
+            self._img_label.bind("<Button-1>", self._on_image_click)
 
             # Blättern-Navigation unter dem Bild
             nav_frame = ttk.Frame(img_frame)
@@ -296,6 +310,17 @@ if _TK_OK:
                 self._var_date.trace_add("write", self._on_field_change)
                 self._use_datepicker = False
             self._date_entry.grid(row=1, column=1, sticky="ew", pady=2)
+
+            # Grab-Konflikt: DateEntry-Kalender-Popup vs. grab_set() auf dem Dialog.
+            # Wenn der Kalender aufklappt (Map), Grab freigeben; beim Schließen (Unmap)
+            # Grab neu setzen. Nur wenn tkcalendar die interne API _top_cal hat.
+            if self._use_datepicker:
+                try:
+                    _cal = self._date_entry._top_cal
+                    _cal.bind("<Map>", lambda _e: self.grab_release())
+                    _cal.bind("<Unmap>", lambda _e: self.after(10, self._try_regrab))
+                except AttributeError:
+                    pass  # tkcalendar-interne API nicht verfügbar
 
             # Row 2 — Band: Combobox mit DB-Kandidaten-Werten
             bands = distinct_bands(self._candidates)
@@ -390,12 +415,74 @@ if _TK_OK:
             self.destroy()
 
         def _on_prev_page(self) -> None:
-            if self._page_idx > 0:
-                self._show_page(self._page_idx - 1)
+            n = len(self._pages)
+            if n > 1:
+                self._show_page(wrap_page_index(self._page_idx, n, -1))
 
         def _on_next_page(self) -> None:
-            if self._page_idx < len(self._pages) - 1:
-                self._show_page(self._page_idx + 1)
+            n = len(self._pages)
+            if n > 1:
+                self._show_page(wrap_page_index(self._page_idx, n, +1))
+
+        def _try_regrab(self) -> None:
+            try:
+                if self.winfo_exists():
+                    self.grab_set()
+            except Exception:
+                pass
+
+        def _on_image_click(self, _event=None) -> None:
+            """Klick auf Kartenbild: Zoom-Fenster öffnen oder schließen."""
+            if not self._pages:
+                return  # Noch kein Bild geladen — no-op
+            if self._zoom_win is not None and self._zoom_win.winfo_exists():
+                self._zoom_win.destroy()
+                self._zoom_win = None
+                return
+            self._open_zoom_window()
+
+        def _open_zoom_window(self) -> None:
+            """Öffnet Zoom-Toplevel mit aktueller Seite in Originalgröße."""
+            if not self._pages:
+                return
+            pil_img = self._pages[self._page_idx]
+            screen_w = self.winfo_screenwidth()
+            screen_h = self.winfo_screenheight()
+            max_w = int(screen_w * 0.9)
+            max_h = int(screen_h * 0.9)
+
+            display_img = pil_img.copy()
+            img_w, img_h = display_img.size
+            if img_w > max_w or img_h > max_h:
+                display_img.thumbnail((max_w, max_h))
+
+            try:
+                from PIL import ImageTk
+                photo = ImageTk.PhotoImage(display_img)
+            except Exception as exc:
+                _log.debug("Zoom-Bild konnte nicht erzeugt werden: %s", exc)
+                return
+
+            win = tk.Toplevel(self)
+            win.title(f"QSL-Karte — Seite {self._page_idx + 1}/{len(self._pages)}")
+            win.resizable(False, False)
+
+            lbl = ttk.Label(win, image=photo, cursor="hand2")
+            lbl.image_ref = photo  # GC-Schutz
+            lbl.pack()
+
+            def _close_zoom(_e=None):
+                win.destroy()
+                self._zoom_win = None
+
+            lbl.bind("<Button-1>", _close_zoom)
+            win.bind("<Escape>", _close_zoom)
+
+            dw, dh = display_img.size
+            x = max(0, (screen_w - dw) // 2)
+            y = max(0, (screen_h - dh) // 2)
+            win.geometry(f"+{x}+{y}")
+            self._zoom_win = win
 
         # ------------------------------------------------------------------
         # Such-Logik
@@ -482,8 +569,9 @@ if _TK_OK:
 
             n = len(self._pages)
             self._page_label.config(text=f"Seite {idx + 1}/{n}")
-            self._prev_btn.config(state="normal" if idx > 0 else "disabled")
-            self._next_btn.config(state="normal" if idx < n - 1 else "disabled")
+            active = "normal" if n > 1 else "disabled"
+            self._prev_btn.config(state=active)
+            self._next_btn.config(state=active)
 
 else:
     # Stub damit Tests den Import nicht brechen wenn tk fehlt

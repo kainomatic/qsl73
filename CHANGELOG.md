@@ -9,6 +9,26 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 6c-UX-2 — Weitere UX-Verbesserungen am manuellen Zuordnungs-Dialog:**
+  - **Datepicker-Grab-Fix:** DateEntry-Kalender-Popup konfliktierte mit `grab_set()` des
+    modalen Dialogs (Klick durchschlug auf Band/Mode-Feld darunter). Fix: `<Map>`/`<Unmap>`-
+    Bindings auf tkcalendars `_top_cal`-Popup geben den Grab beim Öffnen frei und setzen
+    ihn nach dem Schließen neu. Robust (try/except wenn tkcalendar-API fehlt).
+  - **Wrap-around-Blättern:** `◀`/`▶` laufen jetzt um — letzte Seite → erste, erste →
+    letzte. Bei nur einer Seite: Buttons deaktiviert, kein Absturz. Reine Hilfsfunktion
+    `wrap_page_index(current, page_count, direction)` ausgelagert und getestet.
+  - **Bild-Zoom per Klick:** Klick auf das Kartenbild öffnet ein eigenes Toplevel-Fenster
+    mit der Seite in 150-DPI-Originalgröße (ohne `thumbnail`-Downscale). Größenbegrenzung
+    auf 90% des Bildschirm-Arbeitsbereichs. Erneuter Klick (oder Escape) schließt das
+    Fenster. Kein Bild vorhanden → no-op.
+  - **QSO-Werte in Treeview bei manueller Zuordnung:** Manuell zugeordnete Karten zeigen
+    jetzt Rufzeichen/Datum/Band/Mode des zugeordneten QSO (aus `RunResult.candidates`)
+    statt der Kartenfelder (`–`). Hilfsfunktion `qso_by_id(candidates, qsoid)` in
+    `filter_util.py` ausgelagert. qsoid nicht auffindbar → Fallback auf bisheriges
+    Verhalten, kein Absturz.
+  - Tests: +8 `wrap_page_index`-Tests (test_manual_assignment.py), +5 `qso_by_id`-Tests
+    (test_filter_util.py); gesamt 763 passed.
+
 - **Schritt 6c-UX — Drei UX-Verbesserungen im manuellen Zuordnungs-Dialog (ADR-0029):**
   - **Rückseite zuerst + Blättern (Issue #20 → geschlossen):** `render_pdf_pages()` rendert alle
     PDF-Seiten (150 DPI statt 100 — Issue #19 → geschlossen). Dialog zeigt standardmäßig die
