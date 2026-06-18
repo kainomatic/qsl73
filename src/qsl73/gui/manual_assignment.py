@@ -41,6 +41,7 @@ _BTN_SAVE = "Speichern"
 _BTN_SAVE_NEXT = "Speichern und nächste"
 _BTN_NEXT = "Nächste"
 _BTN_CANCEL = "Abbrechen"
+_BTN_DATE_CLEAR = "✕"
 
 # ---------------------------------------------------------------------------
 # Reine Helfer — tk-frei, vollständig ohne Display testbar
@@ -361,6 +362,10 @@ if _TK_OK:
                 self._var_date.trace_add("write", self._on_field_change)
                 self._use_datepicker = False
             self._date_entry.grid(row=1, column=1, sticky="ew", pady=2)
+            ttk.Button(
+                fld_frame, text=_BTN_DATE_CLEAR,
+                command=self._on_clear_date, width=2,
+            ).grid(row=1, column=2, padx=(4, 0), pady=2)
 
             # Grab-Konflikt: DateEntry-Kalender-Popup vs. grab_set() auf dem Dialog.
             # Wenn der Kalender aufklappt (Map), Grab freigeben; beim Schließen (Unmap)
@@ -456,6 +461,15 @@ if _TK_OK:
         def _on_date_changed(self, _event=None) -> None:
             """DateEntry-Event: Nutzer hat Datum explizit gesetzt → Datumsfilter aktiv."""
             self._date_explicit = True
+            self._update_search()
+
+        def _on_clear_date(self) -> None:
+            """Datum-Löschen-Button: Filter aufheben; DateEntry bleibt sichtbar."""
+            self._date_explicit = False
+            if not self._use_datepicker:
+                self._var_date.set("")
+            # Bei DateEntry: Anzeige bleibt (zeigt "heute"), aber _date_explicit=False
+            # → _get_date_str() liefert "" → kein Datumsfilter greift.
             self._update_search()
 
         def _on_tree_select(self, _event=None) -> None:

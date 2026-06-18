@@ -1,5 +1,5 @@
 """Tests für filter_results(), merge_selections(), written_doc_ids(), qso_by_id(), sort_cards_written_last(), qso_display_values(),
-build_workflow_sequence(), workflow_card_context(), format_progress_text() — reine Funktionen."""
+build_workflow_sequence(), workflow_card_context(), format_progress_text(), select_range() — reine Funktionen."""
 import pytest
 from qsl73.gui.filter_util import (
     FILTER_MODES,
@@ -8,6 +8,7 @@ from qsl73.gui.filter_util import (
     format_progress_text,
     merge_selections,
     qso_by_id,
+    select_range,
     qso_display_values,
     sort_cards_written_last,
     workflow_card_context,
@@ -342,6 +343,44 @@ class TestFormatProgressText:
 
     def test_empty_inputs(self):
         assert written_doc_ids([], [], []) == set()
+
+
+class TestSelectRange:
+    _IDS = [1, 2, 3, 4, 5]
+    _SEL = {1, 2, 3, 4, 5}
+
+    def test_forward_range(self):
+        assert select_range(self._IDS, self._SEL, 2, 4) == {2, 3, 4}
+
+    def test_backward_range(self):
+        assert select_range(self._IDS, self._SEL, 4, 2) == {2, 3, 4}
+
+    def test_anchor_equals_target(self):
+        assert select_range(self._IDS, self._SEL, 3, 3) == {3}
+
+    def test_skips_non_selectable_in_range(self):
+        selectable = {1, 3, 5}
+        assert select_range([1, 2, 3, 4, 5], selectable, 1, 5) == {1, 3, 5}
+
+    def test_target_not_selectable_returns_empty(self):
+        selectable = {1, 2, 3}
+        assert select_range(self._IDS, selectable, 1, 4) == set()
+
+    def test_anchor_none_returns_only_target(self):
+        assert select_range(self._IDS, self._SEL, None, 3) == {3}
+
+    def test_anchor_not_in_list_returns_only_target(self):
+        assert select_range(self._IDS, self._SEL, 99, 3) == {3}
+
+    def test_target_not_in_list_returns_empty(self):
+        # 99 ist weder in displayed_ids noch in selectable_ids → leer
+        assert select_range(self._IDS, self._SEL, 1, 99) == set()
+
+    def test_full_range(self):
+        assert select_range(self._IDS, self._SEL, 1, 5) == {1, 2, 3, 4, 5}
+
+    def test_single_element_list(self):
+        assert select_range([7], {7}, 7, 7) == {7}
 
     def test_selections_longer_than_skips(self):
         ids = written_doc_ids([1, 2, 3, 4], [("A","b"),("B","b"),("C","b"),("D","b")],

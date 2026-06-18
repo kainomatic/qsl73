@@ -9,12 +9,23 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Shift-Klick-Bereichsauswahl für CERTAIN-Karten:** Klick auf Karte A, dann
+  Shift-Klick auf Karte B → alle auswählbaren Karten zwischen A und B (inklusive,
+  in Anzeigereihenfolge) werden markiert; bereits geschriebene/nicht-auswählbare
+  werden übersprungen. Normaler Klick setzt den Anker neu. Logik in `select_range`
+  (tk-frei, 10 Tests).
+- **Datum-Löschen-Button im manuellen Zuordnungs-Dialog:** Kompakter ✕-Button neben
+  dem Datumsfeld; setzt `_date_explicit = False` → kein Datumsfilter mehr aktiv;
+  Trefferliste aktualisiert sich sofort. Für DateEntry-Fallback (Textfeld): Feld leeren.
 - **Echter Fortschrittsbalken beim Durchlauf (Fixes #23):** Statt Endlos-Animation
   zeigt der Balken jetzt echten Prozentfortschritt (X/N Karten) — Vorbereitungsphase
   (HTTP-Abfrage) bleibt kurzzeitig indeterminat, beim ersten ProgressEvent mit total > 0
   schaltet der Balken auf deterministischen Fortschritt um. Statuszeile zeigt „Karte X/N
   ausgewertet — P %". Schreib-Animation unverändert. Neue Hilfsfunktion
   `format_progress_text` (tk-frei, getestet, i18n-vorbereitet).
+- **Ruhigere Fortschrittsbalken-Animation:** Pulsintervall von 10 ms auf 40 ms
+  erhöht (`_PROGRESS_PULSE_MS = 40`) — betrifft Vorbereitungsphase beim Durchlauf
+  und Schreiben; determinater Prozentbalken (ab total > 0) unverändert.
 - **Benutzerfreundliche Fehlermeldungen bei erwarteten Lauf-/Schreibfehlern (ADR-0039,
   Fixes #18):** `DatabaseChangedError` (Optimistic-Locking-Konflikt), `SchemaError`,
   `DatabaseBusyError`, `QslEntryNotFoundError` sowie Paperless-Verbindungsfehler zeigen

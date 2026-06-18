@@ -33,6 +33,7 @@ from qsl73.gui.filter_util import (
     merge_selections,
     qso_by_id,
     qso_display_values,
+    select_range,
     sort_cards_written_last,
     workflow_card_context,
     written_doc_ids,
@@ -75,6 +76,11 @@ _ABOUT_URL_GITHUB = "https://github.com/kainomatic/qsl73"
 _ABOUT_URL_QRZ = "https://www.qrz.com/db/DF1DS"
 
 
+# Pulsintervall für indeterminate-Fortschrittsbalken in ms.
+# tk-Standard 10 ms ist sehr schnell (Pendeln wirkt nervös); 40 ms ist deutlich ruhiger.
+_PROGRESS_PULSE_MS = 40
+
+
 def _reset_progress(progress: ttk.Progressbar) -> None:
     """Hält indeterminate-Animation an und setzt Balken auf 0 zurück."""
     progress.stop()
@@ -108,7 +114,8 @@ class MainWindow(tk.Tk):
         self._event_queue: queue.Queue = queue.Queue()
         self._controller = RunController(self._event_queue)
         self._run_result: Optional[RunResult] = None
-        self._selected: set[int] = set()      # doc_ids der selektierten CERTAIN-Karten
+        self._selected: set[int] = set()          # doc_ids der selektierten CERTAIN-Karten
+        self._selection_anchor: int | None = None  # Anker für Shift-Bereichsauswahl
         self._displayed: list[CardResult] = []  # aktuell angezeigte Karten
         self._manual_pending: dict[int, tuple[str, str]] = {}  # doc_id → (qsoid, route)
         self._written: set[int] = set()       # doc_ids die in diesem Lauf bereits geschrieben wurden
@@ -230,6 +237,7 @@ class MainWindow(tk.Tk):
         self._tree.tag_configure("written", background="#d4edda", foreground="#155724")
 
         self._tree.bind("<ButtonRelease-1>", self._on_tree_click)
+        self._tree.bind("<Shift-ButtonRelease-1>", self._on_tree_shift_click)
         self._tree.bind("<Double-1>", self._on_double_click)
 
         # Statusleiste (Buttons "Log-Ordner öffnen" und "Fehler melden…" im Hilfe-Menü, ADR-0036)
@@ -399,6 +407,7 @@ class MainWindow(tk.Tk):
         card = next((c for c in self._displayed if c.doc_id == doc_id), None)
         if card is None or not is_batch_writable(card) or doc_id in self._written:
             return
+        self._selection_anchor = doc_id  # Anker für nachfolgende Shift-Klicks
         if doc_id in self._selected:
             self._selected.discard(doc_id)
             current_tags = list(self._tree.item(row_id, "tags"))
@@ -410,6 +419,44 @@ class MainWindow(tk.Tk):
             if "selected" not in current_tags:
                 current_tags.append("selected")
             self._tree.item(row_id, tags=current_tags)
+        self._update_sel_count()
+        self._update_write_btn()
+
+    def _on_tree_shift_click(self, event: tk.Event) -> None:
+        """Shift-Klick: Bereichsauswahl von Anker bis Ziel (Standard-Listenverhalten)."""
+        row_id = self._tree.identify_row(event.y)
+        if not row_id:
+            return
+        try:
+            target_id = int(row_id)
+        except ValueError:
+            return
+
+        displayed_ids = [c.doc_id for c in self._displayed]
+        selectable_ids = {
+            c.doc_id for c in self._displayed
+            if is_batch_writable(c) and c.doc_id not in self._written
+        }
+
+        new_selection = select_range(
+            displayed_ids, selectable_ids, self._selection_anchor, target_id
+        )
+
+        # Gesamte Auswahl durch den Bereich ersetzen
+        old_selected = set(self._selected)
+        self._selected = new_selection
+
+        for c in self._displayed:
+            rid = str(c.doc_id)
+            tags = list(self._tree.item(rid, "tags"))
+            if c.doc_id in new_selection and "selected" not in tags:
+                tags.append("selected")
+            elif c.doc_id not in new_selection and "selected" in tags:
+                tags = [t for t in tags if t != "selected"]
+            # Nur aktualisieren wenn sich etwas geändert hat
+            if c.doc_id in new_selection.symmetric_difference(old_selected):
+                self._tree.item(rid, tags=tags)
+
         self._update_sel_count()
         self._update_write_btn()
 
@@ -666,7 +713,7 @@ class MainWindow(tk.Tk):
         self._write_btn.configure(state="disabled")
         self._status_var.set("Durchlauf läuft …")
         self._progress.configure(mode="indeterminate")
-        self._progress.start(10)
+        self._progress.start(_PROGRESS_PULSE_MS)
 
         self._controller.start_run(pc, db_path, cfg)
 
@@ -734,7 +781,7 @@ class MainWindow(tk.Tk):
         self._write_btn.configure(state="disabled")
         self._status_var.set("Schreibe …")
         self._progress.configure(mode="indeterminate")
-        self._progress.start(10)
+        self._progress.start(_PROGRESS_PULSE_MS)
 
         self._controller.start_write(
             selections=selections,

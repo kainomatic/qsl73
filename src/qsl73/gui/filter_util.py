@@ -210,6 +210,33 @@ def merge_selections(
 
 
 # ---------------------------------------------------------------------------
+# Shift-Klick-Bereichsauswahl (tk-frei, testbar)
+# ---------------------------------------------------------------------------
+
+
+def select_range(
+    displayed_ids: list[int],
+    selectable_ids: set[int],
+    anchor_id: int | None,
+    target_id: int,
+) -> set[int]:
+    """Berechnet die selektierten doc_ids für einen Shift-Klick-Bereich.
+
+    Gibt alle IDs aus selectable_ids zurück, die zwischen anchor_id und target_id
+    (inklusive) in der Anzeigereihenfolge liegen. Nicht-selektierbare werden
+    übersprungen. Anker None oder nicht in Liste → nur target_id (falls selektierbar).
+    """
+    if target_id not in selectable_ids:
+        return set()
+    if anchor_id is None or anchor_id not in displayed_ids or target_id not in displayed_ids:
+        return {target_id}
+    anchor_idx = displayed_ids.index(anchor_id)
+    target_idx = displayed_ids.index(target_id)
+    lo, hi = min(anchor_idx, target_idx), max(anchor_idx, target_idx)
+    return {did for did in displayed_ids[lo : hi + 1] if did in selectable_ids}
+
+
+# ---------------------------------------------------------------------------
 # Fortschritts-Formatierung (tk-frei, testbar)
 # ---------------------------------------------------------------------------
 

@@ -302,6 +302,12 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   steuerung in `main_window.py` (`_continue_workflow`, `_run_workflow_phase`). ADR-0037.
 - 981 Tests grün (3 erwartete Skips), CI ausstehend.
 
+### ✅ UX-Nachbesserungen (Realtest-Feedback)
+
+- Shift-Klick-Bereichsauswahl CERTAIN-Karten (select_range, 10 Tests).
+- Ruhigere Balken-Animation (_PROGRESS_PULSE_MS=40).
+- Datum-Löschen-Button im manuellen Zuordnungs-Dialog. 1007 Tests grün.
+
 ### ✅ UX — Echter Fortschrittsbalken (Issue #23)
 
 - Balken zeigt echten Prozentfortschritt (X/N, P %) statt Endlos-Animation; kurze
