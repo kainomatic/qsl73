@@ -160,11 +160,23 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Hinweis:** Nur CERTAIN-Karten sind im Hauptfenster selektierbar (ADR-0007).
   UNCERTAIN-Karten folgen über den manuellen Zuordnungs-Bildschirm (Schritt 6c).
 
-### ➡️ Schritt 6c — Manueller Zuordnungs-Bildschirm (offen)
+### Schritt 6c — Manueller Zuordnungs-Bildschirm
+
+#### ✅ Schritt 6c-1 — Zuordnungs-Logik (tk-frei)
+
+- `src/qsl73/gui/manual_match.py`: `ManualQuery`-Dataclass, `search_candidates`
+  (Filter + Ranking in-memory, kein DB-Zugriff), `make_manual_selection` (route-Validierung,
+  gemeinsamer Schreib-Korb wie Auto-Pfad). ADR-0028.
+- Tests: `tests/gui/test_manual_match.py`; pytest grün, CI grün.
+
+#### ➡️ Schritt 6c-2 — tk-Screen (offen)
 
 - Karten-Bild (Vorder-/Rückseite) erst beim Anklicken einer UNCERTAIN-Karte nachladen.
 - Eingabefelder mit OCR-Vorschlag vorbefüllt; **Live-Suche während des Tippens** gegen
-  die Log4OM-DB (passende QSOs nach Rufzeichen/Datum/Band/Mode als Vorschläge).
+  die Kandidatenmenge aus `load_qso_candidates`.
+
+#### ➡️ Schritt 6c-3 — Integration ins Hauptfenster (offen)
+
 - Manuelle Zuordnung → QSO markieren + Tag `qsl-bestätigt` (wie Auto-Match).
 - Zuordnung fließt in denselben Korb wie Auto-Treffer → gemeinsame Transaktion (§5/§7).
 - **Review:** Akzeptanzkriterien §9; Live-Suche bei gültigem Rufzeichen; pytest grün, CI grün.

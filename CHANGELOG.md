@@ -9,6 +9,17 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 6c-1 — Manuelle Zuordnungs-Logik (`src/qsl73/gui/manual_match.py`, ADR-0028):**
+  tk-freies, rein funktionales Modul für den manuellen Zuordnungs-Bildschirm (Schritt 6c).
+  - `ManualQuery`-Dataclass: optionale Suchfelder call/date/band/mode (Nutzereingabe / OCR-Vorschlag).
+  - `search_candidates(query, candidates)`: filtert + rankt Kandidatenliste in-memory
+    (Rufzeichen case-insensitiv Teilstring/Präfix; Datum/Band/Mode normalisiert-verglichen;
+    leerer query → alle; Ranking nach Anzahl exakt passender Felder).
+  - `make_manual_selection(qsoid, route)`: erzeugt `(qsoid, route)`-Eintrag für Schreib-Korb —
+    kein separater Schreibpfad, 5c-Schutz bleibt voll aktiv (ADR-0028).
+  - Suchraum ausschließlich auf übergebene offene Kandidatenmenge beschränkt (niemals R='Yes').
+  - `tests/gui/test_manual_match.py`: Such-/Filter-/Ranking-/Validierungsfälle; CI-kompatibel.
+
 - **Schreibtest end-to-end vollständig verifiziert (Issue #8 Szenario B, geschlossen):**
   Kompletter Kreislauf Paperless → QR/OCR → Match → schreiben → Anzeige in Log4OM bestätigt.
   Schreibformat byte-identisch zu Log4OM-eigenem Format (Vergleich DN9MF vs. OE6DRG-QSO).
