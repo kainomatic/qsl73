@@ -15,6 +15,7 @@ import pytest
 
 _GUI_MODULES = [
     "qsl73.gui.app",
+    "qsl73.gui.config_error_dialog",
     "qsl73.gui.controller",
     "qsl73.gui.filter_util",
     "qsl73.gui.main_window",

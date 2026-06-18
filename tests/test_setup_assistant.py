@@ -1,6 +1,6 @@
 import pytest
 
-from qsl73.config import Config, save_config, load_config
+from qsl73.config import Config, ConfigError, save_config, load_config
 from qsl73.crypto import NullBackend
 from qsl73.setup_assistant import SetupNeeded, load_or_trigger_setup, create_initial_config
 
@@ -32,12 +32,14 @@ class TestLoadOrTriggerSetup:
         result = load_or_trigger_setup(config_path=path, crypto=null_crypto)
         assert result.log4om.own_callsign == "DF1DS"
 
-    def test_invalid_config_raises_setup_needed(self, tmp_path, null_crypto):
+    def test_invalid_config_raises_config_error(self, tmp_path, null_crypto):
+        # ADR-0033: ungültige Config wirft direkt ConfigError (nicht mehr SetupNeeded),
+        # damit gui/app.py einen eigenen Fehlerdialog anzeigen kann.
         path = tmp_path / "config.yaml"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("paperless:\n  auth_mode: ungueltig\n", encoding="utf-8")
 
-        with pytest.raises(SetupNeeded):
+        with pytest.raises(ConfigError):
             load_or_trigger_setup(config_path=path, crypto=null_crypto)
 
     def test_setup_needed_is_exception(self, tmp_path, null_crypto):

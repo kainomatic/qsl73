@@ -252,7 +252,20 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - 16 neue Tests; pytest grün, CI grün.
 - **Review:** Logdatei entsteht beim Start; kein Secret im Log; QR-Warnung sichtbar.
 
-### ➡️ Schritt 7b — Audit-Log + Fehler-Reporting (offen)
+### ✅ Schritt 7b-1 — Config-Robustheit: Backups + robuster Start-Check (ADR-0033)
+
+- `config_backup.py`: rotierende Sicherungen von `config.yaml` vor jedem `save_config`
+  (`%APPDATA%\QSL73\config_backups\`, config_YYYYMMDD_HHMMSS_uuid.yaml, max N=5, kein
+  Klartext-Token). `list_config_backups`, `restore_config_backup`, `get_config_backup_dir`.
+- `setup_assistant.py`: `ConfigError` bei ungültiger Config propagiert direkt (nicht mehr
+  in `SetupNeeded` eingewickelt) → semantische Trennung „fehlt" vs. „kaputt".
+- `gui/config_error_dialog.py`: Dialog bei `ConfigError` beim Start (vor MainWindow);
+  zeigt Fehlermeldung + Buttons „Einrichtung neu starten" / „Sicherung wiederherstellen"
+  (nur aktiv wenn Backups vorhanden) / „Beenden"; ungültiges Backup → Meldung, kein Loop.
+- `gui/app.py`: fängt `ConfigError` getrennt von `SetupNeeded` ab; ruft Fehlerdialog auf.
+- 881 Tests grün (3 erwartete Skips), CI grün.
+
+### ➡️ Schritt 7b-2 — Audit-Log + Fehler-Reporting (offen)
 
 - `audit.log`: fachliche Änderungen (Zeitstempel, Dok-ID, QSO-Rufzeichen/Datum/Band/Mode,
   auto vs. manuell, Backup ja/nein).

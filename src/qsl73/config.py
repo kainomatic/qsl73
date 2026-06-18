@@ -283,8 +283,15 @@ def save_config(config: Config, path: Path, crypto: CryptoBackend | None = None)
     Legt übergeordnete Verzeichnisse an falls nötig.
     Wirft ConfigError wenn ein Token gesetzt ist aber kein Crypto-Backend übergeben wurde
     (fail closed: Token wird nie unverschlüsselt persistiert).
+    Sichert bisherige config.yaml vor dem Überschreiben (ADR-0033).
     """
+    from qsl73.config_backup import create_config_backup
+
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Backup der bisherigen verschlüsselten YAML vor dem Überschreiben
+    if path.exists():
+        create_config_backup(path, backup_count=config.app.backup_count)
 
     data = _config_to_dict(config)
 

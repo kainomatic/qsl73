@@ -22,10 +22,11 @@ def test_load_raises_setup_needed_when_file_missing(tmp_path):
         load_or_trigger_setup(config_path=missing, crypto=NullBackend())
 
 
-def test_load_raises_setup_needed_when_file_invalid(tmp_path):
+def test_load_raises_config_error_when_file_invalid(tmp_path):
+    # ADR-0033: ungültige Config wirft direkt ConfigError (nicht mehr SetupNeeded)
     broken = tmp_path / "config.yaml"
     broken.write_text("paperless: [this is not a dict]", encoding="utf-8")
-    with pytest.raises(SetupNeeded):
+    with pytest.raises(ConfigError):
         load_or_trigger_setup(config_path=broken, crypto=NullBackend())
 
 

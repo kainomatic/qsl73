@@ -25,13 +25,9 @@ def load_or_trigger_setup(
             "Der Setup-Assistent wird gestartet."
         )
 
-    try:
-        return load_config(path, crypto=backend)
-    except ConfigError as exc:
-        raise SetupNeeded(
-            f"Konfigurationsdatei fehlerhaft: {exc}. "
-            "Der Setup-Assistent wird gestartet."
-        ) from exc
+    # ConfigError (ungültige Config) propagiert direkt — wird in gui/app.py
+    # separat abgefangen und dem Nutzer als Fehlerdialog angezeigt (ADR-0033).
+    return load_config(path, crypto=backend)
 
 
 def create_initial_config(

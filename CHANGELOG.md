@@ -9,6 +9,14 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 7b-1 — Config-Robustheit: Backups + robuster Start-Check (ADR-0033):**
+  `config_backup.py` mit rotierenden Sicherungen von `config.yaml` vor jedem
+  Überschreiben (`%APPDATA%\QSL73\config_backups\`, Default 5 Backups, kein Klartext-Token).
+  Start-Check in `gui/app.py` fängt `ConfigError` getrennt von `SetupNeeded` ab:
+  zeigt Fehlerdialog mit konkreter Meldung + Auswegangeboten (Einrichtung neu starten /
+  Frühere Sicherung wiederherstellen / Beenden). Backup-Auswahl nur aktiv wenn Sicherungen
+  vorhanden. Reine Logik (Backup-Pfade, Rotation, Restore+Validierung) tk-frei + getestet.
+
 - **Schritt 6e — Bestätigte Karten serverseitig ausfiltern (ADR-0032):**
   `get_documents_by_tag` akzeptiert `exclude_tag_name`; `run_pass` übergibt
   `config.tags.confirmed` als Ausschluss, damit bereits bestätigte Karten im

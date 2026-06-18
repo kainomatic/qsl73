@@ -84,20 +84,40 @@ def run_app() -> None:
         )
 
     try:
+        from qsl73.config import ConfigError, get_config_path
+        from qsl73.config_backup import get_config_backup_dir
+        from qsl73.crypto import get_default_backend
         from qsl73.setup_assistant import SetupNeeded, load_or_trigger_setup
         from qsl73.gui.error_dialog import show_error
         from qsl73.gui.setup_wizard import SetupWizard
         from qsl73.gui.main_window import MainWindow
 
+        crypto = get_default_backend()
+        config_path = get_config_path()
+
         # Konfiguration laden oder Setup-Assistent starten
         try:
-            config = load_or_trigger_setup()
+            config = load_or_trigger_setup(config_path=config_path, crypto=crypto)
         except SetupNeeded:
+            # Config fehlt → Wizard
             root = tk.Tk()
             root.withdraw()
             wizard = SetupWizard(root)
             config = wizard.result
             root.destroy()
+            if config is None:
+                sys.exit(0)
+        except ConfigError as exc:
+            # Config vorhanden aber ungültig → Fehlerdialog mit Auswegangeboten
+            _log.warning("Konfiguration beim Start ungültig: %s", exc)
+            from qsl73.gui.config_error_dialog import show_config_error_dialog
+
+            config = show_config_error_dialog(
+                str(exc),
+                config_path,
+                get_config_backup_dir(),
+                crypto,
+            )
             if config is None:
                 sys.exit(0)
 
