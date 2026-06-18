@@ -478,3 +478,124 @@ class TestHttpErrorCodes:
         rsps.add(rsps.GET, f"{BASE}/api/documents/1/", json={}, status=status)
         with pytest.raises(PaperlessAPIError):
             client.get_document_content(1)
+
+
+# ── Tag-Auflistung ────────────────────────────────────────────────────────────
+
+
+class TestListTags:
+    @rsps.activate
+    def test_list_tags_single_page(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 2, "next": None, "results": [
+                     {"id": 1, "name": "qsl-card", "matching_algorithm": 0},
+                     {"id": 2, "name": "qsl-bestätigt", "matching_algorithm": 0},
+                 ]})
+        tags = client.list_tags()
+        assert len(tags) == 2
+        assert tags[0]["id"] == 1
+        assert tags[0]["name"] == "qsl-card"
+
+    @rsps.activate
+    def test_list_tags_includes_matching_algorithm(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None, "results": [
+                     {"id": 5, "name": "auto-tag", "matching_algorithm": 6},
+                 ]})
+        tags = client.list_tags()
+        assert tags[0]["matching_algorithm"] == 6
+
+    @rsps.activate
+    def test_list_tags_pagination_collects_all(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 3, "next": f"{BASE}/api/tags/?page=2",
+                       "results": [{"id": 1, "name": "a", "matching_algorithm": 0}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 3, "next": f"{BASE}/api/tags/?page=3",
+                       "results": [{"id": 2, "name": "b", "matching_algorithm": 0}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 3, "next": None,
+                       "results": [{"id": 3, "name": "c", "matching_algorithm": 0}]})
+        tags = client.list_tags()
+        assert len(tags) == 3
+        assert [t["id"] for t in tags] == [1, 2, 3]
+
+    @rsps.activate
+    def test_list_tags_empty(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        assert client.list_tags() == []
+
+    @rsps.activate
+    def test_list_tags_connection_error(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/", body=RequestsConnectionError())
+        with pytest.raises(PaperlessConnectionError):
+            client.list_tags()
+
+    @rsps.activate
+    def test_list_tags_auth_error(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/", json={}, status=401)
+        with pytest.raises(PaperlessAuthError):
+            client.list_tags()
+
+
+# ── Tag anlegen ────────────────────────────────────────────────────────────
+
+
+class TestCreateTag:
+    @rsps.activate
+    def test_create_tag_new_returns_id(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        rsps.add(rsps.POST, f"{BASE}/api/tags/",
+                 json={"id": 42, "name": "qsl-neu", "matching_algorithm": 0},
+                 status=201)
+        tag_id = client.create_tag("qsl-neu")
+        assert tag_id == 42
+
+    @rsps.activate
+    def test_create_tag_sends_matching_algorithm_zero(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        rsps.add(rsps.POST, f"{BASE}/api/tags/",
+                 json={"id": 7, "name": "new-tag", "matching_algorithm": 0},
+                 status=201)
+        client.create_tag("new-tag")
+        body = json.loads(rsps.calls[1].request.body)
+        assert body["matching_algorithm"] == 0
+        assert body["match"] == ""
+        assert body["name"] == "new-tag"
+
+    @rsps.activate
+    def test_create_tag_existing_no_duplicate(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 9, "name": "qsl-bestätigt"}]})
+        tag_id = client.create_tag("qsl-bestätigt")
+        assert tag_id == 9
+        assert all(c.request.method == "GET" for c in rsps.calls)
+
+    @rsps.activate
+    def test_create_tag_existing_case_insensitive_no_duplicate(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 9, "name": "QSL-Bestätigt"}]})
+        tag_id = client.create_tag("qsl-bestätigt")
+        assert tag_id == 9
+        assert all(c.request.method == "GET" for c in rsps.calls)
+
+    @rsps.activate
+    def test_create_tag_connection_error_on_post(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        rsps.add(rsps.POST, f"{BASE}/api/tags/", body=RequestsConnectionError())
+        with pytest.raises(PaperlessConnectionError):
+            client.create_tag("fail-tag")
+
+    @rsps.activate
+    def test_create_tag_api_error_on_post(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        rsps.add(rsps.POST, f"{BASE}/api/tags/", json={}, status=500)
+        with pytest.raises(PaperlessAPIError):
+            client.create_tag("fail-tag")

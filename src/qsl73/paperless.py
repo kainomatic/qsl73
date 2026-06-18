@@ -154,6 +154,51 @@ class PaperlessClient:
             url = data.get("next")
         return None
 
+    def list_tags(self) -> list[dict]:
+        """Gibt alle Tags zurück (mind. id, name, matching_algorithm). Paginierung vollständig aufgelöst."""
+        url: str | None = f"{self._base}/api/tags/"
+        results: list[dict] = []
+        while url:
+            data = self._get_json(url)
+            results.extend(data.get("results", []))
+            url = data.get("next")
+        return results
+
+    def create_tag(
+        self,
+        name: str,
+        *,
+        matching_algorithm: int = 0,
+        is_inbox_tag: bool = False,
+    ) -> int:
+        """Legt einen Tag an (POST /api/tags/). Gibt ID zurück.
+
+        Existiert bereits ein Tag mit dem Namen (case-insensitive), wird KEIN
+        Duplikat angelegt — die vorhandene ID wird zurückgegeben.
+        """
+        existing_id = self.get_tag_id(name)
+        if existing_id is not None:
+            return existing_id
+        url = f"{self._base}/api/tags/"
+        payload = {
+            "name": name,
+            "matching_algorithm": matching_algorithm,
+            "match": "",
+            "is_inbox_tag": is_inbox_tag,
+        }
+        try:
+            resp = self._session.post(url, json=payload, timeout=self._timeout)
+        except requests.exceptions.ConnectionError as exc:
+            raise PaperlessConnectionError(
+                "Paperless-Server nicht erreichbar (Tag anlegen)."
+            ) from exc
+        except requests.exceptions.Timeout:
+            raise PaperlessConnectionError(
+                "Zeitüberschreitung beim Anlegen des Tags."
+            )
+        _raise_for_status(resp)
+        return int(resp.json()["id"])
+
     def set_document_tags(self, doc_id: int, tag_ids: list[int]) -> None:
         """Ersetzt die Tag-Liste eines Dokuments vollständig (PATCH)."""
         url = f"{self._base}/api/documents/{doc_id}/"
