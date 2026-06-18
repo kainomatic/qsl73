@@ -1017,3 +1017,239 @@ def test_ocr_tokenize_strips_surrounding_punct():
     assert "FT8" in tokens
     assert "20m" in tokens
     assert "CW" in tokens
+
+
+# ---------------------------------------------------------------------------
+# Audit-Logging in write_selected
+# ---------------------------------------------------------------------------
+
+class TestWriteSelectedAudit:
+    """Tests für Audit-Logging in write_selected."""
+
+    def _make_minimal_db(self, tmp_path):
+        """Minimal-DB mit einem QSO das geschrieben werden kann (WAL vorinitialisiert)."""
+        import json, sqlite3
+        db_path = tmp_path / "log4om.sqlite"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("PRAGMA journal_mode=WAL")  # WAL vorab aktivieren, damit Fingerabdruck stabil bleibt
+        conn.execute("""
+            CREATE TABLE Log (
+                qsoid TEXT PRIMARY KEY,
+                callsign TEXT,
+                qsodate TEXT,
+                band TEXT,
+                mode TEXT,
+                stationcallsign TEXT,
+                qsoconfirmations TEXT
+            )
+        """)
+        conf = json.dumps([{"CT": "QSL", "R": "No"}])
+        conn.execute(
+            "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
+            ("qso001", "DK1AB", "2025-11-01 14:30:00Z", "20m", "FT8", "DF1DS", conf),
+        )
+        conn.commit()
+        conn.close()
+        return db_path
+
+    def test_write_selected_accepts_manual_qsoids(self, tmp_path):
+        """write_selected akzeptiert manual_qsoids ohne Fehler (Abwärtskompatibilität)."""
+        from qsl73.run import write_selected
+        db_path = self._make_minimal_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+
+        result, warnings = write_selected(
+            selections=[("qso001", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso001": "No"},
+            manual_qsoids={"qso001"},
+        )
+        assert result.written == 1
+
+    def test_write_selected_without_manual_qsoids_still_works(self, tmp_path):
+        """write_selected ohne manual_qsoids (None) verhält sich wie bisher."""
+        from qsl73.run import write_selected
+        db_path = self._make_minimal_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+
+        result, warnings = write_selected(
+            selections=[("qso001", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso001": "No"},
+        )
+        assert result.written == 1
+
+    def test_audit_log_created_after_write(self, tmp_path, monkeypatch):
+        """write_selected erzeugt audit.log im log_dir nach erfolgreichem Schreiben."""
+        from qsl73.run import write_selected
+        db_path = self._make_minimal_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        log_dir = tmp_path / "logs"
+
+        # get_log_dir auf tmp_path/logs umbiegen
+        import qsl73.logging_setup as ls
+        monkeypatch.setattr(ls, "get_log_dir", lambda: log_dir)
+
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+
+        write_selected(
+            selections=[("qso001", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso001": "No"},
+        )
+        assert (log_dir / "audit.log").exists()
+
+    def test_audit_log_contains_written_qsoid(self, tmp_path, monkeypatch):
+        """Geschriebene qsoid erscheint im audit.log."""
+        from qsl73.run import write_selected
+        db_path = self._make_minimal_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        log_dir = tmp_path / "logs"
+
+        import qsl73.logging_setup as ls
+        monkeypatch.setattr(ls, "get_log_dir", lambda: log_dir)
+
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+
+        write_selected(
+            selections=[("qso001", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso001": "No"},
+        )
+        content = (log_dir / "audit.log").read_text(encoding="utf-8")
+        assert "qsoid=qso001" in content
+        assert "route=bureau" in content
+
+    def test_audit_source_manuell_when_in_manual_qsoids(self, tmp_path, monkeypatch):
+        """Quelle ist 'manuell' wenn qsoid in manual_qsoids."""
+        from qsl73.run import write_selected
+        db_path = self._make_minimal_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        log_dir = tmp_path / "logs"
+
+        import qsl73.logging_setup as ls
+        monkeypatch.setattr(ls, "get_log_dir", lambda: log_dir)
+
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+
+        write_selected(
+            selections=[("qso001", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso001": "No"},
+            manual_qsoids={"qso001"},
+        )
+        content = (log_dir / "audit.log").read_text(encoding="utf-8")
+        assert "source=manuell" in content
+
+    def test_audit_source_auto_when_not_in_manual_qsoids(self, tmp_path, monkeypatch):
+        """Quelle ist 'auto' wenn qsoid NICHT in manual_qsoids."""
+        from qsl73.run import write_selected
+        db_path = self._make_minimal_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        log_dir = tmp_path / "logs"
+
+        import qsl73.logging_setup as ls
+        monkeypatch.setattr(ls, "get_log_dir", lambda: log_dir)
+
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+
+        write_selected(
+            selections=[("qso001", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso001": "No"},
+            manual_qsoids=set(),  # leer → alles auto
+        )
+        content = (log_dir / "audit.log").read_text(encoding="utf-8")
+        assert "source=auto" in content
+
+    def test_skipped_qso_not_in_audit(self, tmp_path, monkeypatch):
+        """Übersprungene QSOs erscheinen NICHT im audit.log."""
+        import json, sqlite3
+        from qsl73.run import write_selected
+
+        # DB mit einem QSO das bereits bestätigt ist (R='Yes') → wird geskippt
+        db_path = tmp_path / "log4om.sqlite"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("PRAGMA journal_mode=WAL")  # WAL vorab aktivieren
+        conn.execute("""
+            CREATE TABLE Log (
+                qsoid TEXT PRIMARY KEY, callsign TEXT, qsodate TEXT,
+                band TEXT, mode TEXT, stationcallsign TEXT, qsoconfirmations TEXT
+            )
+        """)
+        conf_yes = json.dumps([{"CT": "QSL", "R": "Yes"}])
+        conn.execute("INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
+                     ("qso_skip", "X1X", "2025-01-01 10:00:00Z", "20m", "FT8", "DF1DS", conf_yes))
+        conn.commit(); conn.close()
+
+        log_dir = tmp_path / "logs"
+        import qsl73.logging_setup as ls
+        monkeypatch.setattr(ls, "get_log_dir", lambda: log_dir)
+
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+        backup_dir = tmp_path / "backups"
+
+        result, _ = write_selected(
+            selections=[("qso_skip", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso_skip": "No"},  # Mismatch → skip
+        )
+        assert result.written == 0
+
+        # audit.log existiert entweder nicht oder enthält qso_skip nicht
+        audit_path = log_dir / "audit.log"
+        if audit_path.exists():
+            assert "qsoid=qso_skip" not in audit_path.read_text(encoding="utf-8")
+
+    def test_candidates_callsign_in_audit(self, tmp_path, monkeypatch):
+        """Wenn candidates übergeben werden, erscheint das Rufzeichen im audit.log."""
+        from qsl73.run import write_selected
+        from qsl73.matching import QsoCandidate
+        db_path = self._make_minimal_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        log_dir = tmp_path / "logs"
+
+        import qsl73.logging_setup as ls
+        monkeypatch.setattr(ls, "get_log_dir", lambda: log_dir)
+
+        from qsl73.log4om_db import get_db_fingerprint
+        fp = get_db_fingerprint(db_path)
+
+        cand = QsoCandidate(
+            qsoid="qso001", callsign="DK1AB", date="2025-11-01 14:30:00Z",
+            band="20m", mode="FT8", time_utc="14:30", stationcallsign="DF1DS",
+        )
+
+        write_selected(
+            selections=[("qso001", "bureau")],
+            db_path=db_path,
+            backup_dir=backup_dir,
+            snapshot_fingerprint=fp,
+            expected_states={"qso001": "No"},
+            candidates=[cand],
+        )
+        content = (log_dir / "audit.log").read_text(encoding="utf-8")
+        assert "call=DK1AB" in content

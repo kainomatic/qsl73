@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
+from qsl73.audit import AuditEntry, write_audit_entries
 from qsl73.callsign import is_own_call
 from qsl73.config import Config, TagsConfig
 from qsl73.log4om_db import (
@@ -491,6 +492,8 @@ def write_selected(
     confirmed_doc_ids: Optional[list[int]] = None,
     uncertain_doc_ids: Optional[list[int]] = None,
     tags_config: Optional[TagsConfig] = None,
+    manual_qsoids: Optional[set[str]] = None,
+    candidates: Optional[list[QsoCandidate]] = None,
 ) -> tuple[WriteResult, list[str]]:
     """Schreibt die bestätigte Auswahl in Log4OM-DB und setzt Paperless-Tags.
 
@@ -569,4 +572,42 @@ def write_selected(
         "Schreiben abgeschlossen — geschrieben=%d übersprungen=%d tag_warnungen=%d",
         result.written, len(result.skipped), len(tag_warnings),
     )
+
+    # Audit-Logging: einen Eintrag pro tatsächlich geschriebenem QSO (ADR-0035)
+    skipped_qsoids: set[str] = {s.get("qsoid", "") for s in result.skipped}
+    cand_by_id: dict[str, QsoCandidate] = (
+        {c.qsoid: c for c in candidates} if candidates else {}
+    )
+    qsoid_to_doc_id: dict[str, int] = {
+        qsoid: doc_id
+        for (qsoid, _route), doc_id in zip(selections, confirmed_doc_ids or [])
+    }
+    manual_set: set[str] = manual_qsoids or set()
+    audit_entries: list[AuditEntry] = []
+    for qsoid, route in selections:
+        if qsoid in skipped_qsoids:
+            continue
+        doc_id = qsoid_to_doc_id.get(qsoid, -1)
+        cand = cand_by_id.get(qsoid)
+        callsign = cand.callsign if cand else "?"
+        qso_date = (cand.date[:10] if cand and cand.date else "?")
+        band = cand.band if cand else "?"
+        mode = cand.mode if cand else "?"
+        source = "manuell" if qsoid in manual_set else "auto"
+        backup_str = str(result.backup_path) if result.backup_path else "–"
+        audit_entries.append(AuditEntry(
+            doc_id=doc_id,
+            qsoid=qsoid,
+            callsign=callsign,
+            qso_date=qso_date,
+            band=band,
+            mode=mode,
+            route=route,
+            source=source,
+            backup_path=backup_str,
+        ))
+    if audit_entries:
+        from qsl73.logging_setup import get_log_dir
+        write_audit_entries(audit_entries, get_log_dir())
+
     return result, tag_warnings
