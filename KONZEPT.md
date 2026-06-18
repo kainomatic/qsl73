@@ -4,7 +4,7 @@
 > **wie** es sich verhalten soll – nicht die zeitliche Bau-Reihenfolge (→ ROADMAP.md).
 > Maintainer/Entwickler: **DF1DS** (GitHub: kainomatic). Sprache der App: DE (Default),
 > EN umschaltbar. Lizenz: GPLv3.
-> Schreibmodell: Vorschau + Bestaetigung (kein separater dry-run; siehe §5/§7).
+> Schreibmodell: Vorschau + Bestätigung (kein separater dry-run; siehe §5/§7).
 
 ---
 
@@ -19,8 +19,8 @@ Kernprinzipien:
 - **Datensicherheit zuerst:** kein Schreibvorgang ohne Absicherung (WAL + Vor-Backup,
   Transaktion, definierte Schreibreihenfolge).
 - **Transparenz:** "telefoniert nicht nach Hause"; nur 3 mögliche Verbindungen.
-- **Nutzerkontrolle:** jeder Lauf zeigt erst eine Vorschau der geplanten Aenderungen und
-  schreibt nur nach ausdruecklicher Bestaetigung; unsichere Faelle landen beim Menschen.
+- **Nutzerkontrolle:** jeder Lauf zeigt erst eine Vorschau der geplanten Änderungen und
+  schreibt nur nach ausdrücklicher Bestätigung; unsichere Fälle landen beim Menschen.
 
 ---
 
@@ -104,35 +104,35 @@ blind schreiben**.
 
 ## 5. Verarbeitungsablauf (ein Lauf)
 
-Es gibt einen Lauf-Typ mit eingebauter Vorschau und Bestaetigung (kein separater
+Es gibt einen Lauf-Typ mit eingebauter Vorschau und Bestätigung (kein separater
 dry-run-Modus).
 
 1. Sammeln: Alle Paperless-Dokumente mit Tag `qsl-card` abrufen, OCR-Text holen.
 2. Parsen: Aus dem OCR-Text Kandidatenwerte extrahieren (Rufzeichen, Datum, Band, Mode).
-3. Vorfilter Log4OM: Nur QSOs als Match-Kandidaten, deren Papier-QSL noch NICHT bestaetigt
+3. Vorfilter Log4OM: Nur QSOs als Match-Kandidaten, deren Papier-QSL noch NICHT bestätigt
    ist. eQSL/LoTW/QRZ etc. werden weder gelesen-als-Grund noch geschrieben.
 4. Matchen (siehe §6): pro Karte Ergebnis sicher / unsicher / kein Match.
-5. Vorschau anzeigen: Geplante Bestaetigungen (sichere Auto-Treffer) sowie die unsicheren
-   und kein-Match-Karten werden angezeigt; Zusammenfassung z. B. '12 wuerden bestaetigt,
+5. Vorschau anzeigen: Geplante Bestätigungen (sichere Auto-Treffer) sowie die unsicheren
+   und kein-Match-Karten werden angezeigt; Zusammenfassung z. B. '12 würden bestätigt,
    5 unsicher, 3 kein Match'. Pro Karte/QSO werden zudem bereits vorhandene Bestätigungen
    (Typen mit R="Yes", z. B. EQSL, LOTW) angezeigt, sofern vorhanden — als Kontext, damit
    der Nutzer versehentlich getaggte eQSL-/LoTW-Ausdrucke erkennt, bevor er „Jetzt schreiben"
    klickt. Diese Anzeige ändert die Einstufung nicht (→ §6.4). Noch nichts geschrieben.
-6. Manuell ergaenzen (optional): Im selben Durchgang kann der Nutzer unsichere Karten ueber
+6. Manuell ergänzen (optional): Im selben Durchgang kann der Nutzer unsichere Karten über
    den manuellen Zuordnungs-Bildschirm zuordnen (§9). Diese manuellen Zuordnungen kommen in
-   denselben Korb geplanter Aenderungen wie die automatischen sicheren Treffer.
-7. Bestaetigen & Schreiben: Erst auf Klick 'Jetzt schreiben' laeuft EINE gesammelte
-   Transaktion fuer ALLE geplanten Aenderungen (auto + manuell) zusammen: Vor-Backup ->
-   DB-Transaktion -> Paperless-Tags (§7). 'Abbrechen' verwirft alles ohne Aenderung.
+   denselben Korb geplanter Änderungen wie die automatischen sicheren Treffer.
+7. Bestätigen & Schreiben: Erst auf Klick 'Jetzt schreiben' läuft EINE gesammelte
+   Transaktion für ALLE geplanten Änderungen (auto + manuell) zusammen: Vor-Backup ->
+   DB-Transaktion -> Paperless-Tags (§7). 'Abbrechen' verwirft alles ohne Änderung.
 8. Abschluss: Ergebnis/Logeintrag; verbleibende unsichere/kein-Match-Karten bleiben in der
-   Liste bzw. kommen beim naechsten Lauf erneut zur Wiedervorlage.
+   Liste bzw. kommen beim nächsten Lauf erneut zur Wiedervorlage.
 
 **Akzeptanzkriterien:**
 - Vor dem Klick 'Jetzt schreiben' wird garantiert nichts geschrieben (weder DB noch Tags),
-  aber die vollstaendige Vorschau ist erzeugt.
-- 'Abbrechen' hinterlaesst DB und Tags unveraendert.
+  aber die vollständige Vorschau ist erzeugt.
+- 'Abbrechen' hinterlässt DB und Tags unverändert.
 - Auto-Treffer und manuelle Zuordnungen werden in EINER Transaktion gemeinsam geschrieben.
-- Bereits Papier-QSL-bestaetigte QSOs erscheinen nie als Kandidat.
+- Bereits Papier-QSL-bestätigte QSOs erscheinen nie als Kandidat.
 
 ---
 
@@ -434,15 +434,15 @@ nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
 > Dieser Abschnitt behandelt ausschließlich den Schutz vor DATEN-Änderungen zur Laufzeit.
 
 - **WAL-Modus** für technische Absturzsicherheit (selbstheilend bei Abbruch).
-- **Erst sammeln (inkl. Vorschau+Bestaetigung), dann gesammelt schreiben:** alle Aenderungen
+- **Erst sammeln (inkl. Vorschau+Bestätigung), dann gesammelt schreiben:** alle Änderungen
   - automatische sichere Treffer UND manuelle Zuordnungen - nach Klick 'Jetzt schreiben' in
   **einer SQLite-Transaktion** (alles-oder-nichts, kein halb geschriebener Zustand).
 - **Reihenfolge:** (1) DB-Transaktion erfolgreich, DANN (2) Paperless-Tags setzen.
   - DB scheitert → keine Tags (kein Widerspruch).
   - Nur Tag-Setzen scheitert → QSO korrekt bestätigt; fehlendes Tag wird beim nächsten
     Lauf nachgezogen.
-- **Vor-Backup nur beim tatsaechlichen Schreiben** (Klick 'Jetzt schreiben'); reines
-  Ansehen/Abbrechen oder 'nichts zu schreiben' -> kein Backup. Schuetzt vor inhaltlichen
+- **Vor-Backup nur beim tatsächlichen Schreiben** (Klick 'Jetzt schreiben'); reines
+  Ansehen/Abbrechen oder 'nichts zu schreiben' -> kein Backup. Schützt vor inhaltlichen
   Fehlern (falsche Zuordnung), wogegen WAL nicht hilft.
 - **Backup-Aufbewahrung:** konfigurierbar, **Default 5**, ältere automatisch löschen.
   Einstellungen zeigen Hinweis + Live-Speicheranzeige der Backups + „Backup-Ordner öffnen".
@@ -525,7 +525,7 @@ für korrekte Verschlagwortung liegt beim Nutzer.
 - **Optik:** schlicht/sachlich, heller Standard-Look; Programm-Icon (Titelleiste/Startmenü/EXE).
 - **Single-Instance:** nur eine laufende Instanz (Lock), kein paralleles DB-Schreiben.
 - **Hauptbereich:** Lauf starten; laufende Konsolen-/Log-Ausgabe inkl. Netzwerkaktionen
-  live; nach dem Matchen Vorschau der geplanten Aenderungen + Buttons 'Jetzt schreiben' /
+  live; nach dem Matchen Vorschau der geplanten Änderungen + Buttons 'Jetzt schreiben' /
   'Abbrechen'.
 - **Ergebnis-Liste:** lightweight Filter „unsicher" / „kein Match" / „beides". Pro Eintrag
   werden — sofern vorhanden — bereits bestätigte Typen angezeigt (z. B. „bereits: EQSL,
@@ -708,4 +708,4 @@ Build: **PyInstaller** → **Inno Setup**. Hinweis: unsignierte EXE löst SmartS
 ## 18. Bewusst verschoben (V2)
 
 - **Undo** einer Bestätigung (QSO wiederfinden, Status zurücksetzen, Paperless-Tag entfernen).
-  Fuer Start nicht noetig (Vorschau+Bestaetigung + Vor-Backup sichern ab).
+  Für Start nicht nötig (Vorschau+Bestätigung + Vor-Backup sichern ab).
