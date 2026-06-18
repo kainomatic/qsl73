@@ -94,7 +94,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 
 ---
 
-## 🔧 Schritt 5 — Schreiblogik (commit) + Backup — IN ARBEIT
+## ✅ Schritt 5 — Schreiblogik (commit) + Backup — ABGESCHLOSSEN
 
 **Spezifikationsseitig entsperrt:** Schreibformat empirisch bestätigt (RV-Hand-Test
 2026-06-17, `docs/discovery.md §3`, Issue #1 geschlossen).
@@ -106,26 +106,64 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - ADR-0019: fehlender CT='QSL'-Eintrag → QslEntryNotFoundError (kein stilles Neuanlegen)
 - 38 Unit-Tests + 9 Abnahme-Tests gegen DB-Kopie; Original-DB-Integrität per SHA-256; grün
 
-### ➡️ Schritt 5b/5c — Transaktion, Backup, Schema-Validierung, Nebenläufigkeit, Tags
+### ✅ Schritt 5b/5c — Transaktion, Backup, Schema-Validierung, Nebenläufigkeit, Tags
 
-- Sammeln→Vorschau→Bestätigung(„Jetzt schreiben")→eine Transaktion→Tags; Vor-Backup nur
-  beim tatsächlichen Schreiben, Aufbewahrung Default 5. Reihenfolge DB-dann-Tags strikt.
-  Auto-Treffer + manuelle Zuordnungen gemeinsam in EINER Transaktion.
+- `src/qsl73/log4om_db.py`: Schema-Check (`validate_schema`), WAL-Verbindung
+  (`open_wal_connection`), Vor-Backup mit Checkpoint (`create_backup`), atomare Transaktion
+  (`write_confirmations`): Reihenfolge DB-dann-Tags strikt (ADR-0003). Vor-Backup nur beim
+  tatsächlichen Schreiben, Aufbewahrung Default 5 (ADR-0020).
+- Nebenläufigkeit (ADR-0008): `SQLITE_BUSY`-Retry (3×/300 ms), `get_db_fingerprint` +
+  `fingerprints_differ` (data_version/Fallback), Optimistic Locking (Pro-QSO-Gegenprüfung),
+  `is_log4om_running`-Warnung, `BEGIN IMMEDIATE` für frühzeitige Schreibsperre.
 - Schreibformat (empirisch bestätigt): `R="Yes"`; `RV`: `"Bureau"`/`"Direct"` (Großbuchstabe)
   oder RV-Feld entfernen (undefined); kein `RD`; `S`/`SV`/`CT` unverändert.
-- **Review:** Akzeptanzkriterien §5/§7 (Abbruch-Test, Backup-Anzahl, Tag-nur-nach-DB).
-  Nebenläufigkeit: SQLITE_BUSY-Handling, Änderungserkennung (data_version/Fallback),
-  Pro-QSO-Gegenprüfung, Log4OM-Running-Warnung getestet.
-  Schema-Validierung (§3.3): Check beim Start und vor dem Schreiben; Schreibsperre bei
-  umbenannter/fehlender Tabelle oder nicht-parsebarem JSON; robustes Lesen ohne Crash;
+- **Realtest (Issue #8, 2026-06-18 geschlossen):** Ende-zu-Ende gegen laufendes Log4OM
+  auf Win10 bestätigt; DatabaseChangedError und Vor-Backup real verifiziert.
+- **Review:** Akzeptanzkriterien §5/§7 erfüllt; 60 Unit-Tests + 5 Acceptance-Tests A–E;
   pytest grün, CI grün.
 
-## Schritt 6 — GUI
+## 🔧 Schritt 6 — GUI — IN ARBEIT
 
-- Hauptfenster + Log-Ausgabe, Ergebnis-Liste mit Filter, **manueller Zuordnungs-Bildschirm**
-  (Kartenanzeige on click, Live-Suche), Fehler-Prompt (aufklappbar), Einstellungen,
-  Über/Datenschutz-Dialog, Single-Instance, Icon einbinden.
-- **Review:** Akzeptanzkriterien §9; flüssige Liste bei vielen Einträgen; pytest grün, CI grün.
+### ✅ Schritt 6a — Lauf-Orchestrierung (`run.py`)
+
+- `src/qsl73/run.py`: `run_pass()` (Sammeln→Auswerten→Matchen, liefert `RunResult`),
+  `write_selected()` (DB über `write_confirmations`, Paperless-Tags DB-zuerst, ADR-0003),
+  `load_qso_candidates()` (Vorfilter R=No/Requested, expected_states),
+  `evaluate_card()` (QR-Vorrang, OCR-Fallback), `_extract_token_based()` (Token-OCR für
+  gedruckte Karten ohne Key:Value-Beschriftung, ADR-0025).
+- `CardResult`, `RunResult` mit Einteilung certain/uncertain/no_match; ADR-0022.
+- `existing_confirmations` (non-QSL-Bestätigungen mit R='Yes' als Kontext, ADR-0015).
+- ADR-0022 (RunResult-Struktur), ADR-0025 (Token-basierte OCR-Extraktion).
+- Tests: `tests/test_run.py`; pytest grün, CI grün.
+
+### ✅ Schritt 6b — tkinter-GUI-Grundgerüst
+
+- `src/qsl73/gui/main_window.py`: `MainWindow` mit Treeview (Rufzeichen/Datum/Band/Mode/
+  Quelle/Status), Filter (alle/sicher/unsicher/kein Treffer), Lauf-Starten + Jetzt-Schreiben-
+  Flow; CERTAIN-Auswahl; BETA-Kennzeichnung im Fenstertitel.
+- `src/qsl73/gui/controller.py`: `RunController` — Queue-Pattern, Daemon-Threads, GUI
+  pollt via `root.after(100)` (ADR-0023).
+- `src/qsl73/gui/filter_util.py`: `filter_results()`, `is_batch_writable()`,
+  `build_write_selections()` — rein testbar, kein tk.
+- `src/qsl73/gui/setup_wizard.py` + `gui/wizard_logic.py`: Setup-Assistent; Auth-Felder
+  dynamisch umschaltbar; Passwort nie persistiert (§4).
+- `src/qsl73/gui/error_dialog.py`: modaler Fehler-Dialog mit aufklappbarem Traceback.
+- `src/qsl73/gui/app.py` + `src/qsl73/__main__.py`: Einstiegspunkte.
+- `src/qsl73/logging_setup.py`: `setup_logging()` / `get_log_dir()` (Stable/Beta-getrennt;
+  ADR-0026 — wird hier als erste Aktion in `app.py` aufgerufen).
+- ADR-0023 (GUI-Architektur); P1-Fixes #9–#13 eingearbeitet.
+- Tests: `tests/gui/` (7 Module, CI-kompatibel ohne tk); pytest grün, CI grün.
+- **Hinweis:** Nur CERTAIN-Karten sind im Hauptfenster selektierbar (ADR-0007).
+  UNCERTAIN-Karten folgen über den manuellen Zuordnungs-Bildschirm (Schritt 6c).
+
+### ➡️ Schritt 6c — Manueller Zuordnungs-Bildschirm (offen)
+
+- Karten-Bild (Vorder-/Rückseite) erst beim Anklicken einer UNCERTAIN-Karte nachladen.
+- Eingabefelder mit OCR-Vorschlag vorbefüllt; **Live-Suche während des Tippens** gegen
+  die Log4OM-DB (passende QSOs nach Rufzeichen/Datum/Band/Mode als Vorschläge).
+- Manuelle Zuordnung → QSO markieren + Tag `qsl-bestätigt` (wie Auto-Match).
+- Zuordnung fließt in denselben Korb wie Auto-Treffer → gemeinsame Transaktion (§5/§7).
+- **Review:** Akzeptanzkriterien §9; Live-Suche bei gültigem Rufzeichen; pytest grün, CI grün.
 
 ## 🔧 Schritt 7 — Logging & Fehler-Reporting — IN ARBEIT
 
@@ -162,10 +200,11 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - PyInstaller-Build (64-Bit), Inno-Setup-Paket, Test auf Win10/11. Versionspflege +
   CHANGELOG, Tag `v0.x.0`, GitHub-Release. Logo/Icon final (Freistellen + .ico durch
   Claude Code).
+- **Python 3.12** als Referenzversion für Build und Bundle (ADR-0024; Issue #16).
 - **Beta-Kanal:** zweiter Installer (`QSL73-Beta-Setup.exe`) mit eigenem Installationspfad
   (`C:\Program Files\QSL73 Beta`), eigenem APPDATA-Verzeichnis (`%APPDATA%\QSL73-Beta\`),
   BETA-Kennzeichnung in Fenstertitel und „Über"-Dialog, DB-Pfad-Hinweis im Setup-Assistent
-  (→ ADR-0021; Packaging-Grundlage Issue #6/#7 unberührt).
+  (→ ADR-0021; Packaging-Grundlage Issue #6 unberührt).
 - **Review:** Lauf Ende-zu-Ende (Vorschau → „Jetzt schreiben") auf echtem System;
   Release konsistent.
 
@@ -177,4 +216,6 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   des manuellen Pfads im Alltag — empirisch bestätigt: handschriftliche und ältere Karten
   dominieren oft; manueller Pfad wird häufig genutzt.
 - Bild-Auflösung für lesbare Handschrift (Preview vs. Original) — noch offen.
-- pyzbar/libzbar-64.dll auf Windows: Issue #7 (PyInstaller-Bundle). Für Schritt 9 relevant.
+- ~~pyzbar/libzbar-64.dll auf Windows~~ — **entschärft durch zxingcpp (ADR-0017)**; kein
+  nativer DLL-Ballast mehr. Offen bleibt: `zxing-cpp` + `pywin32` im PyInstaller-Bundle
+  einbetten (Issue #6, Schritt 9, ADR-0024).
