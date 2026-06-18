@@ -9,6 +9,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Manuell zugeordnete Karten behalten nach dem Schreiben ihre QSO-Werte:** Nach
+  „Jetzt schreiben" zeigte die Treeview-Zeile für manuell zugeordnete Karten wieder „–"
+  statt Rufzeichen/Datum/Band/Mode des zugeordneten QSO. Ursache: `_manual_pending`
+  wurde vor `_refresh_tree` geleert, und der `written`-Zweig löste keine QSO-Werte auf.
+  Fix: neues Feld `_written_qso: dict[int, str]` (doc_id → qsoid) rettet die Verknüpfung
+  vor dem Clear. `_refresh_tree` nutzt es im `written`-Zweig zur QSO-Wert-Anzeige.
+  `qso_display_values(matched) → (call, date, band, mode)` in `filter_util.py` als
+  gemeinsame, testbare Funktion ausgelagert (Duplikat-Logik entfernt).
+
 - **SyntaxError in `setup_wizard.py` behoben:** `nonlocal row` im Hauptkörper von
   `SetupWizard._build_ui` (eingefügt mit dem Trefferlimit-Block in 0bc7832) verursachte
   einen `SyntaxError` beim App-Start. `nonlocal` ist nur in verschachtelten Funktionen

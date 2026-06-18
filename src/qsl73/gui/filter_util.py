@@ -43,6 +43,20 @@ def build_write_selections(
     return selections, confirmed_doc_ids
 
 
+def qso_display_values(matched) -> tuple:
+    """Gibt (call, date, band, mode) aus einem QsoCandidate für die Treeview-Anzeige zurück.
+
+    date wird auf 10 Zeichen gekürzt (YYYY-MM-DD). Leere Felder → '–'.
+    Reine Funktion — kein tk, kein DB-Zugriff.
+    """
+    call = getattr(matched, "callsign", None) or "–"
+    raw_date = (getattr(matched, "date", None) or "")[:10]
+    date = raw_date or "–"
+    band = getattr(matched, "band", None) or "–"
+    mode = getattr(matched, "mode", None) or "–"
+    return call, date, band, mode
+
+
 def sort_cards_written_last(cards: list, written: set) -> list:
     """Sortiert geschriebene Karten ans Ende; erhält Reihenfolge innerhalb der Gruppen (stabil).
 

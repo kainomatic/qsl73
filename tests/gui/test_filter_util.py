@@ -1,6 +1,6 @@
-"""Tests für filter_results(), merge_selections(), qso_by_id(), sort_cards_written_last() — reine Funktionen."""
+"""Tests für filter_results(), merge_selections(), qso_by_id(), sort_cards_written_last(), qso_display_values() — reine Funktionen."""
 import pytest
-from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, sort_cards_written_last, FILTER_MODES
+from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last, FILTER_MODES
 from qsl73.run import RunResult, CardResult
 from qsl73.matching import MatchOutcome, MatchResult, CardFields, QsoCandidate
 
@@ -229,3 +229,45 @@ def test_sort_written_last_stable_within_groups():
 
 def test_sort_written_last_empty_list():
     assert sort_cards_written_last([], {1}) == []
+
+
+# ---------------------------------------------------------------------------
+# Tests für qso_display_values
+# ---------------------------------------------------------------------------
+
+
+def test_qso_display_values_full():
+    """Alle Felder gesetzt → korrekt zurückgegeben, Datum auf 10 Zeichen."""
+    cand = QsoCandidate(qsoid="Q1", callsign="DK1AA", date="2025-03-15T12:00:00", band="20m", mode="SSB")
+    call, date, band, mode = qso_display_values(cand)
+    assert call == "DK1AA"
+    assert date == "2025-03-15"
+    assert band == "20m"
+    assert mode == "SSB"
+
+
+def test_qso_display_values_date_already_short():
+    """Datum exakt 10 Zeichen → unverändert."""
+    cand = QsoCandidate(qsoid="Q1", callsign="DK1AA", date="2025-03-15", band="20m", mode="SSB")
+    _, date, _, _ = qso_display_values(cand)
+    assert date == "2025-03-15"
+
+
+def test_qso_display_values_empty_fields_become_dash():
+    """Leere/None-Felder → '–'."""
+    cand = QsoCandidate(qsoid="Q1", callsign=None, date=None, band="", mode=None)
+    call, date, band, mode = qso_display_values(cand)
+    assert call == "–"
+    assert date == "–"
+    assert band == "–"
+    assert mode == "–"
+
+
+def test_qso_display_values_partial_fields():
+    """Nur Rufzeichen gesetzt, Rest leer."""
+    cand = QsoCandidate(qsoid="Q1", callsign="OE3XYZ", date="", band=None, mode="")
+    call, date, band, mode = qso_display_values(cand)
+    assert call == "OE3XYZ"
+    assert date == "–"
+    assert band == "–"
+    assert mode == "–"

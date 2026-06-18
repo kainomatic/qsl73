@@ -22,7 +22,7 @@ from qsl73.gui.controller import (
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
-from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id, sort_cards_written_last
+from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last
 
 
 _log = logging.getLogger("qsl73")
@@ -63,6 +63,7 @@ class MainWindow(tk.Tk):
         self._displayed: list[CardResult] = []  # aktuell angezeigte Karten
         self._manual_pending: dict[int, tuple[str, str]] = {}  # doc_id → (qsoid, route)
         self._written: set[int] = set()       # doc_ids die in diesem Lauf bereits geschrieben wurden
+        self._written_qso: dict[int, str] = {}  # doc_id → qsoid (manuell zugeordnet + geschrieben)
         self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
 
         title = f"QSL73 v{__version__}"
@@ -224,6 +225,10 @@ class MainWindow(tk.Tk):
         elif isinstance(event, WriteDoneEvent):
             res = event.result
             self._written.update(event.confirmed_doc_ids)
+            # Vor clear(): qsoid-Verknüpfung manuell zugeordneter + geschriebener Karten retten
+            for doc_id in event.confirmed_doc_ids:
+                if doc_id in self._manual_pending:
+                    self._written_qso[doc_id] = self._manual_pending[doc_id][0]
             self._manual_pending.clear()
             self._selected.clear()
             self._status_var.set(f"Geschrieben: {res.written} QSO(s), übersprungen: {len(res.skipped)}.")
@@ -277,6 +282,11 @@ class MainWindow(tk.Tk):
             if card.doc_id in self._written:
                 tags = ["written"]   # written überschreibt alle anderen Farbmarkierungen
                 status_label = "Bestätigt ✓"
+                # Manuell zugeordnete Karten: QSO-Werte aus gespeicherter qsoid anzeigen
+                if card.doc_id in self._written_qso and self._run_result is not None:
+                    matched = qso_by_id(self._run_result.candidates, self._written_qso[card.doc_id])
+                    if matched is not None:
+                        call, date, band, mode_val = qso_display_values(matched)
             else:
                 if card.doc_id in self._selected:
                     tags.append("selected")
@@ -288,10 +298,7 @@ class MainWindow(tk.Tk):
                     if self._run_result is not None:
                         matched = qso_by_id(self._run_result.candidates, qsoid)
                         if matched is not None:
-                            call = matched.callsign or "–"
-                            date = (matched.date or "")[:10] or "–"
-                            band = matched.band or "–"
-                            mode_val = matched.mode or "–"
+                            call, date, band, mode_val = qso_display_values(matched)
 
             self._tree.insert(
                 "",
@@ -452,6 +459,7 @@ class MainWindow(tk.Tk):
         self._selected.clear()
         self._manual_pending.clear()
         self._written.clear()
+        self._written_qso.clear()
         self._run_result = None
         self._displayed = []
         self._tree.delete(*self._tree.get_children())
