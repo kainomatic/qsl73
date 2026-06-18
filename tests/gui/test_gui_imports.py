@@ -17,13 +17,14 @@ _GUI_MODULES = [
     "qsl73.gui.app",
     "qsl73.gui.config_error_dialog",
     "qsl73.gui.controller",
+    "qsl73.gui.error_dialog",
+    "qsl73.gui.error_report_dialog",
     "qsl73.gui.filter_util",
     "qsl73.gui.main_window",
     "qsl73.gui.manual_assignment",
     "qsl73.gui.manual_match",
     "qsl73.gui.setup_wizard",
     "qsl73.gui.wizard_logic",
-    "qsl73.gui.error_dialog",
 ]
 
 

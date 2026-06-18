@@ -192,6 +192,20 @@ class MainWindow(tk.Tk):
         self._sel_count_var = tk.StringVar(value="")
         ttk.Label(status_bar, textvariable=self._sel_count_var).pack(side="right")
 
+        ttk.Button(
+            status_bar,
+            text="Fehler melden…",
+            command=self._on_report_error,
+            width=14,
+        ).pack(side="right", padx=(4, 0))
+
+        ttk.Button(
+            status_bar,
+            text="Log-Ordner öffnen",
+            command=self._on_open_log_folder,
+            width=16,
+        ).pack(side="right", padx=(0, 4))
+
     # ------------------------------------------------------------------
     # Queue-Polling
     # ------------------------------------------------------------------
@@ -554,3 +568,38 @@ class MainWindow(tk.Tk):
             manual_qsoids=manual_qsoids_for_audit,   # NEU: für Audit-Logging
             candidates=candidates_for_audit,          # NEU: für Audit-Logging
         )
+
+    # ------------------------------------------------------------------
+    # Log-Ordner + Fehlermelden
+    # ------------------------------------------------------------------
+
+    def _on_open_log_folder(self) -> None:
+        """Öffnet das Log-Verzeichnis im Datei-Explorer."""
+        import os
+        import subprocess
+        import sys as _sys
+
+        from qsl73.logging_setup import get_log_dir
+
+        log_dir = get_log_dir()
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        if _sys.platform == "win32":
+            os.startfile(str(log_dir))
+        elif _sys.platform == "darwin":
+            subprocess.run(["open", str(log_dir)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(log_dir)], check=False)
+
+    def _on_report_error(self) -> None:
+        """Zeigt Fehlerbericht-Dialog mit Vorschau."""
+        from qsl73.__version__ import CHANNEL, __version__
+        from qsl73.error_report import build_error_report
+        from qsl73.gui.error_report_dialog import ErrorReportDialog
+        from qsl73.logging_setup import get_log_dir
+        from qsl73.qr import qr_backend_status
+
+        log_dir = get_log_dir()
+        qr_status = qr_backend_status()
+        report = build_error_report(__version__, CHANNEL, log_dir, qr_status)
+        ErrorReportDialog(self, report, __version__, log_dir)
