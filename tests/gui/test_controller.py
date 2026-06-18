@@ -153,3 +153,53 @@ def test_start_write_uses_run_result_fingerprint():
     call_kwargs = mock_ws.call_args.kwargs
     assert call_kwargs["snapshot_fingerprint"] == {"data_version": 42}
     assert call_kwargs["expected_states"] == {"q1": "No"}
+
+
+def test_start_write_db_changed_produces_expected_error_event():
+    """DatabaseChangedError im Schreibthread → is_expected=True, freundliche Meldung."""
+    from qsl73.log4om_db import DatabaseChangedError
+
+    q = queue.Queue()
+    controller = RunController(q)
+    controller._run_result = _make_run_result()
+
+    with patch(
+        "qsl73.gui.controller.write_selected",
+        side_effect=DatabaseChangedError("DB hat sich geändert"),
+    ):
+        controller.start_write(
+            selections=[("q1", "undefined")],
+            db_path=Path("/fake/db.sqlite"),
+            backup_dir=Path("/fake/backups"),
+            backup_count=5,
+            paperless_client=None,
+            confirmed_doc_ids=[1],
+            tags_config=None,
+        )
+        events = _drain(q)
+
+    error_events = [e for e in events if isinstance(e, ErrorEvent)]
+    assert len(error_events) == 1
+    e = error_events[0]
+    assert e.is_expected is True
+    assert e.error_title == "Datenbank hat sich geändert"
+    assert "Durchlauf" in (e.user_message or "")
+    assert "nichts geschrieben" in (e.user_message or "")
+    assert "neu starten" in (e.status_message or "")
+
+
+def test_start_run_unexpected_error_is_not_expected():
+    """Generische Exception → is_expected=False (Traceback-Anzeige bleibt)."""
+    q = queue.Queue()
+    controller = RunController(q)
+
+    with patch("qsl73.gui.controller.run_pass", side_effect=RuntimeError("unbekannt")):
+        controller.start_run(MagicMock(), Path("/fake/db.sqlite"), Config())
+        events = _drain(q)
+
+    error_events = [e for e in events if isinstance(e, ErrorEvent)]
+    assert len(error_events) == 1
+    e = error_events[0]
+    assert e.is_expected is False
+    assert e.error_title == "Unerwarteter Fehler"
+    assert "unbekannt" in e.traceback_str

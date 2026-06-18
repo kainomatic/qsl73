@@ -302,6 +302,11 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   steuerung in `main_window.py` (`_continue_workflow`, `_run_workflow_phase`). ADR-0037.
 - 981 Tests grün (3 erwartete Skips), CI ausstehend.
 
+### ✅ UX/Robustheit — Benutzerfreundliche Fehlermeldungen (ADR-0039, Issue #18)
+
+- `DatabaseChangedError` und verwandte erwartete Fehler zeigen jetzt Klartext statt
+  rohem Traceback; neues Modul `gui/error_messages.py` (tk-frei, testbar). 990 Tests grün.
+
 ### ✅ UX-Verbesserung — Über-Dialog + Sprachauswahl-Entfernung (ADR-0038, Issue #25)
 
 - **Über-Dialog verfeinert:** Luftigeres Layout, Titel als Überschrift, Autor „DF1DS"

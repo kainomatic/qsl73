@@ -9,6 +9,13 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Benutzerfreundliche Fehlermeldungen bei erwarteten Lauf-/Schreibfehlern (ADR-0039,
+  Fixes #18):** `DatabaseChangedError` (Optimistic-Locking-Konflikt), `SchemaError`,
+  `DatabaseBusyError`, `QslEntryNotFoundError` sowie Paperless-Verbindungsfehler zeigen
+  jetzt eine verständliche Klartexterklärung mit Handlungshinweis statt eines rohen
+  Tracebacks. Unerwartete Fehler zeigen weiterhin den Traceback. Mapping-Logik in
+  `gui/error_messages.py` tk-frei und vollständig getestet. Schreibsicherheitsmodell
+  (ADR-0008) unverändert.
 - **Autor in allen Fenstertiteln:** Jedes echte Toplevel-Fenster trägt jetzt „— by DF1DS"
   im Titel (MainWindow, SetupWizard, ManualAssignmentDialog, Zoom-Fenster, Über-Dialog,
   Neustart-Dialog, Fehler-Dialog, Fehlerbericht-Dialog, Konfigurationsfehler-Dialog).

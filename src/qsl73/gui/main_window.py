@@ -300,10 +300,22 @@ class MainWindow(tk.Tk):
                 msg += "\n\n⚠ Tag-Warnungen:\n" + "\n".join(event.tag_warnings)
             messagebox.showinfo("Schreiben abgeschlossen", msg, parent=self)
         elif isinstance(event, ErrorEvent):
-            self._status_var.set(f"Fehler: {event.exc}")
+            self._status_var.set(event.status_message or f"Fehler: {event.exc}")
             _reset_progress(self._progress)
             self._run_btn.configure(state="normal")
-            show_error(self, "Fehler", str(event.exc), event.traceback_str)
+            if event.is_expected:
+                show_error(
+                    self,
+                    event.error_title,
+                    event.user_message or str(event.exc),
+                )
+            else:
+                show_error(
+                    self,
+                    event.error_title,
+                    event.user_message or str(event.exc),
+                    event.traceback_str,
+                )
 
     # ------------------------------------------------------------------
     # Treeview

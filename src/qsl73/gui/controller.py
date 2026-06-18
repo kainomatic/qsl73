@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from qsl73.config import Config, TagsConfig
+from qsl73.gui.error_messages import classify_error
 from qsl73.log4om_db import WriteResult
 from qsl73.paperless import PaperlessClient
 from qsl73.run import RunResult, run_pass, write_selected
@@ -40,6 +41,10 @@ class WriteDoneEvent:
 class ErrorEvent:
     exc: Exception
     traceback_str: str
+    user_message: str | None = None
+    error_title: str = "Fehler"
+    status_message: str | None = None
+    is_expected: bool = False
 
 
 class RunController:
@@ -71,7 +76,15 @@ class RunController:
                 self._run_result = result
                 self._queue.put(RunDoneEvent(result))
             except Exception as exc:
-                self._queue.put(ErrorEvent(exc, tb.format_exc()))
+                c = classify_error(exc)
+                self._queue.put(ErrorEvent(
+                    exc=exc,
+                    traceback_str=tb.format_exc(),
+                    user_message=c.user_message,
+                    error_title=c.title,
+                    status_message=c.status_message,
+                    is_expected=c.is_expected,
+                ))
 
         threading.Thread(target=_work, daemon=True).start()
 
@@ -113,6 +126,14 @@ class RunController:
                 )
                 self._queue.put(WriteDoneEvent(result, confirmed_doc_ids, tag_warnings, selections))
             except Exception as exc:
-                self._queue.put(ErrorEvent(exc, tb.format_exc()))
+                c = classify_error(exc)
+                self._queue.put(ErrorEvent(
+                    exc=exc,
+                    traceback_str=tb.format_exc(),
+                    user_message=c.user_message,
+                    error_title=c.title,
+                    status_message=c.status_message,
+                    is_expected=c.is_expected,
+                ))
 
         threading.Thread(target=_work, daemon=True).start()
