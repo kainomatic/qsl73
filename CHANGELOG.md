@@ -7,8 +7,28 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Durcharbeiten-Workflow für manuelle Zuordnung (ADR-0037):** Doppelklick auf
+  UNCERTAIN/NO_MATCH-Karten öffnet jetzt den Dialog mit Workflow-Kontext. Neue Buttons
+  „Speichern und nächste" + „Nächste" springen automatisch zur nächsten Karte; Phasen-
+  übergang UNCERTAIN → NO_MATCH wird per Ja/Nein-Dialog abgefragt. Letzte Karte in der
+  Phase deaktiviert die Weiter-Buttons automatisch.
+- **Statusanzeige im Zuordnungs-Dialog:** Farbige Phase-Beschriftung (Unsicher/Kein Treffer)
+  + Fortschritt „Karte X von Y" oben im Dialog sichtbar.
+- **Über-Dialog ohne Systemsound (ADR-0037):** Custom `tk.Toplevel` statt
+  `messagebox.showinfo` — kein Windows-Klingeln beim Öffnen. Dialog enthält klickbare
+  Links zu GitHub und QRZ.com sowie Paperless-ngx-Beschreibung.
+
 ### Fixed
 
+- **Einstellungen-Dialog — Fenstergröße nach Mapping (ADR-0037):** `_adjust_window_size`
+  wird nach dem ersten Mapping via `after(1, ...)` aufgerufen; Höhe aus
+  `inner_frame.winfo_reqheight()` statt `winfo_reqheight()` des Toplevels (welche vor
+  dem Mapping 0 lieferte). Fenster wird jetzt korrekt über dem Parent-Fenster zentriert.
+- **Einstellungen-Dialog — Attention-Handler (ADR-0037):** FocusIn/FocusOut-Ansatz
+  ersetzt durch `<Button-1>`-Bindung am Parent-Fenster mit sauberem Cleanup (Funcid).
+  Im Erstkonfigurationsmodus (Parent nicht sichtbar) wird kein Handler gesetzt.
 - **Einstellungen-Dialog — Fenstergröße und Mausrad-Scrollen:** Dialog öffnet jetzt
   automatisch in der benötigten Höhe (max. 90 % Bildschirmhöhe); Mausrad-Scrollen
   funktioniert bei überfüllem Inhalt zuverlässig.

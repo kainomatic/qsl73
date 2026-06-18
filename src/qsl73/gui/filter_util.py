@@ -4,6 +4,63 @@ from __future__ import annotations
 from qsl73.matching import MatchResult
 from qsl73.run import CardResult, RunResult
 
+
+# ---------------------------------------------------------------------------
+# Workflow-Logik — Durcharbeiten-Reihenfolge (UNCERTAIN → optional NO_MATCH)
+# ---------------------------------------------------------------------------
+
+
+def build_workflow_sequence(
+    displayed: list[CardResult],
+    done: set[int],
+) -> tuple[list[CardResult], list[CardResult]]:
+    """Baut Arbeitslisten für den Durcharbeiten-Workflow.
+
+    Phase 1: UNCERTAIN-Karten, Phase 2: NO_MATCH-Karten (in Reihenfolge von displayed).
+    done: doc_ids die bereits bearbeitet wurden (manual_pending + written + skipped).
+    Gibt (uncertain_offen, no_match_offen) zurück.
+    """
+    uncertain = [
+        c for c in displayed
+        if c.outcome.result == MatchResult.UNCERTAIN and c.doc_id not in done
+    ]
+    no_match = [
+        c for c in displayed
+        if c.outcome.result == MatchResult.NO_MATCH and c.doc_id not in done
+    ]
+    return uncertain, no_match
+
+
+def workflow_card_context(
+    card: CardResult,
+    uncertain: list[CardResult],
+    no_match: list[CardResult],
+) -> dict:
+    """Gibt Kontext-Dict für den manuellen Zuordnungs-Dialog zurück.
+
+    Keys: phase, card_index (1-basiert), total_cards, has_next.
+    phase: MatchResult.UNCERTAIN oder MatchResult.NO_MATCH.
+    has_next: ob es in der aktuellen Phase noch eine weitere Karte gibt.
+    """
+    if card.outcome.result == MatchResult.UNCERTAIN:
+        phase_cards = uncertain
+        phase = MatchResult.UNCERTAIN
+    else:
+        phase_cards = no_match
+        phase = MatchResult.NO_MATCH
+
+    try:
+        idx = next(i for i, c in enumerate(phase_cards) if c.doc_id == card.doc_id)
+    except StopIteration:
+        idx = 0
+
+    return {
+        "phase": phase,
+        "card_index": idx + 1,
+        "total_cards": max(len(phase_cards), 1),
+        "has_next": idx + 1 < len(phase_cards),
+    }
+
 FILTER_MODES: tuple[str, ...] = ("all", "certain", "uncertain", "no_match")
 
 

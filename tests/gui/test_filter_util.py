@@ -1,6 +1,17 @@
-"""Tests für filter_results(), merge_selections(), written_doc_ids(), qso_by_id(), sort_cards_written_last(), qso_display_values() — reine Funktionen."""
+"""Tests für filter_results(), merge_selections(), written_doc_ids(), qso_by_id(), sort_cards_written_last(), qso_display_values(),
+build_workflow_sequence(), workflow_card_context() — reine Funktionen."""
 import pytest
-from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last, written_doc_ids, FILTER_MODES
+from qsl73.gui.filter_util import (
+    FILTER_MODES,
+    build_workflow_sequence,
+    filter_results,
+    merge_selections,
+    qso_by_id,
+    qso_display_values,
+    sort_cards_written_last,
+    workflow_card_context,
+    written_doc_ids,
+)
 from qsl73.run import RunResult, CardResult
 from qsl73.matching import MatchOutcome, MatchResult, CardFields, QsoCandidate
 
@@ -305,3 +316,124 @@ class TestWrittenDocIds:
         ids = written_doc_ids([1, 2, 3, 4], [("A","b"),("B","b"),("C","b"),("D","b")],
                               [{"qsoid": "B"}])
         assert ids == {1, 3, 4}
+
+
+# ---------------------------------------------------------------------------
+# Tests für build_workflow_sequence
+# ---------------------------------------------------------------------------
+
+
+class TestBuildWorkflowSequence:
+    def _cards(self):
+        return [
+            _make_card(1, MatchResult.CERTAIN),
+            _make_card(2, MatchResult.UNCERTAIN),
+            _make_card(3, MatchResult.UNCERTAIN),
+            _make_card(4, MatchResult.NO_MATCH),
+            _make_card(5, MatchResult.NO_MATCH),
+        ]
+
+    def test_all_open(self):
+        unc, nm = build_workflow_sequence(self._cards(), done=set())
+        assert [c.doc_id for c in unc] == [2, 3]
+        assert [c.doc_id for c in nm] == [4, 5]
+
+    def test_done_excluded_from_uncertain(self):
+        unc, nm = build_workflow_sequence(self._cards(), done={2})
+        assert [c.doc_id for c in unc] == [3]
+        assert [c.doc_id for c in nm] == [4, 5]
+
+    def test_done_excluded_from_no_match(self):
+        unc, nm = build_workflow_sequence(self._cards(), done={4})
+        assert [c.doc_id for c in unc] == [2, 3]
+        assert [c.doc_id for c in nm] == [5]
+
+    def test_certain_never_in_result(self):
+        unc, nm = build_workflow_sequence(self._cards(), done=set())
+        all_ids = {c.doc_id for c in unc} | {c.doc_id for c in nm}
+        assert 1 not in all_ids
+
+    def test_all_done_returns_empty(self):
+        unc, nm = build_workflow_sequence(self._cards(), done={2, 3, 4, 5})
+        assert unc == []
+        assert nm == []
+
+    def test_empty_displayed(self):
+        unc, nm = build_workflow_sequence([], done=set())
+        assert unc == []
+        assert nm == []
+
+    def test_order_preserved(self):
+        cards = [
+            _make_card(10, MatchResult.NO_MATCH),
+            _make_card(7, MatchResult.UNCERTAIN),
+            _make_card(3, MatchResult.NO_MATCH),
+        ]
+        unc, nm = build_workflow_sequence(cards, done=set())
+        assert [c.doc_id for c in unc] == [7]
+        assert [c.doc_id for c in nm] == [10, 3]
+
+
+# ---------------------------------------------------------------------------
+# Tests für workflow_card_context
+# ---------------------------------------------------------------------------
+
+
+class TestWorkflowCardContext:
+    def _cards(self):
+        return [
+            _make_card(2, MatchResult.UNCERTAIN),
+            _make_card(3, MatchResult.UNCERTAIN),
+            _make_card(4, MatchResult.NO_MATCH),
+        ]
+
+    def test_uncertain_first_card(self):
+        uncertain = [_make_card(2, MatchResult.UNCERTAIN), _make_card(3, MatchResult.UNCERTAIN)]
+        no_match = [_make_card(4, MatchResult.NO_MATCH)]
+        card = _make_card(2, MatchResult.UNCERTAIN)
+        ctx = workflow_card_context(card, uncertain, no_match)
+        assert ctx["phase"] == MatchResult.UNCERTAIN
+        assert ctx["card_index"] == 1
+        assert ctx["total_cards"] == 2
+        assert ctx["has_next"] is True
+
+    def test_uncertain_last_card(self):
+        uncertain = [_make_card(2, MatchResult.UNCERTAIN), _make_card(3, MatchResult.UNCERTAIN)]
+        no_match = []
+        card = _make_card(3, MatchResult.UNCERTAIN)
+        ctx = workflow_card_context(card, uncertain, no_match)
+        assert ctx["card_index"] == 2
+        assert ctx["total_cards"] == 2
+        assert ctx["has_next"] is False
+
+    def test_no_match_card(self):
+        uncertain = []
+        no_match = [_make_card(4, MatchResult.NO_MATCH), _make_card(5, MatchResult.NO_MATCH)]
+        card = _make_card(4, MatchResult.NO_MATCH)
+        ctx = workflow_card_context(card, uncertain, no_match)
+        assert ctx["phase"] == MatchResult.NO_MATCH
+        assert ctx["card_index"] == 1
+        assert ctx["total_cards"] == 2
+        assert ctx["has_next"] is True
+
+    def test_no_match_last_card(self):
+        uncertain = []
+        no_match = [_make_card(4, MatchResult.NO_MATCH)]
+        card = _make_card(4, MatchResult.NO_MATCH)
+        ctx = workflow_card_context(card, uncertain, no_match)
+        assert ctx["has_next"] is False
+        assert ctx["total_cards"] == 1
+
+    def test_card_not_in_sequence_defaults_to_first(self):
+        uncertain = [_make_card(2, MatchResult.UNCERTAIN)]
+        # card with unknown doc_id
+        card = _make_card(99, MatchResult.UNCERTAIN)
+        ctx = workflow_card_context(card, uncertain, [])
+        assert ctx["card_index"] == 1  # idx=0 default
+
+    def test_single_card_has_next_false(self):
+        uncertain = [_make_card(2, MatchResult.UNCERTAIN)]
+        card = _make_card(2, MatchResult.UNCERTAIN)
+        ctx = workflow_card_context(card, uncertain, [])
+        assert ctx["has_next"] is False
+        assert ctx["total_cards"] == 1

@@ -301,9 +301,9 @@ class SetupWizard(tk.Toplevel):
         # Korrekte Auth-Feld-Sichtbarkeit nach Initialisierung sicherstellen
         self._update_auth_fields()
 
-        # Fenstergröße an Inhalt anpassen + Mausrad-Scrollen aktivieren (TEIL 1)
-        self._adjust_window_size()
+        # Mausrad-Scrollen sofort aktivieren; Fenstergröße NACH erstem Mapping (A1)
         self._bind_mousewheel()
+        self.after(1, self._adjust_window_size)
 
     # ------------------------------------------------------------------
     # Auth-Felder dynamisch umschalten
@@ -412,6 +412,7 @@ class SetupWizard(tk.Toplevel):
                 )
             self.result = cfg
             self._unbind_mousewheel()
+            self._cleanup_attention()
             self.destroy()
         except Exception as exc:
             from qsl73.gui.error_dialog import show_error
@@ -420,6 +421,7 @@ class SetupWizard(tk.Toplevel):
     def _on_cancel(self) -> None:
         self.result = None
         self._unbind_mousewheel()
+        self._cleanup_attention()
         self.destroy()
 
     # ------------------------------------------------------------------
@@ -565,18 +567,47 @@ class SetupWizard(tk.Toplevel):
     # ------------------------------------------------------------------
 
     def _adjust_window_size(self) -> None:
-        """Dimensioniert Fenster an Inhalt an (max. 90 % Bildschirmhöhe), zentriert."""
+        """Dimensioniert Fenster an Inhalt an (max. 90 % Bildschirmhöhe), zentriert.
+
+        Muss NACH erstem Mapping aufgerufen werden (self.after(1, …) in _build_ui),
+        damit winfo_reqheight des inner-Frames den realen Inhaltswert liefert.
+        Zentriert über dem Parent-Fenster wenn sichtbar, sonst über dem Bildschirm.
+        """
         self.update_idletasks()
-        needed_h = self.winfo_reqheight()
+        # Inhaltshöhe aus dem Canvas-inner-Frame + fixer Chrome-Overhead
+        # (outer-Padding 2×12, Button-Frame ~40, Canvas-Ränder ~8, Titelleiste via OS)
+        content_h = self._inner_frame.winfo_reqheight()
+        chrome = 90  # Pauschalwert; wird durch max(,400) nach unten begrenzt
+        needed_h = content_h + chrome
+
         screen_h = self.winfo_screenheight()
         target_h = min(needed_h, int(screen_h * 0.9))
         target_h = max(target_h, 400)
 
-        needed_w = max(560, self.winfo_reqwidth())
-        screen_w = self.winfo_screenwidth()
-        x = max(0, (screen_w - needed_w) // 2)
-        y = max(0, (screen_h - target_h) // 2)
-        self.geometry(f"{needed_w}x{target_h}+{x}+{y}")
+        target_w = max(560, self.winfo_reqwidth())
+
+        # Zentrieren: über sichtbarem Parent-Fenster, sonst Bildschirmmitte
+        try:
+            parent = self.master
+            if parent is not None and parent.winfo_ismapped():
+                px = parent.winfo_rootx()
+                py = parent.winfo_rooty()
+                pw = parent.winfo_width()
+                ph = parent.winfo_height()
+                x = px + (pw - target_w) // 2
+                y = py + (ph - target_h) // 2
+            else:
+                screen_w = self.winfo_screenwidth()
+                x = (screen_w - target_w) // 2
+                y = (screen_h - target_h) // 2
+        except Exception:
+            screen_w = self.winfo_screenwidth()
+            x = (screen_w - target_w) // 2
+            y = (screen_h - target_h) // 2
+
+        x = max(0, x)
+        y = max(0, y)
+        self.geometry(f"{target_w}x{target_h}+{x}+{y}")
 
     def _bind_mousewheel(self) -> None:
         """Aktiviert Mausrad-Scrollen für den Canvas (Windows/macOS, event.delta)."""
@@ -597,24 +628,45 @@ class SetupWizard(tk.Toplevel):
             pass
 
     def _attach_attention_handler(self) -> None:
-        """Bell + lift wenn Nutzer versucht ins gesperrte Hauptfenster zu klicken.
+        """Bell + lift wenn Nutzer ins gesperrte Hauptfenster klickt.
 
-        grab_set() leitet Pointer-Events zum Wizard um; Fokus-Wechsel (FocusOut → FocusIn
-        am Toplevel selbst) signalisiert den Klick-Versuch. Mindestens bell() + lift() +
-        focus_force() als plattformtolerante Variante.
+        Bindet <Button-1> am Parent-Fenster. Nur wenn das Parent sichtbar ist —
+        im Erstkonfigurationsmodus ist der Parent ein ausgeblendetes Root-Fenster,
+        dann wird kein Handler gesetzt (kein Klingeln beim Erststart).
+        Beim Schließen via _cleanup_attention() sauber gelöst.
         """
-        self._focus_away = False
+        self._attention_parent = None
+        self._attention_funcid = None
 
-        def _on_focus_out(event: tk.Event) -> None:
-            if event.widget == self:
-                self._focus_away = True
+        parent = self.master
+        if parent is None:
+            return
+        try:
+            if not parent.winfo_ismapped():
+                return
+        except Exception:
+            return
 
-        def _on_focus_in(event: tk.Event) -> None:
-            if event.widget == self and self._focus_away:
-                self._focus_away = False
-                self.bell()
-                self.lift()
-                self.focus_force()
+        def _on_parent_click(_event: tk.Event) -> None:
+            try:
+                if self.winfo_exists():
+                    self.bell()
+                    self.lift()
+                    self.focus_force()
+            except Exception:
+                pass
 
-        self.bind("<FocusOut>", _on_focus_out)
-        self.bind("<FocusIn>", _on_focus_in)
+        self._attention_parent = parent
+        self._attention_funcid = parent.bind("<Button-1>", _on_parent_click, "+")
+
+    def _cleanup_attention(self) -> None:
+        """Löst Parent-<Button-1>-Bindung auf."""
+        try:
+            parent = getattr(self, "_attention_parent", None)
+            funcid = getattr(self, "_attention_funcid", None)
+            if parent is not None and funcid is not None:
+                parent.unbind("<Button-1>", funcid)
+        except Exception:
+            pass
+        self._attention_parent = None
+        self._attention_funcid = None

@@ -1,5 +1,5 @@
 # QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
-"""Manueller Zuordnungs-Dialog (Schritt 6c-2/6c-UX).
+"""Manueller Zuordnungs-Dialog (Schritt 6c-2/6c-UX, ADR-0037).
 
 Öffentliche API (tk-frei, vollständig ohne Display testbar):
   card_fields_to_query   — CardFields → ManualQuery (OCR-Vorbefüllung)
@@ -13,7 +13,8 @@
   apply_display_limit    — (candidates, limit) → (shown_list, total_count); ADR-0030
 
 tk-abhängig:
-  ManualAssignmentDialog — modales tk.Toplevel; result = (qsoid, route) | None
+  ManualAssignmentDialog — modales tk.Toplevel; result = (qsoid, route) | None;
+                           action: "save" | "save_next" | "skip" | "cancel"
 """
 from __future__ import annotations
 
@@ -23,13 +24,23 @@ from typing import TYPE_CHECKING, Callable, Optional
 
 from qsl73.gui.filter_util import apply_display_limit
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
-from qsl73.matching import CardFields, QsoCandidate
+from qsl73.matching import CardFields, MatchResult, QsoCandidate
 from qsl73.run import CardResult
 
 if TYPE_CHECKING:
     pass
 
 _log = logging.getLogger("qsl73")
+
+# i18n-Vorbereitung: nutzersichtbare Texte als Konstanten
+_LBL_STATUS_UNCERTAIN = "Unsicher"
+_LBL_STATUS_NO_MATCH = "Kein Treffer"
+_COLOR_UNCERTAIN = "#b36b00"
+_COLOR_NO_MATCH = "#888888"
+_BTN_SAVE = "Speichern"
+_BTN_SAVE_NEXT = "Speichern und nächste"
+_BTN_NEXT = "Nächste"
+_BTN_CANCEL = "Abbrechen"
 
 # ---------------------------------------------------------------------------
 # Reine Helfer — tk-frei, vollständig ohne Display testbar
@@ -176,14 +187,23 @@ if _TK_OK:
             default_route: str,
             image_loader: Optional[Callable[[int], bytes]] = None,
             limit: int = 100,
+            card_status: MatchResult = MatchResult.UNCERTAIN,
+            card_index: int = 0,
+            total_cards: int = 0,
+            has_next: bool = False,
         ) -> None:
             super().__init__(parent)
             self.result: Optional[tuple[str, str]] = None
+            self.action: str = "cancel"   # "save"|"save_next"|"skip"|"cancel"
             self._card = card
             self._candidates = candidates
             self._default_route = default_route
             self._image_loader = image_loader
             self._limit = limit           # Anzeige-Limit (ADR-0030); 0 = kein Limit
+            self._card_status = card_status
+            self._card_index = card_index
+            self._total_cards = total_cards
+            self._has_next = has_next
             self._img_ref = None          # PIL/tk PhotoImage — vor GC schützen
             self._iid_to_qsoid: dict[str, str] = {}
             self._pages: list = []        # gerenderte Seiten (PIL-Images)
@@ -212,6 +232,32 @@ if _TK_OK:
         def _build_ui(self) -> None:
             main = ttk.Frame(self, padding=8)
             main.pack(fill="both", expand=True)
+
+            # --- Statusleiste: Karten-Phase + Fortschritt ---
+            if self._card_index > 0:
+                phase_text = (
+                    _LBL_STATUS_UNCERTAIN
+                    if self._card_status == MatchResult.UNCERTAIN
+                    else _LBL_STATUS_NO_MATCH
+                )
+                phase_color = (
+                    _COLOR_UNCERTAIN
+                    if self._card_status == MatchResult.UNCERTAIN
+                    else _COLOR_NO_MATCH
+                )
+                status_frame = ttk.Frame(main)
+                status_frame.pack(fill="x", pady=(0, 6))
+                tk.Label(
+                    status_frame,
+                    text=phase_text,
+                    foreground=phase_color,
+                    font=("", 10, "bold"),
+                ).pack(side="left")
+                tk.Label(
+                    status_frame,
+                    text=f"  —  Karte {self._card_index} von {self._total_cards}",
+                    foreground="#555555",
+                ).pack(side="left")
 
             # --- Obere Reihe: Kartenbild links, Suchfelder rechts ---
             top = ttk.Frame(main)
@@ -379,12 +425,26 @@ if _TK_OK:
             btn_frame.pack(fill="x")
 
             ttk.Button(
-                btn_frame, text="Abbrechen", command=self._on_cancel
+                btn_frame, text=_BTN_CANCEL, command=self._on_cancel
             ).pack(side="right", padx=(4, 0))
-            self._btn_ok = ttk.Button(
-                btn_frame, text="Übernehmen", command=self._on_ok, state="disabled"
+
+            self._btn_save = ttk.Button(
+                btn_frame, text=_BTN_SAVE, command=self._on_save, state="disabled"
             )
-            self._btn_ok.pack(side="right")
+            self._btn_save.pack(side="right", padx=(4, 0))
+
+            _next_state = "normal" if self._has_next else "disabled"
+            self._btn_save_next = ttk.Button(
+                btn_frame, text=_BTN_SAVE_NEXT, command=self._on_save_next,
+                state="disabled",
+            )
+            self._btn_save_next.pack(side="right", padx=(4, 0))
+
+            self._btn_next = ttk.Button(
+                btn_frame, text=_BTN_NEXT, command=self._on_next_card,
+                state=_next_state,
+            )
+            self._btn_next.pack(side="right", padx=(4, 0))
 
         # ------------------------------------------------------------------
         # Event-Handler
@@ -400,24 +460,46 @@ if _TK_OK:
 
         def _on_tree_select(self, _event=None) -> None:
             has_sel = bool(self._tree.selection())
-            self._btn_ok.config(state="normal" if has_sel else "disabled")
+            self._btn_save.config(state="normal" if has_sel else "disabled")
+            save_next_state = "normal" if (has_sel and self._has_next) else "disabled"
+            self._btn_save_next.config(state=save_next_state)
 
-        def _on_ok(self) -> None:
+        def _resolve_selection(self) -> Optional[tuple[str, str]]:
+            """Liest die gewählte Treeview-Zeile und gibt (qsoid, route) zurück, oder None."""
             sel = self._tree.selection()
             if not sel:
-                return
+                return None
             qsoid = self._iid_to_qsoid.get(sel[0])
             if qsoid is None:
-                return
+                return None
             try:
-                self.result = make_manual_selection(qsoid, self._default_route)
+                return make_manual_selection(qsoid, self._default_route)
             except ValueError as exc:
                 _log.warning("make_manual_selection fehlgeschlagen: %s", exc)
-                self.result = None
+                return None
+
+        def _on_save(self) -> None:
+            self.result = self._resolve_selection()
+            if self.result is None:
+                return
+            self.action = "save"
+            self.destroy()
+
+        def _on_save_next(self) -> None:
+            self.result = self._resolve_selection()
+            if self.result is None:
+                return
+            self.action = "save_next"
+            self.destroy()
+
+        def _on_next_card(self) -> None:
+            self.result = None
+            self.action = "skip"
             self.destroy()
 
         def _on_cancel(self) -> None:
             self.result = None
+            self.action = "cancel"
             self.destroy()
 
         def _on_prev_page(self) -> None:
@@ -524,7 +606,8 @@ if _TK_OK:
         def _populate_tree(self, candidates: list[QsoCandidate]) -> None:
             self._tree.delete(*self._tree.get_children())
             self._iid_to_qsoid.clear()
-            self._btn_ok.config(state="disabled")
+            self._btn_save.config(state="disabled")
+            self._btn_save_next.config(state="disabled")
 
             shown, total = apply_display_limit(candidates, self._limit)
             if total > len(shown):

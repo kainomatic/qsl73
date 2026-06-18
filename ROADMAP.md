@@ -287,6 +287,21 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   neu; Buttons aus Statusleiste ins Hilfe-Menü verschoben. ADR-0036.
 - Issue #24 geschlossen. 923 Tests grün.
 
+### ✅ UX-Verbesserung — Einstellungen-Bugs + Über-Dialog + Durcharbeiten-Workflow (ADR-0037)
+
+- **TEIL A1:** `SetupWizard._adjust_window_size` via `after(1, ...)` nach Mapping;
+  Inhaltshöhe aus `inner_frame.winfo_reqheight()`; Zentrierung über Parent-Fenster.
+- **TEIL A2:** Attention-Handler FocusIn/FocusOut → `<Button-1>` am Parent-Fenster
+  mit Funcid-Cleanup; Erstkonfigurationsmodus (Parent nicht sichtbar) → kein Handler.
+- **TEIL B:** `_on_about` als custom `tk.Toplevel` ohne Systemsound; klickbare Links
+  (GitHub, QRZ.com); Paperless-ngx-Beschreibung.
+- **TEIL C:** Durcharbeiten-Workflow für UNCERTAIN/NO_MATCH-Karten. `ManualAssignment
+  Dialog` mit 4 Buttons (Speichern/Speichern und nächste/Nächste/Abbrechen) + `action`-
+  Attribut. Statusanzeige (Phase + Fortschritt) im Dialog. Reine Logik-Funktionen
+  `build_workflow_sequence` + `workflow_card_context` in `filter_util.py`. Sequenz-
+  steuerung in `main_window.py` (`_continue_workflow`, `_run_workflow_phase`). ADR-0037.
+- 981 Tests grün (3 erwartete Skips), CI ausstehend.
+
 ## Schritt 8 — Update-Lifecycle + Installer/Deinstaller
 
 - GitHub-Releases-Check, Updater, Inno-Installer (still, aufräumend), Deinstaller mit

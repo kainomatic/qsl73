@@ -23,7 +23,19 @@ from qsl73.gui.controller import (
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
-from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id, qso_display_values, sort_cards_written_last, written_doc_ids
+from qsl73.gui.filter_util import (
+    FILTER_MODES,
+    build_workflow_sequence,
+    build_write_selections,
+    filter_results,
+    is_batch_writable,
+    merge_selections,
+    qso_by_id,
+    qso_display_values,
+    sort_cards_written_last,
+    workflow_card_context,
+    written_doc_ids,
+)
 
 
 _log = logging.getLogger("qsl73")
@@ -37,6 +49,13 @@ _MSG_RESTART_BODY = (
 _MSG_RESTART_BTN_NOW = "Jetzt beenden"
 _MSG_RESTART_BTN_LATER = "Später"
 _MSG_RESTART_STATUS = "⚠ Neustart ausstehend — Einstellungen wirken nach dem nächsten Start."
+
+_MSG_WORKFLOW_NO_MATCH_TITLE = "Unsichere Karten abgearbeitet"
+_MSG_WORKFLOW_NO_MATCH_BODY = (
+    "Keine unsicheren Karten mehr.\n\nMit den Kein-Treffer-Karten weitermachen?"
+)
+_MSG_WORKFLOW_DONE_TITLE = "Workflow abgeschlossen"
+_MSG_WORKFLOW_DONE_BODY = "Alle Karten wurden durchgearbeitet."
 
 
 def _reset_progress(progress: ttk.Progressbar) -> None:
@@ -401,40 +420,162 @@ class MainWindow(tk.Tk):
             self._status_var.set("Karte ist ein sicherer Treffer — Einfach-Klick zum Auswählen.")
             return
 
+        # Workflow-Kontext berechnen (Phase, X von Y, has_next)
+        done = set(self._manual_pending.keys()) | self._written
+        uncertain, no_match = build_workflow_sequence(self._displayed, done)
+        ctx = workflow_card_context(card, uncertain, no_match)
+
+        dlg = self._open_assignment_dialog(card, ctx)
+
+        _log.debug("Dialog geschlossen — dlg.result=%r action=%s", dlg.result, dlg.action)
+
+        if dlg.result is not None:
+            self._manual_pending[doc_id] = dlg.result
+        else:
+            if dlg.action == "cancel":
+                # Abbrechen = Vormerkung aufheben
+                self._manual_pending.pop(doc_id, None)
+            # skip = kein Speichern, Vormerkung bleibt unverändert
+
+        if dlg.action in ("save_next", "skip"):
+            self._continue_workflow(card, dlg.action)
+
+        self._refresh_tree()
+        self._update_write_btn()
+
+    def _open_assignment_dialog(self, card: CardResult, ctx: dict):
+        """Öffnet ManualAssignmentDialog mit Workflow-Kontext und gibt ihn zurück."""
         from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
         pc = self._paperless_client
-        n_candidates = len(self._run_result.candidates)
-        _log.debug(
-            "Öffne ManualAssignmentDialog — doc_id=%s candidates=%d image_loader=%s",
-            doc_id, n_candidates, "ja (pc vorhanden)" if pc is not None else "nein (pc=None)",
-        )
+        cfg = self._config
 
         def _image_loader(doc_id_arg: int) -> bytes:
             if pc is None:
                 raise RuntimeError("Kein Paperless-Client verfügbar")
             return pc.get_document_download(doc_id_arg)
 
-        cfg = self._config
-        dlg = ManualAssignmentDialog(
+        return ManualAssignmentDialog(
             parent=self,
             card=card,
             candidates=self._run_result.candidates,
             default_route=cfg.confirm.qsl_route_default,
             image_loader=_image_loader if pc is not None else None,
             limit=cfg.app.manual_match_limit,
+            card_status=ctx.get("phase", card.outcome.result),
+            card_index=ctx.get("card_index", 0),
+            total_cards=ctx.get("total_cards", 0),
+            has_next=ctx.get("has_next", False),
         )
 
-        _log.debug("Dialog geschlossen — dlg.result=%r", dlg.result)
+    def _continue_workflow(self, just_processed: CardResult, trigger_action: str) -> None:
+        """Setzt Durcharbeiten-Workflow nach just_processed fort (iterativ).
 
-        if dlg.result is not None:
-            self._manual_pending[doc_id] = dlg.result
+        trigger_action: "save_next" oder "skip".
+        Steuert Phase-1 (UNCERTAIN) → optionaler Phase-2-Übergang (NO_MATCH).
+        """
+        initial_phase = just_processed.outcome.result
+        initial_skip: set[int] = set()
+        if trigger_action == "skip":
+            initial_skip.add(just_processed.doc_id)
+
+        if initial_phase == MatchResult.UNCERTAIN:
+            result = self._run_workflow_phase(MatchResult.UNCERTAIN, extra_skip=initial_skip)
+            if result == "cancel":
+                return
+            # UNCERTAIN-Phase abgeschlossen → ggf. NO_MATCH-Phase anbieten
+            done = set(self._manual_pending.keys()) | self._written
+            _, no_match_remaining = build_workflow_sequence(self._displayed, done)
+            if no_match_remaining:
+                if messagebox.askyesno(
+                    _MSG_WORKFLOW_NO_MATCH_TITLE,
+                    _MSG_WORKFLOW_NO_MATCH_BODY,
+                    parent=self,
+                ):
+                    result = self._run_workflow_phase(MatchResult.NO_MATCH)
+                    if result != "cancel":
+                        messagebox.showinfo(
+                            _MSG_WORKFLOW_DONE_TITLE, _MSG_WORKFLOW_DONE_BODY, parent=self
+                        )
+            else:
+                messagebox.showinfo(
+                    _MSG_WORKFLOW_DONE_TITLE, _MSG_WORKFLOW_DONE_BODY, parent=self
+                )
         else:
-            # Abbrechen = Vormerkung aufheben (Erneuter Doppelklick → aufheben)
-            self._manual_pending.pop(doc_id, None)
+            result = self._run_workflow_phase(MatchResult.NO_MATCH, extra_skip=initial_skip)
+            if result != "cancel":
+                done = set(self._manual_pending.keys()) | self._written
+                _, no_match_remaining = build_workflow_sequence(self._displayed, done)
+                if not no_match_remaining:
+                    messagebox.showinfo(
+                        _MSG_WORKFLOW_DONE_TITLE, _MSG_WORKFLOW_DONE_BODY, parent=self
+                    )
 
-        self._refresh_tree()
-        self._update_write_btn()
+    def _run_workflow_phase(
+        self,
+        phase_type: MatchResult,
+        extra_skip: Optional[set[int]] = None,
+    ) -> str:
+        """Verarbeitet eine Workflow-Phase iterativ.
+
+        Öffnet für jede verbleibende Karte einen Dialog und reagiert auf die Aktion.
+        Gibt "done" (Phase abgeschlossen), "save" (früher Ausstieg) oder "cancel" zurück.
+        "done" tritt auf wenn alle Karten bearbeitet ODER die letzte Karte "Speichern" gedrückt.
+        """
+        skipped: set[int] = set(extra_skip or ())
+        processed = 0
+        total_at_start: Optional[int] = None
+
+        while True:
+            done = set(self._manual_pending.keys()) | self._written
+            excluded = done | skipped
+            uncertain, no_match = build_workflow_sequence(self._displayed, excluded)
+            seq = uncertain if phase_type == MatchResult.UNCERTAIN else no_match
+
+            if not seq:
+                return "done"
+
+            # Initialtotal einmalig beim ersten Durchlauf merken
+            if total_at_start is None:
+                total_at_start = len(seq)
+
+            card = seq[0]
+            has_next = len(seq) > 1
+
+            ctx = {
+                "phase": phase_type,
+                "card_index": processed + 1,
+                "total_cards": total_at_start,
+                "has_next": has_next,
+            }
+
+            dlg = self._open_assignment_dialog(card, ctx)
+
+            if dlg.result is not None:
+                self._manual_pending[card.doc_id] = dlg.result
+            self._refresh_tree()
+            self._update_write_btn()
+
+            action = dlg.action
+
+            if action == "cancel":
+                return "cancel"
+
+            if action == "save":
+                # Karte gespeichert → prüfen ob Phase damit abgeschlossen
+                done_new = set(self._manual_pending.keys()) | self._written
+                excl_new = done_new | skipped
+                unc_new, nm_new = build_workflow_sequence(self._displayed, excl_new)
+                seq_new = unc_new if phase_type == MatchResult.UNCERTAIN else nm_new
+                if not seq_new:
+                    return "done"  # letzte Karte war das — Phase vollständig
+                return "save"  # Abbruch mitten in der Phase
+
+            if action == "skip":
+                skipped.add(card.doc_id)
+            # "save_next" oder "skip" → Schleife läuft weiter
+
+            processed += 1
 
     def _select_all(self) -> None:
         for card in self._displayed:
@@ -643,16 +784,62 @@ class MainWindow(tk.Tk):
             self._status_var.set(_MSG_RESTART_STATUS)
 
     def _on_about(self) -> None:
-        from qsl73.__version__ import CHANNEL, __version__
-        messagebox.showinfo(
-            "Über QSL73",
-            f"QSL73  v{__version__}  ({CHANNEL})\n\n"
-            "Abgleich von Papier-QSL-Karten mit dem Log4OM-Logbuch.\n\n"
-            "Lizenz:  GNU General Public License v3 (GPLv3)\n"
-            "Repo:    https://github.com/kainomatic/qsl73\n"
-            "Autor:   DF1DS",
-            parent=self,
-        )
+        """Über-Dialog — kein Systemsound, klickbare Links (TEIL B)."""
+        import webbrowser
+
+        dlg = tk.Toplevel(self)
+        dlg.title("Über QSL73")
+        dlg.resizable(False, False)
+        dlg.transient(self)
+        dlg.grab_set()
+
+        frame = ttk.Frame(dlg, padding=20)
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(
+            frame,
+            text=f"QSL73  v{__version__}  ({CHANNEL})",
+            font=("", 12, "bold"),
+        ).pack(pady=(0, 8))
+
+        ttk.Label(
+            frame,
+            text=(
+                "Gleicht gescannte Papier-QSL-Karten aus Paperless-ngx\n"
+                "mit QSOs im Log4OM-Logbuch ab und markiert\n"
+                "bestätigte Karten automatisch."
+            ),
+            justify="center",
+        ).pack(pady=(0, 12))
+
+        ttk.Label(frame, text="Lizenz: GNU General Public License v3 (GPLv3)").pack()
+        ttk.Label(frame, text="Autor: DF1DS").pack(pady=(0, 12))
+
+        for link_text, url in [
+            ("GitHub: github.com/kainomatic/qsl73", "https://github.com/kainomatic/qsl73"),
+            ("QRZ.com: www.qrz.com/db/DF1DS", "https://www.qrz.com/db/DF1DS"),
+        ]:
+            lbl = ttk.Label(frame, text=link_text, foreground="#0645ad", cursor="hand2")
+            lbl.pack()
+            lbl.bind("<Button-1>", lambda _e, u=url: webbrowser.open(u))
+
+        ttk.Frame(frame, height=8).pack()
+        ttk.Button(frame, text="Schließen", command=dlg.destroy).pack()
+
+        dlg.bind("<Escape>", lambda _e: dlg.destroy())
+
+        dlg.update_idletasks()
+        dw = dlg.winfo_reqwidth()
+        dh = dlg.winfo_reqheight()
+        px = self.winfo_rootx()
+        py = self.winfo_rooty()
+        pw = self.winfo_width()
+        ph = self.winfo_height()
+        x = max(0, px + (pw - dw) // 2)
+        y = max(0, py + (ph - dh) // 2)
+        dlg.geometry(f"+{x}+{y}")
+
+        dlg.wait_window()
 
     # ------------------------------------------------------------------
     # Log-Ordner + Fehlermelden

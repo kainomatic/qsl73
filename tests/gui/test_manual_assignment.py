@@ -461,7 +461,7 @@ def test_dialog_cancel_returns_none():
 
 @_tk_skip
 def test_dialog_ok_with_selection_returns_pair():
-    """Zeile auswählen + Übernehmen (_on_ok) → result ist (qsoid, route)."""
+    """Zeile auswählen + Speichern (_on_save) → result ist (qsoid, route)."""
     import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
@@ -477,7 +477,7 @@ def test_dialog_ok_with_selection_returns_pair():
         items = dlg_win._tree.get_children()
         if items:
             dlg_win._tree.selection_set(items[0])
-            dlg_win._on_ok()
+            dlg_win._on_save()
 
     root.after(80, _select_and_ok)
     dlg = ManualAssignmentDialog(root, card, candidates, "bureau")
@@ -491,7 +491,7 @@ def test_dialog_ok_with_selection_returns_pair():
 
 @_tk_skip
 def test_dialog_ok_without_selection_is_noop():
-    """Übernehmen ohne ausgewählte Zeile → result bleibt None, Dialog bleibt offen."""
+    """Speichern ohne ausgewählte Zeile → result bleibt None, Dialog bleibt offen."""
     import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
@@ -504,8 +504,8 @@ def test_dialog_ok_without_selection_is_noop():
         dlg_win = _find_toplevel(root)
         if dlg_win is None:
             return
-        # Kein Selection → _on_ok ist No-op
-        dlg_win._on_ok()
+        # Kein Selection → _on_save ist No-op
+        dlg_win._on_save()
         # Dialog noch offen → jetzt abbrechen
         dlg_win._on_cancel()
 
@@ -593,3 +593,23 @@ def test_apply_limit_empty_list():
     shown, total = apply_display_limit([], limit=100)
     assert shown == []
     assert total == 0
+
+
+# ---------------------------------------------------------------------------
+# 3f. Konstanten und Dialog-API (kein tk)
+# ---------------------------------------------------------------------------
+
+
+def test_module_action_constants_exist():
+    """i18n-Konstanten und action-Werte als Strings vorhanden."""
+    from qsl73.gui import manual_assignment as ma
+    assert isinstance(ma._BTN_SAVE, str) and ma._BTN_SAVE
+    assert isinstance(ma._BTN_SAVE_NEXT, str) and ma._BTN_SAVE_NEXT
+    assert isinstance(ma._BTN_NEXT, str) and ma._BTN_NEXT
+    assert isinstance(ma._BTN_CANCEL, str) and ma._BTN_CANCEL
+
+
+def test_status_color_constants_exist():
+    from qsl73.gui import manual_assignment as ma
+    assert ma._COLOR_UNCERTAIN.startswith("#")
+    assert ma._COLOR_NO_MATCH.startswith("#")
