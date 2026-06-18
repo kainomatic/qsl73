@@ -9,6 +9,17 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 6c-2 — Manueller Zuordnungs-Dialog (`src/qsl73/gui/manual_assignment.py`):**
+  Modales `ManualAssignmentDialog`-Toplevel für UNCERTAIN-Karten.
+  - `card_fields_to_query`: befüllt `ManualQuery` aus OCR/QR-`CardFields` (call_from → Suche).
+  - `field_values_to_query`: Eingabefeld-Strings → `ManualQuery` (leer → None).
+  - `render_pdf_first_page`: PDF-Bytes → PIL-Image (100 DPI); None bei Fehler/fehlender Lib.
+  - Dialog: lazy Bildladen (50 ms nach Öffnen), OCR-Vorbefüllung der Suchfelder,
+    Live-Suche via `search_candidates`, Treeview-Auswahl, `make_manual_selection` → `result`;
+    modal (grab_set/wait_window); injizierbarer `image_loader` für Testbarkeit.
+  - Bildladefehler → Platzhaltertext, kein Absturz.
+  - `tests/gui/test_manual_assignment.py`: 21 Tests (17 rein + 4 tk); CI überspringt tk-Tests.
+
 - **Schritt 6c-1 — Manuelle Zuordnungs-Logik (`src/qsl73/gui/manual_match.py`, ADR-0028):**
   tk-freies, rein funktionales Modul für den manuellen Zuordnungs-Bildschirm (Schritt 6c).
   - `ManualQuery`-Dataclass: optionale Suchfelder call/date/band/mode (Nutzereingabe / OCR-Vorschlag).

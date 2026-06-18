@@ -169,11 +169,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   gemeinsamer Schreib-Korb wie Auto-Pfad). ADR-0028.
 - Tests: `tests/gui/test_manual_match.py`; pytest grün, CI grün.
 
-#### ➡️ Schritt 6c-2 — tk-Screen (offen)
+#### ✅ Schritt 6c-2 — tk-Screen
 
-- Karten-Bild (Vorder-/Rückseite) erst beim Anklicken einer UNCERTAIN-Karte nachladen.
-- Eingabefelder mit OCR-Vorschlag vorbefüllt; **Live-Suche während des Tippens** gegen
-  die Kandidatenmenge aus `load_qso_candidates`.
+- `src/qsl73/gui/manual_assignment.py`: `ManualAssignmentDialog` (modales Toplevel);
+  reine Helfer `card_fields_to_query`, `field_values_to_query`, `render_pdf_first_page`
+  (alle tk-frei, vollständig ohne Display testbar).
+  Kartenbild lazy nachladen (after 50 ms); OCR-Vorbefüllung; Live-Suche via
+  `search_candidates`; Auswahl → `make_manual_selection` → `self.result`; modal (grab_set /
+  wait_window); injizierbarer `image_loader`; Bildladefehler → Platzhalter, kein Absturz.
+- Tests: `tests/gui/test_manual_assignment.py` (17 reine + 4 tk-Tests, CI-skippt tk);
+  pytest grün, CI grün.
 
 #### ➡️ Schritt 6c-3 — Integration ins Hauptfenster (offen)
 
