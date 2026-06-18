@@ -7,6 +7,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **KONZEPT.md: Umlaut-Artefakte korrigiert (Fixes #3):**
+  ae/oe/ue-Ersetzungen in §5, §7 und §17 durch korrekte Umlaute (ä/ö/ü) ersetzt —
+  rein kosmetisch.
+
 ### Added
 
 - **main-Branch auf aktuellen dev-Stand gebracht (ADR-0034):** Kein Release — reine
