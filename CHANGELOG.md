@@ -7,6 +7,16 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **SyntaxError in `setup_wizard.py` behoben:** `nonlocal row` im Hauptkörper von
+  `SetupWizard._build_ui` (eingefügt mit dem Trefferlimit-Block in 0bc7832) verursachte
+  einen `SyntaxError` beim App-Start. `nonlocal` ist nur in verschachtelten Funktionen
+  zulässig; im Hauptkörper ist `row` direkt verfügbar — die Zeile wurde entfernt.
+- **GUI-Import-Smoke-Tests ergänzt** (`tests/gui/test_gui_imports.py`): 9 parametrisierte
+  Tests importieren alle zentralen GUI-Module ohne Display (headless, CI-kompatibel).
+  Deckt Syntaxfehler und Import-Fehler ab, die tk-Tests mangels Display überspringen.
+
 ### Added
 
 - **Schritt 6 UX-3 — Geschriebene Karten sichtbar markieren + Trefferlimit (ADR-0030):**

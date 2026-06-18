@@ -164,7 +164,6 @@ class SetupWizard(tk.Toplevel):
         bool_field("app.update_check", "Update-Prüfung beim Start", True)
 
         # Trefferlimit für manuellen Zuordnungs-Dialog (ADR-0030)
-        nonlocal row
         var_limit = tk.StringVar(value="100")
         self._vars["app.manual_match_limit"] = var_limit
         ttk.Label(inner, text="Trefferlimit Zuordnung").grid(
