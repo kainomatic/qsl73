@@ -92,3 +92,25 @@ möglicherweise nicht den allerletzten Stand externer Verbindungen).
 Prozessliste. Plattformtolerant: Windows → `tasklist /fo csv /nh`; Linux/CI → `ps -eo comm`.
 `process_names`-Parameter für Test-Mockbarkeit ohne echten Prozessaufruf.
 Liefert bool, blockiert nie — die Entscheidung liegt beim Aufrufer (GUI).
+
+### Empirischer Befund: Log4OM-Neustart nach externem Schreibvorgang
+
+**Realtest 2026-06-18 (Issue #8, Szenario B):**
+Log4OM erkennt externe Änderungen an einer **geöffneten** SQLite-DB nicht automatisch.
+Ein „Neu laden" innerhalb von Log4OM (sofern vorhanden) reicht nicht — Log4OM muss
+**neugestartet** werden, damit von QSL73 geschriebene Bestätigungen in der Bearbeitungsmaske
+sichtbar werden.
+
+**Risiko bei gleichzeitigem Betrieb:**
+Wenn Log4OM parallel zu QSL73 läuft und selbst Änderungen vornimmt, kann Log4OM beim
+nächsten eigenen Speichern die von QSL73 in die DB geschriebenen Daten überschreiben.
+Das ist ein bekanntes SQLite-Mehrschreiber-Risiko: Wer zuletzt mit einem vollständigen
+Transaktions-Roundtrip schreibt, „gewinnt".
+
+**Konsequenz für QSL73:**
+- Die bestehende Log4OM-Running-Warnung (nicht-blockierend) bleibt ausreichend für den
+  Schreib-Lock-Schutz (SQLITE_BUSY + Fingerabdruck).
+- Zusätzlich soll die GUI nach erfolgreichem Schreibvorgang einen klaren Hinweis ausgeben:
+  „Bitte Log4OM neu starten, um die bestätigten Papier-QSLs zu sehen." (Schritt 6/7.)
+- Kein automatischer Neustart oder Erzwingung — der Nutzer entscheidet, wann er Log4OM
+  neu startet. QSL73 informiert nur.

@@ -9,14 +9,17 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Schreibtest end-to-end verifiziert (2026-06-18, Issue #8 Szenario B):**
-  Erster vollständiger Schreibtest gegen echtes Log4OM-Schema mit `TESTDB_DH3KR_schreibtest.sqlite`
-  (Kopie der DF1DS-Test-DB + 4 künstliche DH3KR-QSOs, erzeugt durch `tools/create_dh3kr_test_db.py`).
-  Byte-genau bestätigt: R `No`→`Yes` bei exakt 3 Treffern; RV-Feld bei `route=undefined` entfernt;
+- **Schreibtest end-to-end vollständig verifiziert (Issue #8 Szenario B, geschlossen):**
+  Kompletter Kreislauf Paperless → QR/OCR → Match → schreiben → Anzeige in Log4OM bestätigt.
+  Schreibformat byte-identisch zu Log4OM-eigenem Format (Vergleich DN9MF vs. OE6DRG-QSO).
+  Log4OM zeigt nach Neustart korrekt „Qsl Received = Yes" für alle 3 bestätigten QSOs.
+  Byte-genau: R `No`→`Yes` bei exakt 3 Treffern; RV-Feld bei `route=undefined` entfernt;
   S/CT/SV/EQSL-Eintrag unberührt; 3 von 467 QSOs geändert, Rest unberührt.
-  ADR-0013 (stationcallsign-Abgleich) real bestätigt: DH3KR-Karten erkannt trotz `own_callsign=DF1DS`.
-  Nebenläufigkeit/DatabaseChangedError und Vor-Schreib-Backup real bestätigt (ADR-0008/ADR-0020).
-  Details und UX-Befunde: `docs/realtest-befunde-2026-06-17.md`.
+  ADR-0013 real bestätigt: DH3KR-Karten erkannt trotz `own_callsign=DF1DS`.
+  DatabaseChangedError und Vor-Schreib-Backup real bestätigt (ADR-0008/ADR-0020).
+  Workflow-Befund (→ ADR-0008, KONZEPT.md §7): Log4OM muss nach QSL73-Schreibvorgang
+  **neugestartet** werden — externes Neu-Laden reicht nicht.
+  Details: `docs/realtest-befunde-2026-06-17.md`.
 
 - **Diagnose-Logging + QR-Startwarnung (Issue #14, ADR-0026, Schritt 7a):**
   - `src/qsl73/logging_setup.py`: neues Modul mit `setup_logging()` (RotatingFileHandler auf

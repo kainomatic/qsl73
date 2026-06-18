@@ -28,6 +28,19 @@ Nutzung:
   python tools/create_dh3kr_test_db.py
 
 Ausgabe: docs/testdateien/TESTDB_DH3KR_schreibtest.sqlite
+
+EINSCHRAENKUNG — Anzeige in Log4OM (Realtest-Befund 2026-06-18):
+Die hier erzeugten QSOs enthalten nur die match-relevanten Minimalfelder
+(dxcc=0, contactreferences=None, programid leer, qsocomplete leer).
+Log4OM zeigt die QSL-Bestaetigung solcher UNVOLLSTAENDIGER QSOs NICHT in der
+Bearbeitungsmaske/Liste an — obwohl das qsoconfirmations korrekt geschrieben wurde.
+Dieses Skript ist daher geeignet fuer:
+  - DB-Schreib-Verifikation (Schema-Check, Byte-Vergleich, load_qso_candidates)
+  - Integrationstests gegen das Schreib-API
+Nicht geeignet fuer:
+  - Visuelle Anzeige-Tests in Log4OM (dafuer: QSOs manuell in Log4OM loggen)
+QSL73 selbst ist NICHT betroffen — mit echt geloggten QSOs funktioniert die Anzeige
+einwandfrei (verifiziert).
 """
 from __future__ import annotations
 

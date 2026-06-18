@@ -473,6 +473,15 @@ ohne Annahme exklusiven Zugriffs. Log4OM kann parallel laufen und die DB veränd
   läuft. Wenn ja: **nicht blockierende Warnung** zeigen — „Log4OM scheint zu laufen.
   Zum sichersten Schreiben Log4OM kurz schließen. Trotzdem fortfahren?" — Nutzer entscheidet,
   kein Zwangs-Stopp.
+- **Log4OM-Neustart nach dem Schreiben (empirisch bestätigt, 2026-06-18):** Log4OM erkennt
+  externe Änderungen an einer geöffneten DB nicht automatisch. Ein „Neu laden" innerhalb von
+  Log4OM reicht nicht — Log4OM muss **neugestartet** werden, damit die von QSL73 geschriebenen
+  Bestätigungen in der Bearbeitungsmaske sichtbar werden. QSL73 soll den Nutzer nach einem
+  erfolgreichen Schreibvorgang mit einem klaren Hinweis darauf aufmerksam machen.
+  Risiko bei gleichzeitigem Betrieb: nimmt Log4OM selbst Änderungen vor, während QSL73
+  gerade schreibt oder geschrieben hat, besteht das Risiko, dass Log4OM die QSL73-Daten
+  beim nächsten Speichern überschreibt. Empfehlung: Log4OM während des Schreibvorgangs
+  geschlossen halten (verstärkt die bestehende Log4OM-Running-Warnung).
 - **Verknüpfung Cloud-/Netzwerk-Warnung:** WAL-Modus erfordert lokales Dateisystem;
   liegt die DB in einem Cloud-Sync-Ordner (OneDrive/Dropbox), gelten beide Warnungen
   (Cloud-Warnung aus §3.1 und Nebenläufigkeits-Warnung) kumulativ.

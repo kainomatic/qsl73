@@ -88,12 +88,13 @@ Wheel-Verfügbarkeit (zxing-cpp/pywin32) prüfen. Bis dahin nicht ändern.
 
 ---
 
-## Schreibtest verifiziert (2026-06-18)
+## Schreibtest Szenario B verifiziert (2026-06-18) ✓ ABGESCHLOSSEN
 
 Erster vollständiger End-to-End-Schreibtest des Schreib-Pfades (Issue #8, Szenario B).
 Basis: `TESTDB_DH3KR_schreibtest.sqlite` (Kopie der DF1DS-Test-DB + 4 künstliche DH3KR-QSOs).
 Vergleich: Vor-Schreib-Backup vs. geschriebene DB, byte-genau durch Claude Desktop verifiziert
-(467 QSOs gesamt).
+(467 QSOs gesamt). **Kompletter Kreislauf verifiziert:** Paperless → QR/OCR → Match → sicher →
+schreiben → Anzeige in Log4OM einwandfrei.
 
 ### Byte-genau bestätigte Schreib-Befunde
 
@@ -105,6 +106,9 @@ Vergleich: Vor-Schreib-Backup vs. geschriebene DB, byte-genau durch Claude Deskt
 - EQSL-Bestätigung bei DG5MLA byte-genau erhalten — die isolierte JSON-Manipulation aus
   ADR-0019 / `log4om_write.apply_paper_qsl` greift ausschließlich auf den CT='QSL'-Eintrag
   und lässt alle anderen Einträge unberührt (real bestätigt).
+- **Schreibformat byte-identisch zu Log4OM:** Direktvergleich des von QSL73 geschriebenen
+  `qsoconfirmations` (OE6DRG-QSO) mit einem von Log4OM manuell bestätigten QSO (DN9MF) —
+  Ergebnis: die JSON-Struktur ist exakt gleich. QSL73 schreibt formatgleich zu Log4OM selbst.
 
 **Kollateral-Integrität:**
 - Exakt 3 von 467 QSOs verändert; alle übrigen QSOs byte-genau unberührt.
@@ -122,10 +126,37 @@ Vergleich: Vor-Schreib-Backup vs. geschriebene DB, byte-genau durch Claude Deskt
   Zugehörigkeitsprüfung über alle `stationcallsign`-Werte der DB funktioniert wie spezifiziert.
   Kein Config-Eingriff nötig.
 
-### Offen
+**Visuelle Anzeige in Log4OM bestätigt:**
+- Log4OM zeigt nach Neustart bei allen 3 bestätigten QSOs korrekt „Qsl Received = Yes" an.
+- Der komplette Bestätigungs-Kreislauf (Paperless → QR/OCR → Match → schreiben → Anzeige)
+  ist damit lückenlos verifiziert. Issue #8 Szenario B: **erledigt**.
 
-- Visuelle Bestätigung in Log4OM selbst: zeigt Log4OM die Papier-QSL bei den 3 QSOs korrekt
-  als bestätigt an? — vom Nutzer (DF1DS) noch zu prüfen (Log4OM auf eigenem Rechner öffnen).
+### Workflow-Befund: Log4OM-Neustart nach QSL73-Schreibvorgang erforderlich
+
+Log4OM erkennt externe Änderungen an einer **geöffneten** DB **nicht** automatisch.
+Ein „Neu laden" innerhalb des laufenden Log4OM-Programms reicht nicht — Log4OM muss
+**neugestartet** werden, damit die von QSL73 geschriebenen Bestätigungen sichtbar werden.
+
+Zusätzlich: wird Log4OM gleichzeitig mit QSL73 betrieben und nimmt Log4OM selbst
+Änderungen vor, besteht das Risiko, dass Log4OM beim nächsten eigenen Speichervorgang die
+von QSL73 geschriebenen Daten überschreibt. Empfehlung: Log4OM während des QSL73-
+Schreibvorgangs geschlossen halten.
+
+→ In KONZEPT.md §7 und ADR-0008 dokumentiert.
+
+### Test-Artefakt-Befund: Skript-QSOs für Log4OM-Anzeige unvollständig
+
+`tools/create_dh3kr_test_db.py` erzeugt QSOs mit nur den match-relevanten Minimalfeldern
+(`dxcc=0`, `contactreferences=None`, `programid` leer, `qsocomplete` leer). Log4OM zeigt die
+QSL-Bestätigung solcher **unvollständiger** QSOs **nicht** in der Bearbeitungsmaske und Liste an —
+obwohl das `qsoconfirmations`-Feld korrekt geschrieben wurde.
+
+**Auswirkung:** QSL73 ist **nicht betroffen** — der Schreibvorgang selbst ist korrekt, und
+vollständige (in Log4OM real geloggte) QSOs werden einwandfrei angezeigt. Nur das Testskript
+ist für **visuelle Log4OM-Anzeige-Tests** ungeeignet. Für reine DB-Schreib-Verifikation
+(Schema-Check, `load_qso_candidates`, Byte-Vergleich) ist es weiterhin geeignet.
+
+→ Hinweis in `tools/create_dh3kr_test_db.py` ergänzt.
 
 ### Kleine UX-Befunde aus dem Schreibtest (Issues #17, #18)
 
