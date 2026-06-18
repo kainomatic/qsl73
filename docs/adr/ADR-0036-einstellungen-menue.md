@@ -67,6 +67,30 @@ Repo-URL.
 `app.py` übergibt das bereits initialisierte Backend, damit `_on_settings` beim Speichern
 das gleiche Backend verwendet wie der Erststart.
 
+### 7. Neustart-Hinweis nach Einstellungen-Speichern
+
+Nach erfolgreichem Speichern erscheint ein Dialog mit den Buttons **„Jetzt beenden"** /
+**„Später"** (statt des bisherigen vagen „greift beim nächsten Durchlauf"-Hinweises).
+
+**Designentscheidung — kein In-Process-Neustart:**
+Ein selbständiger Neustart via `os.execv` (PID bleibt gleich → Lock-Prüfung sieht
+laufenden Prozess → „läuft bereits") oder `subprocess.Popen + sys.exit` (Race-Window
+zwischen Lock-Freigabe und Neustart-Versuch) ist für diesen Anwendungsfall zu fehleranfällig.
+Die gewählte Lösung: sauber **beenden** (Lock-Freigabe via `finally`-Block in `run_app()`),
+danach manueller Neustart durch den Nutzer. Klar und zuverlässig ohne Synchronisationsproblem.
+
+### 8. Verbindungstest im Bearbeiten-Modus — Token-Auflösung
+
+`resolve_effective_token(token_field, existing_config)` in `wizard_logic.py`:
+- Leeres Token-Feld + bestehendes (bereits entschlüsseltes) Token in `existing_config` →
+  internes Token für den Test verwenden.
+- Token wird NICHT ins Feld zurückgeschrieben (§4).
+- Erstkonfigurationsmodus (existing_config=None): leer = kein Token → Test schlägt fehl
+  (erwartetes Verhalten).
+
+URL-Vorab-Check (`format_url_error`) verhindert Netzwerk-Fehlermeldungen für ein
+offensichtlich leeres oder Platzhalter-URL-Feld.
+
 ## Konsequenzen
 
 **Positiv:**
@@ -75,9 +99,10 @@ das gleiche Backend verwendet wie der Erststart.
 - Token-Schutz durch explizite Retain-Regel und Test-Absicherung.
 - Statusleiste übersichtlicher (nur noch Fortschritts- und Status-Anzeige).
 - Standard-Menüleiste verbessert Bedienbarkeit (OS-Integration, Tastaturzugang).
+- Verbindungstest im Bearbeiten-Modus funktioniert ohne Token-Neueingabe.
+- Klarer Neustart-Hinweis statt unklarem „greift beim nächsten Durchlauf".
 
 **Negativ / Einschränkungen:**
-- Änderungen im Einstellungen-Dialog greifen erst beim nächsten Durchlauf
-  (Hinweismeldung nach Speichern). Ein „Live-Reload" der Config ist nicht implementiert
-  (wäre ein separater Schritt).
+- Kein automatischer Neustart: Nutzer muss die App nach Einstellungsänderungen manuell
+  neu starten. (Designentscheidung, siehe § 7.)
 - Der Wizard ist beim ersten Start ohne Erstkonfiguration weiterhin modal (kein Änderungsbedarf).

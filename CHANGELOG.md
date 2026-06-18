@@ -7,6 +7,24 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Einstellungen-Dialog — Fenstergröße und Mausrad-Scrollen:** Dialog öffnet jetzt
+  automatisch in der benötigten Höhe (max. 90 % Bildschirmhöhe); Mausrad-Scrollen
+  funktioniert bei überfüllem Inhalt zuverlässig.
+- **Einstellungen-Dialog — „Verbindung testen" im Bearbeiten-Modus:** Test schlug
+  bisher mit 401 fehl, weil das Token-Feld absichtlich leer bleibt (§4). Lösung:
+  `resolve_effective_token` — leeres Feld + bestehendes Token in `existing_config` →
+  entschlüsseltes Token intern nutzen (nie im Feld anzeigen). Neue, differenzierte
+  Fehlermeldungen: URL leer, Server nicht erreichbar, Auth fehlgeschlagen, sonstiges.
+- **Einstellungen speichern — Neustart-Hinweis:** Statt vagem „greift beim nächsten
+  Durchlauf" erscheint jetzt ein Dialog „Bitte neu starten" mit Buttons „Jetzt beenden"
+  / „Später". „Jetzt beenden" schließt die App sauber (Lock-Freigabe via `finally`
+  in `run_app()`); „Später" zeigt Hinweis in Statuszeile.
+- **Einstellungen-Dialog — Fokus-Feedback:** Klick ins gesperrte Hauptfenster bei
+  offenem Einstellungen-Dialog → Dialog piept (`bell()`) und hebt sich in den Vordergrund
+  (`lift()` + `focus_force()`).
+
 ### Added
 
 - **Menüleiste mit Einstellungen-Dialog (ADR-0036, Fixes #24):** Standard-Menüleiste

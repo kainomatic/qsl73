@@ -29,24 +29,23 @@ class TestFormatConnectionOk:
 
 
 class TestFormatConnectionError:
-    def test_auth_error_message_mentions_auth(self):
+    def test_auth_error_message_mentions_credentials(self):
         exc = PaperlessAuthError("ungültig")
         msg = format_connection_error(exc)
-        assert "Authentifizierung" in msg or "Auth" in msg
+        assert "ungültig" in msg or "Token" in msg or "Zugangsdaten" in msg
 
-    def test_connection_error_message_mentions_verbindung(self):
+    def test_connection_error_message_mentions_server_or_network(self):
         exc = PaperlessConnectionError("refused")
         msg = format_connection_error(exc)
-        assert "Verbindung" in msg or "Fehler" in msg
+        assert "erreichbar" in msg or "Netzwerk" in msg or "Fehler" in msg
 
     def test_generic_error_returns_message(self):
         msg = format_connection_error(ValueError("etwas kaputt"))
         assert "Fehler" in msg or "etwas kaputt" in msg
 
-    def test_no_secrets_in_message(self):
-        exc = PaperlessConnectionError("contains-secret-token-value")
+    def test_returns_non_empty_string(self):
+        exc = PaperlessConnectionError("irgendwas")
         msg = format_connection_error(exc)
-        # Wir prüfen nur dass eine Meldung entsteht, nicht auf Secret-Freiheit (wird in paperless-Ebene gehandhabt)
         assert isinstance(msg, str) and len(msg) > 0
 
 

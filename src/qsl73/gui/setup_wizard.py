@@ -6,6 +6,14 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import Optional
 
+# i18n-Vorbereitung: nutzersichtbare Texte als Konstanten
+_LBL_TOKEN_RETAIN = "(leer lassen = bestehendes Token behalten)"
+_LBL_TAG_INFO = (
+    "ℹ QSL73 legt Schreib-Tags ohne automatisches Matching an. "
+    "Bitte diese Einstellung in Paperless nicht auf 'Auto' ändern."
+)
+_WARN_CONN_NOT_TESTED = "Bitte zuerst 'Verbindung testen' ausführen."
+
 from qsl73.config import Config
 from qsl73.crypto import CryptoBackend, get_default_backend
 from qsl73.setup_assistant import create_initial_config
@@ -39,6 +47,7 @@ class SetupWizard(tk.Toplevel):
 
         self._build_ui()
         self.grab_set()
+        self._attach_attention_handler()
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
         self.wait_window()
 
@@ -68,8 +77,10 @@ class SetupWizard(tk.Toplevel):
         canvas.configure(yscrollcommand=vsb.set)
         vsb.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
+        self._canvas = canvas
 
         inner = ttk.Frame(canvas)
+        self._inner_frame = inner
         inner_id = canvas.create_window((0, 0), window=inner, anchor="nw")
 
         def _on_frame_configure(event):
@@ -156,7 +167,7 @@ class SetupWizard(tk.Toplevel):
         if self._is_edit_mode:
             self._token_retain_lbl = ttk.Label(
                 inner,
-                text="(leer lassen = bestehendes Token behalten)",
+                text=_LBL_TOKEN_RETAIN,
                 foreground="#555555", font=("", 8),
             )
             self._token_retain_lbl.grid(row=row, column=1, sticky="w")
@@ -203,8 +214,7 @@ class SetupWizard(tk.Toplevel):
         section("Tags")
         ttk.Label(
             inner,
-            text="ℹ QSL73 legt Schreib-Tags ohne automatisches Matching an. "
-                 "Bitte diese Einstellung in Paperless nicht auf 'Auto' ändern.",
+            text=_LBL_TAG_INFO,
             foreground="#555555", font=("", 8), wraplength=400,
         ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 4))
         row += 1
@@ -290,6 +300,10 @@ class SetupWizard(tk.Toplevel):
 
         # Korrekte Auth-Feld-Sichtbarkeit nach Initialisierung sicherstellen
         self._update_auth_fields()
+
+        # Fenstergröße an Inhalt anpassen + Mausrad-Scrollen aktivieren (TEIL 1)
+        self._adjust_window_size()
+        self._bind_mousewheel()
 
     # ------------------------------------------------------------------
     # Auth-Felder dynamisch umschalten
@@ -397,6 +411,7 @@ class SetupWizard(tk.Toplevel):
                     overrides=overrides,
                 )
             self.result = cfg
+            self._unbind_mousewheel()
             self.destroy()
         except Exception as exc:
             from qsl73.gui.error_dialog import show_error
@@ -404,6 +419,7 @@ class SetupWizard(tk.Toplevel):
 
     def _on_cancel(self) -> None:
         self.result = None
+        self._unbind_mousewheel()
         self.destroy()
 
     # ------------------------------------------------------------------
@@ -411,10 +427,24 @@ class SetupWizard(tk.Toplevel):
     # ------------------------------------------------------------------
 
     def _test_connection(self) -> None:
-        from qsl73.gui.wizard_logic import format_connection_error, format_connection_ok
+        from qsl73.gui.wizard_logic import (
+            format_connection_error,
+            format_connection_ok,
+            format_url_error,
+            resolve_effective_token,
+        )
         from qsl73.paperless import PaperlessClient
 
         url = self._vars["paperless.url"].get().strip()
+
+        # URL-Vorab-Check: gar nicht erst verbinden wenn URL offensichtlich leer/ungültig
+        url_err = format_url_error(url)
+        if url_err:
+            self._connection_ok = False
+            self._conn_status_lbl.configure(text=url_err, foreground="#cc0000")
+            self._update_tag_combos()
+            return
+
         mode = self._vars["paperless.auth_mode"].get()
 
         try:
@@ -425,7 +455,11 @@ class SetupWizard(tk.Toplevel):
                     self._pw_password_var.get(),
                 )
             else:
-                token = self._vars["paperless.token"].get().strip()
+                # Im Bearbeiten-Modus: leeres Token-Feld → bestehendes Token nutzen (§4)
+                token = resolve_effective_token(
+                    self._vars["paperless.token"].get(),
+                    self._existing_config,
+                )
                 pc = PaperlessClient(url, token)
 
             tags = pc.list_tags()
@@ -447,11 +481,7 @@ class SetupWizard(tk.Toplevel):
 
     def _reload_tags(self) -> None:
         if not self._connection_ok:
-            messagebox.showwarning(
-                "Verbindung nicht getestet",
-                "Bitte zuerst 'Verbindung testen' ausführen.",
-                parent=self,
-            )
+            messagebox.showwarning("Verbindung nicht getestet", _WARN_CONN_NOT_TESTED, parent=self)
             return
         self._test_connection()
 
@@ -489,11 +519,7 @@ class SetupWizard(tk.Toplevel):
         from qsl73.paperless import PaperlessClient
 
         if not self._connection_ok:
-            messagebox.showwarning(
-                "Verbindung nicht getestet",
-                "Bitte zuerst 'Verbindung testen' ausführen.",
-                parent=self,
-            )
+            messagebox.showwarning("Verbindung nicht getestet", _WARN_CONN_NOT_TESTED, parent=self)
             return
 
         new_var = self._new_tag_vars.get(key)
@@ -517,7 +543,11 @@ class SetupWizard(tk.Toplevel):
                     self._pw_password_var.get(),
                 )
             else:
-                token = self._vars["paperless.token"].get().strip()
+                from qsl73.gui.wizard_logic import resolve_effective_token
+                token = resolve_effective_token(
+                    self._vars["paperless.token"].get(),
+                    self._existing_config,
+                )
                 pc = PaperlessClient(url, token)
 
             pc.create_tag(name, matching_algorithm=0)
@@ -529,3 +559,62 @@ class SetupWizard(tk.Toplevel):
         except Exception as exc:
             from qsl73.gui.error_dialog import show_error
             show_error(self, "Fehler beim Anlegen", str(exc))
+
+    # ------------------------------------------------------------------
+    # Fenstergröße, Mausrad-Scrollen, Fokus-Attention (TEIL 1 + TEIL 4)
+    # ------------------------------------------------------------------
+
+    def _adjust_window_size(self) -> None:
+        """Dimensioniert Fenster an Inhalt an (max. 90 % Bildschirmhöhe), zentriert."""
+        self.update_idletasks()
+        needed_h = self.winfo_reqheight()
+        screen_h = self.winfo_screenheight()
+        target_h = min(needed_h, int(screen_h * 0.9))
+        target_h = max(target_h, 400)
+
+        needed_w = max(560, self.winfo_reqwidth())
+        screen_w = self.winfo_screenwidth()
+        x = max(0, (screen_w - needed_w) // 2)
+        y = max(0, (screen_h - target_h) // 2)
+        self.geometry(f"{needed_w}x{target_h}+{x}+{y}")
+
+    def _bind_mousewheel(self) -> None:
+        """Aktiviert Mausrad-Scrollen für den Canvas (Windows/macOS, event.delta)."""
+        canvas = self._canvas
+
+        def _on_scroll(event: tk.Event) -> None:
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        # bind_all ist korrekt für modalen Dialog: Mausrad soll überall im Fenster reagieren.
+        # Wird in _unbind_mousewheel beim Schließen sauber aufgeräumt.
+        self.bind_all("<MouseWheel>", _on_scroll)
+
+    def _unbind_mousewheel(self) -> None:
+        """Löst globale Mausrad-Bindung auf — vor destroy() aufrufen."""
+        try:
+            self.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
+
+    def _attach_attention_handler(self) -> None:
+        """Bell + lift wenn Nutzer versucht ins gesperrte Hauptfenster zu klicken.
+
+        grab_set() leitet Pointer-Events zum Wizard um; Fokus-Wechsel (FocusOut → FocusIn
+        am Toplevel selbst) signalisiert den Klick-Versuch. Mindestens bell() + lift() +
+        focus_force() als plattformtolerante Variante.
+        """
+        self._focus_away = False
+
+        def _on_focus_out(event: tk.Event) -> None:
+            if event.widget == self:
+                self._focus_away = True
+
+        def _on_focus_in(event: tk.Event) -> None:
+            if event.widget == self and self._focus_away:
+                self._focus_away = False
+                self.bell()
+                self.lift()
+                self.focus_force()
+
+        self.bind("<FocusOut>", _on_focus_out)
+        self.bind("<FocusIn>", _on_focus_in)

@@ -28,6 +28,16 @@ from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_r
 
 _log = logging.getLogger("qsl73")
 
+# i18n-Vorbereitung: nutzersichtbare Texte als Konstanten
+_MSG_RESTART_TITLE = "Einstellungen gespeichert"
+_MSG_RESTART_BODY = (
+    "Einstellungen wurden gespeichert.\n\n"
+    "Bitte QSL73 neu starten, damit alle Änderungen wirksam werden."
+)
+_MSG_RESTART_BTN_NOW = "Jetzt beenden"
+_MSG_RESTART_BTN_LATER = "Später"
+_MSG_RESTART_STATUS = "⚠ Neustart ausstehend — Einstellungen wirken nach dem nächsten Start."
+
 
 def _reset_progress(progress: ttk.Progressbar) -> None:
     """Hält indeterminate-Animation an und setzt Balken auf 0 zurück."""
@@ -590,12 +600,47 @@ class MainWindow(tk.Tk):
         wizard = SetupWizard(self, crypto=self._crypto, existing_config=self._config)
         if wizard.result is not None:
             self._config = wizard.result
-            messagebox.showinfo(
-                "Einstellungen gespeichert",
-                "Einstellungen wurden gespeichert.\n"
-                "Änderungen greifen beim nächsten Durchlauf.",
-                parent=self,
-            )
+            self._show_restart_prompt()
+
+    def _show_restart_prompt(self) -> None:
+        """Neustart-Dialog nach Einstellungs-Speichern.
+
+        Wir beenden die App sauber statt sie sofort neu zu starten:
+        Self-Restart via os.execv würde bei gleichem PID durch den Lock geblockt;
+        subprocess + sys.exit hat ein Race-Window zwischen Lock-Freigabe und
+        Neustart-Versuch. Sauber beenden ist zuverlässiger — der Lock wird danach
+        im finally-Block von run_app() freigegeben, sodass der Neustart blockierfrei ist.
+        """
+        dlg = tk.Toplevel(self)
+        dlg.title(_MSG_RESTART_TITLE)
+        dlg.resizable(False, False)
+        dlg.transient(self)
+        dlg.grab_set()
+
+        ttk.Label(dlg, text=_MSG_RESTART_BODY, padding=16, wraplength=360).pack()
+
+        btn_frame = ttk.Frame(dlg, padding=(16, 0, 16, 12))
+        btn_frame.pack(fill="x")
+
+        _do_exit = [False]
+
+        def _on_exit() -> None:
+            _do_exit[0] = True
+            dlg.destroy()
+
+        ttk.Button(btn_frame, text=_MSG_RESTART_BTN_NOW, command=_on_exit).pack(
+            side="right", padx=(4, 0)
+        )
+        ttk.Button(btn_frame, text=_MSG_RESTART_BTN_LATER, command=dlg.destroy).pack(
+            side="right"
+        )
+
+        dlg.wait_window()
+
+        if _do_exit[0]:
+            self.destroy()
+        else:
+            self._status_var.set(_MSG_RESTART_STATUS)
 
     def _on_about(self) -> None:
         from qsl73.__version__ import CHANNEL, __version__

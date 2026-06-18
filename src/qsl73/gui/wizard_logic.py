@@ -2,6 +2,11 @@
 """Reine Logik-Hilfsfunktionen für den Setup-Assistenten — tk-frei, testbar."""
 from __future__ import annotations
 
+# i18n-Vorbereitung: nutzersichtbare Meldungen als Konstanten
+MSG_URL_EMPTY = "Bitte zuerst eine gültige Paperless-URL eintragen."
+MSG_SERVER_UNREACHABLE = "Server nicht erreichbar — URL und Netzwerk prüfen."
+MSG_AUTH_FAILED = "Zugangsdaten ungültig — Token prüfen oder neu eingeben."
+
 
 def auth_fields_for_mode(mode: str) -> dict[str, bool]:
     """Gibt zurück, welche Auth-Feldgruppen für einen Modus sichtbar sein sollen."""
@@ -34,15 +39,45 @@ def format_connection_ok(tag_count: int) -> str:
     return f"Verbindung OK, {tag_count} Tags gefunden"
 
 
+def format_url_error(url: str) -> str | None:
+    """Gibt Fehlermeldung zurück wenn URL leer oder offensichtlich ungültig, sonst None.
+
+    Wird VOR dem Verbindungsversuch aufgerufen; verhindert nutzlose Netzwerk-Fehler
+    bei leerem oder Platzhalter-URL-Feld.
+    """
+    stripped = url.strip() if url else ""
+    if not stripped or stripped in ("https://", "http://"):
+        return MSG_URL_EMPTY
+    return None
+
+
 def format_connection_error(exc: Exception) -> str:
-    """Meldungstext bei fehlgeschlagenem Verbindungstest."""
+    """Meldungstext bei fehlgeschlagenem Verbindungstest — nach Fehlerklasse differenziert."""
     from qsl73.paperless import PaperlessAuthError, PaperlessConnectionError
 
     if isinstance(exc, PaperlessAuthError):
-        return f"Authentifizierung fehlgeschlagen: {exc}"
+        return MSG_AUTH_FAILED
     if isinstance(exc, PaperlessConnectionError):
-        return f"Verbindung fehlgeschlagen: {exc}"
+        return MSG_SERVER_UNREACHABLE
     return f"Fehler: {exc}"
+
+
+def resolve_effective_token(token_field: str, existing_config) -> str:
+    """Gibt das Token zurück, das beim Verbindungstest verwendet werden soll.
+
+    Wenn token_field leer ist und existing_config ein Token enthält
+    (bereits entschlüsselt durch load_config), wird das bestehende Token verwendet.
+    Das Token wird NICHT in das Eingabefeld zurückgeschrieben (§4: kein Klartext im UI).
+    Im Erstkonfigurationsmodus (existing_config=None) muss ein Token eingegeben worden sein.
+    """
+    stripped = token_field.strip() if token_field else ""
+    if stripped:
+        return stripped
+    if existing_config is not None:
+        existing = getattr(getattr(existing_config, "paperless", None), "token", None)
+        if existing:
+            return existing
+    return ""
 
 
 def auto_matching_warning(tag_name: str, tags: list[dict]) -> str | None:
