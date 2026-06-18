@@ -9,6 +9,23 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Schritt 6 UX-3 — Geschriebene Karten sichtbar markieren + Trefferlimit (ADR-0030):**
+  - **Teil A — Bestätigt-Markierung im Hauptfenster:** Nach „Jetzt schreiben" erhalten
+    bestätigte Karten das Status-Label „Bestätigt ✓", grüne Tag-Farbe (`written`) und
+    werden an das Ende der Liste sortiert (`sort_cards_written_last`). Klick und Doppelklick
+    auf geschriebene Karten sind no-op (verhindert Doppel-Schreiben). Markierung gilt nur
+    für den laufenden Lauf — beim nächsten „Durchlauf starten" wird `_written` geleert.
+    `WriteDoneEvent` trägt jetzt `confirmed_doc_ids`, damit das GUI die IDs kennt.
+  - **Teil B — Trefferlimit für manuellen Zuordnungs-Dialog (ADR-0030):** Config-Feld
+    `app.manual_match_limit` (Default 100; 0 = kein Limit) persistent in `config.yaml`.
+    Migration: fehlendes Feld → 100 (kein Versions-Bump). Dialog begrenzt Treeview-Inhalt
+    und zeigt `(zeige N von M)` im LabelFrame-Titel bei Begrenzung.
+    Einstellbar im Setup-Assistenten (Einstellungen) per editierbarer Combobox
+    10 / 100 / 1000 / 0 (kein Limit).
+  - Reine Funktionen ausgelagert + getestet: `sort_cards_written_last`, `apply_display_limit`;
+    Config: `manual_match_limit` Default/Validierung/Round-trip/Migrate-Tests.
+    779 passed gesamt.
+
 - **Schritt 6c-UX-2 — Weitere UX-Verbesserungen am manuellen Zuordnungs-Dialog:**
   - **Datepicker-Grab-Fix:** DateEntry-Kalender-Popup konfliktierte mit `grab_set()` des
     modalen Dialogs (Klick durchschlug auf Band/Mode-Feld darunter). Fix: `<Map>`/`<Unmap>`-

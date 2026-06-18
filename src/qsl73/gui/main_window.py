@@ -22,7 +22,7 @@ from qsl73.gui.controller import (
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
-from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id
+from qsl73.gui.filter_util import FILTER_MODES, build_write_selections, filter_results, is_batch_writable, merge_selections, qso_by_id, sort_cards_written_last
 
 
 _log = logging.getLogger("qsl73")
@@ -62,6 +62,7 @@ class MainWindow(tk.Tk):
         self._selected: set[int] = set()      # doc_ids der selektierten CERTAIN-Karten
         self._displayed: list[CardResult] = []  # aktuell angezeigte Karten
         self._manual_pending: dict[int, tuple[str, str]] = {}  # doc_id → (qsoid, route)
+        self._written: set[int] = set()       # doc_ids die in diesem Lauf bereits geschrieben wurden
         self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
 
         title = f"QSL73 v{__version__}"
@@ -172,6 +173,7 @@ class MainWindow(tk.Tk):
         self._tree.tag_configure("no_match", foreground="#888888")
         self._tree.tag_configure("selected", background="#cce5ff")
         self._tree.tag_configure("manual_assigned", background="#e8d8f8", foreground="#5a0090")
+        self._tree.tag_configure("written", background="#d4edda", foreground="#155724")
 
         self._tree.bind("<ButtonRelease-1>", self._on_tree_click)
         self._tree.bind("<Double-1>", self._on_double_click)
@@ -221,6 +223,7 @@ class MainWindow(tk.Tk):
             self._update_write_btn()
         elif isinstance(event, WriteDoneEvent):
             res = event.result
+            self._written.update(event.confirmed_doc_ids)
             self._manual_pending.clear()
             self._selected.clear()
             self._status_var.set(f"Geschrieben: {res.written} QSO(s), übersprungen: {len(res.skipped)}.")
@@ -251,8 +254,10 @@ class MainWindow(tk.Tk):
         else:
             self._displayed = []
 
+        sorted_cards = sort_cards_written_last(self._displayed, self._written)
+
         self._tree.delete(*self._tree.get_children())
-        for card in self._displayed:
+        for card in sorted_cards:
             iid = str(card.doc_id)
             call = card.card_fields.call_from or card.card_fields.call_to or "–"
             date = card.card_fields.date or "–"
@@ -269,20 +274,24 @@ class MainWindow(tk.Tk):
             }.get(match_result, "")
 
             tags = [tag] if tag else []
-            if card.doc_id in self._selected:
-                tags.append("selected")
-            if card.doc_id in self._manual_pending:
-                tags.append("manual_assigned")
-                status_label = "Manuell zugeordnet"
-                # QSO-Werte des zugeordneten Kandidaten anzeigen statt Kartenfelder
-                qsoid, _ = self._manual_pending[card.doc_id]
-                if self._run_result is not None:
-                    matched = qso_by_id(self._run_result.candidates, qsoid)
-                    if matched is not None:
-                        call = matched.callsign or "–"
-                        date = (matched.date or "")[:10] or "–"
-                        band = matched.band or "–"
-                        mode_val = matched.mode or "–"
+            if card.doc_id in self._written:
+                tags = ["written"]   # written überschreibt alle anderen Farbmarkierungen
+                status_label = "Bestätigt ✓"
+            else:
+                if card.doc_id in self._selected:
+                    tags.append("selected")
+                if card.doc_id in self._manual_pending:
+                    tags.append("manual_assigned")
+                    status_label = "Manuell zugeordnet"
+                    # QSO-Werte des zugeordneten Kandidaten anzeigen statt Kartenfelder
+                    qsoid, _ = self._manual_pending[card.doc_id]
+                    if self._run_result is not None:
+                        matched = qso_by_id(self._run_result.candidates, qsoid)
+                        if matched is not None:
+                            call = matched.callsign or "–"
+                            date = (matched.date or "")[:10] or "–"
+                            band = matched.band or "–"
+                            mode_val = matched.mode or "–"
 
             self._tree.insert(
                 "",
@@ -302,9 +311,9 @@ class MainWindow(tk.Tk):
             doc_id = int(row_id)
         except ValueError:
             return
-        # Nur CERTAIN-Karten sind selektierbar (ADR-0007, ADR-0023)
+        # Nur CERTAIN-Karten sind selektierbar (ADR-0007, ADR-0023); geschriebene no-op
         card = next((c for c in self._displayed if c.doc_id == doc_id), None)
-        if card is None or not is_batch_writable(card):
+        if card is None or not is_batch_writable(card) or doc_id in self._written:
             return
         if doc_id in self._selected:
             self._selected.discard(doc_id)
@@ -353,6 +362,11 @@ class MainWindow(tk.Tk):
 
         _log.debug("Karte gefunden: doc_id=%s outcome.result=%s", doc_id, card.outcome.result.name)
 
+        if doc_id in self._written:
+            _log.debug("Early-return: Karte bereits bestätigt — kein erneuter Dialog")
+            self._status_var.set("Karte bereits bestätigt — kein erneuter Dialog möglich.")
+            return
+
         if card.outcome.result == MatchResult.CERTAIN:
             _log.debug("Early-return: Karte ist CERTAIN — Einfach-Klick nutzen")
             self._status_var.set("Karte ist ein sicherer Treffer — Einfach-Klick zum Auswählen.")
@@ -379,6 +393,7 @@ class MainWindow(tk.Tk):
             candidates=self._run_result.candidates,
             default_route=cfg.confirm.qsl_route_default,
             image_loader=_image_loader if pc is not None else None,
+            limit=cfg.app.manual_match_limit,
         )
 
         _log.debug("Dialog geschlossen — dlg.result=%r", dlg.result)
@@ -436,6 +451,7 @@ class MainWindow(tk.Tk):
         self._paperless_client = pc
         self._selected.clear()
         self._manual_pending.clear()
+        self._written.clear()
         self._run_result = None
         self._displayed = []
         self._tree.delete(*self._tree.get_children())

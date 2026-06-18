@@ -54,6 +54,7 @@ class AppConfig:
     language: str = "de"
     backup_count: int = 5
     update_check: bool = True
+    manual_match_limit: int = 100
 
 
 @dataclass
@@ -134,6 +135,9 @@ def validate_config(data: dict) -> list[str]:
         backup_count = app.get("backup_count", 5)
         if not isinstance(backup_count, int) or backup_count < 0:
             errors.append("app.backup_count: muss eine nicht-negative ganze Zahl sein")
+        limit = app.get("manual_match_limit", 100)
+        if not isinstance(limit, int) or limit < 0:
+            errors.append("app.manual_match_limit: muss eine nicht-negative ganze Zahl sein (0 = kein Limit)")
 
     return errors
 
@@ -145,6 +149,11 @@ def migrate_config(data: dict) -> dict:
     if version < 1:
         # Version 0/fehlend → 1: nur config_version-Feld setzen
         data["config_version"] = 1
+
+    # Additiver Default: fehlendes Feld → 100 (kein Versions-Bump)
+    app = data.setdefault("app", {})
+    if "manual_match_limit" not in app:
+        app["manual_match_limit"] = 100
 
     # Künftige Migrationen: elif version < 2: ... hier einfügen
 
@@ -186,6 +195,7 @@ def _dict_to_config(data: dict) -> Config:
             language=a.get("language", "de"),
             backup_count=a.get("backup_count", 5),
             update_check=a.get("update_check", True),
+            manual_match_limit=a.get("manual_match_limit", 100),
         ),
     )
 
@@ -218,6 +228,7 @@ def _config_to_dict(config: Config) -> dict:
             "language": config.app.language,
             "backup_count": config.app.backup_count,
             "update_check": config.app.update_check,
+            "manual_match_limit": config.app.manual_match_limit,
         },
     }
 

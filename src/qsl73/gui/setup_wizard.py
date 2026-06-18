@@ -163,6 +163,20 @@ class SetupWizard(tk.Toplevel):
         field("app.backup_count", "Anzahl Backups", "5")
         bool_field("app.update_check", "Update-Prüfung beim Start", True)
 
+        # Trefferlimit für manuellen Zuordnungs-Dialog (ADR-0030)
+        nonlocal row
+        var_limit = tk.StringVar(value="100")
+        self._vars["app.manual_match_limit"] = var_limit
+        ttk.Label(inner, text="Trefferlimit Zuordnung").grid(
+            row=row, column=0, sticky="w", padx=(0, 8)
+        )
+        limit_combo = ttk.Combobox(
+            inner, textvariable=var_limit, values=["10", "100", "1000", "0 (kein Limit)"],
+            width=20,
+        )
+        limit_combo.grid(row=row, column=1, sticky="w")
+        row += 1
+
         # Buttons
         btn_frame = ttk.Frame(self, padding=(12, 0, 12, 12))
         btn_frame.pack(fill="x")
@@ -208,6 +222,12 @@ class SetupWizard(tk.Toplevel):
                     overrides[key] = int(value)
                 except ValueError:
                     overrides[key] = 5
+            elif key == "app.manual_match_limit":
+                raw = value.split()[0]  # "0 (kein Limit)" → "0"
+                try:
+                    overrides[key] = max(0, int(raw))
+                except ValueError:
+                    overrides[key] = 100
             else:
                 overrides[key] = value
         return overrides

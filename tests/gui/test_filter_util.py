@@ -1,6 +1,6 @@
-"""Tests für filter_results(), merge_selections(), qso_by_id() — reine Funktionen, kein tk."""
+"""Tests für filter_results(), merge_selections(), qso_by_id(), sort_cards_written_last() — reine Funktionen."""
 import pytest
-from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, FILTER_MODES
+from qsl73.gui.filter_util import filter_results, merge_selections, qso_by_id, sort_cards_written_last, FILTER_MODES
 from qsl73.run import RunResult, CardResult
 from qsl73.matching import MatchOutcome, MatchResult, CardFields, QsoCandidate
 
@@ -186,3 +186,46 @@ def test_qso_by_id_returns_first_match():
     result = qso_by_id(cands, "Q1")
     assert result is not None
     assert result.callsign == "DK1AA"
+
+
+# ---------------------------------------------------------------------------
+# Tests für sort_cards_written_last
+# ---------------------------------------------------------------------------
+
+
+def test_sort_written_last_basic():
+    """Geschriebene Karte rutscht ans Ende."""
+    cards = [_make_card(1, MatchResult.CERTAIN), _make_card(2, MatchResult.CERTAIN), _make_card(3, MatchResult.CERTAIN)]
+    result = sort_cards_written_last(cards, {2})
+    ids = [c.doc_id for c in result]
+    assert ids == [1, 3, 2]
+
+
+def test_sort_written_last_all_written():
+    """Alle geschrieben → Reihenfolge bleibt stabil."""
+    cards = [_make_card(1, MatchResult.CERTAIN), _make_card(2, MatchResult.CERTAIN)]
+    result = sort_cards_written_last(cards, {1, 2})
+    ids = [c.doc_id for c in result]
+    assert ids == [1, 2]
+
+
+def test_sort_written_last_none_written():
+    """Kein Eintrag geschrieben → Liste unverändert."""
+    cards = [_make_card(3, MatchResult.CERTAIN), _make_card(1, MatchResult.CERTAIN)]
+    result = sort_cards_written_last(cards, set())
+    ids = [c.doc_id for c in result]
+    assert ids == [3, 1]
+
+
+def test_sort_written_last_stable_within_groups():
+    """Reihenfolge innerhalb der Gruppen bleibt stabil."""
+    cards = [_make_card(i, MatchResult.CERTAIN) for i in [5, 3, 1, 4, 2]]
+    result = sort_cards_written_last(cards, {3, 1})
+    not_written = [c.doc_id for c in result if c.doc_id not in {3, 1}]
+    written = [c.doc_id for c in result if c.doc_id in {3, 1}]
+    assert not_written == [5, 4, 2]
+    assert written == [3, 1]
+
+
+def test_sort_written_last_empty_list():
+    assert sort_cards_written_last([], {1}) == []

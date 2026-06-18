@@ -286,3 +286,51 @@ def test_load_config_portable_suffixes_default(config_path):
     config_path.write_text(yaml.dump(data), encoding="utf-8")
     cfg = load_config(config_path)
     assert cfg.matching.portable_suffixes == ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
+
+
+# ---------------------------------------------------------------------------
+# manual_match_limit — Config-Tests (ADR-0030)
+# ---------------------------------------------------------------------------
+
+
+def test_manual_match_limit_default():
+    from qsl73.config import AppConfig
+    assert AppConfig().manual_match_limit == 100
+
+
+def test_manual_match_limit_round_trip(config_path):
+    from qsl73.config import Config, save_config, load_config
+    cfg = Config()
+    cfg.app.manual_match_limit = 10
+    save_config(cfg, config_path)
+    loaded = load_config(config_path)
+    assert loaded.app.manual_match_limit == 10
+
+
+def test_manual_match_limit_zero_allowed(config_path):
+    from qsl73.config import Config, save_config, load_config
+    cfg = Config()
+    cfg.app.manual_match_limit = 0
+    save_config(cfg, config_path)
+    loaded = load_config(config_path)
+    assert loaded.app.manual_match_limit == 0
+
+
+def test_manual_match_limit_negative_invalid():
+    from qsl73.config import validate_config
+    errors = validate_config({"app": {"manual_match_limit": -1}})
+    assert any("manual_match_limit" in e for e in errors)
+
+
+def test_manual_match_limit_migrate_adds_default():
+    from qsl73.config import migrate_config
+    data = {"config_version": 1, "app": {"language": "de"}}
+    result = migrate_config(data)
+    assert result["app"]["manual_match_limit"] == 100
+
+
+def test_manual_match_limit_migrate_preserves_existing():
+    from qsl73.config import migrate_config
+    data = {"config_version": 1, "app": {"language": "de", "manual_match_limit": 50}}
+    result = migrate_config(data)
+    assert result["app"]["manual_match_limit"] == 50

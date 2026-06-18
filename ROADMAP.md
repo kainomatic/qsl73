@@ -194,6 +194,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Issues: Bild-DPI für handschriftliche Karten (Issue #19), Rückseite anzeigbar (Issue #20).
 - **Review:** Akzeptanzkriterien §9; pytest grün, CI grün; Schritt 6 komplett.
 
+#### ✅ Schritt 6 UX-3 — Bestätigt-Markierung + Trefferlimit (ADR-0030)
+
+- Nach Schreiben: bestätigte Karten zeigen „Bestätigt ✓" (grün), landen am Ende der Liste,
+  sind nicht mehr anklickbar. `_written: set[int]` im MainWindow; `WriteDoneEvent` trägt
+  `confirmed_doc_ids`. `sort_cards_written_last` in filter_util ausgelagert + getestet.
+- `app.manual_match_limit` (Default 100; 0=kein Limit) in Config + Migration + Validierung.
+  Dialog zeigt `(zeige N von M)` bei Begrenzung. `apply_display_limit` ausgelagert + getestet.
+  Einstellungsfeld im Setup-Assistenten (editierbare Combobox 10/100/1000/0).
+- ADR-0030 angelegt; README-Index → ADR-0031. 779 passed.
+
 #### ✅ Schritt 6c-UX-2 — Weitere UX-Nachbesserungen manueller Zuordnungs-Dialog
 
 - Datepicker-Grab-Fix (Klick-Durchschlag auf Band/Mode beseitigt).

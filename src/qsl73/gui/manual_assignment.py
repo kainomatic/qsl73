@@ -9,6 +9,8 @@
   distinct_bands         — list[QsoCandidate] → sortierte Band-Werte aus DB-Kandidaten
   distinct_modes         — list[QsoCandidate] → sortierte Mode-Werte aus DB-Kandidaten
   last_page_index        — Seitenanzahl → Index der letzten Seite (0-basiert)
+  wrap_page_index        — Seiten-Umlauf (wrap-around), direction +1/-1
+  apply_display_limit    — (candidates, limit) → (shown_list, total_count); ADR-0030
 
 tk-abhängig:
   ManualAssignmentDialog — modales tk.Toplevel; result = (qsoid, route) | None
@@ -19,6 +21,7 @@ import io
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
+from qsl73.gui.filter_util import apply_display_limit
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
 from qsl73.matching import CardFields, QsoCandidate
 from qsl73.run import CardResult
@@ -172,6 +175,7 @@ if _TK_OK:
             candidates: list[QsoCandidate],
             default_route: str,
             image_loader: Optional[Callable[[int], bytes]] = None,
+            limit: int = 100,
         ) -> None:
             super().__init__(parent)
             self.result: Optional[tuple[str, str]] = None
@@ -179,6 +183,7 @@ if _TK_OK:
             self._candidates = candidates
             self._default_route = default_route
             self._image_loader = image_loader
+            self._limit = limit           # Anzeige-Limit (ADR-0030); 0 = kein Limit
             self._img_ref = None          # PIL/tk PhotoImage — vor GC schützen
             self._iid_to_qsoid: dict[str, str] = {}
             self._pages: list = []        # gerenderte Seiten (PIL-Images)
@@ -345,8 +350,9 @@ if _TK_OK:
             fld_frame.columnconfigure(1, weight=1)
 
             # --- Trefferliste ---
-            res_frame = ttk.LabelFrame(main, text="Gefundene QSOs", padding=4)
-            res_frame.pack(fill="both", expand=True, pady=(0, 8))
+            self._res_frame = ttk.LabelFrame(main, text="Gefundene QSOs", padding=4)
+            self._res_frame.pack(fill="both", expand=True, pady=(0, 8))
+            res_frame = self._res_frame
 
             cols = ("callsign", "date", "band", "mode")
             self._tree = ttk.Treeview(
@@ -519,7 +525,18 @@ if _TK_OK:
             self._tree.delete(*self._tree.get_children())
             self._iid_to_qsoid.clear()
             self._btn_ok.config(state="disabled")
-            for cand in candidates:
+
+            shown, total = apply_display_limit(candidates, self._limit)
+            if total > len(shown):
+                self._res_frame.config(
+                    text=f"Gefundene QSOs  (zeige {len(shown)} von {total})"
+                )
+            else:
+                self._res_frame.config(
+                    text=f"Gefundene QSOs  ({total} Treffer)" if total else "Gefundene QSOs"
+                )
+
+            for cand in shown:
                 date_str = cand.date[:10] if cand.date else ""
                 iid = self._tree.insert(
                     "", "end",

@@ -43,6 +43,28 @@ def build_write_selections(
     return selections, confirmed_doc_ids
 
 
+def sort_cards_written_last(cards: list, written: set) -> list:
+    """Sortiert geschriebene Karten ans Ende; erhält Reihenfolge innerhalb der Gruppen (stabil).
+
+    Karten in ``written`` (Menge von doc_ids) erscheinen nach allen nicht-geschriebenen.
+    """
+    not_written = [c for c in cards if c.doc_id not in written]
+    done = [c for c in cards if c.doc_id in written]
+    return not_written + done
+
+
+def apply_display_limit(candidates: list, limit: int) -> tuple:
+    """Begrenzt Kandidatenliste auf ``limit`` Einträge für die Anzeige.
+
+    Gibt (angezeigte_liste, gesamt_anzahl) zurück.
+    limit=0 bedeutet: kein Limit (alle anzeigen).
+    """
+    total = len(candidates)
+    if limit > 0 and total > limit:
+        return candidates[:limit], total
+    return candidates, total
+
+
 def qso_by_id(candidates: list, qsoid: str):
     """Gibt den QsoCandidate mit der gegebenen qsoid zurück, oder None.
 

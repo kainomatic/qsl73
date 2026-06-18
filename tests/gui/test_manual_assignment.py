@@ -21,6 +21,7 @@ from qsl73.gui.manual_assignment import (
     render_pdf_pages,
     wrap_page_index,
 )
+from qsl73.gui.filter_util import apply_display_limit
 from qsl73.matching import CardFields, QsoCandidate
 
 
@@ -545,3 +546,50 @@ def test_dialog_image_loader_failure_no_crash():
     )
     assert dlg.result is None
     root.destroy()
+
+
+# ---------------------------------------------------------------------------
+# 3e. Reine Helfer — apply_display_limit
+# ---------------------------------------------------------------------------
+
+
+def _make_simple_cand(n: int) -> QsoCandidate:
+    return QsoCandidate(qsoid=f"Q{n:03}", callsign="DK1AA", date="2025-01-01", band="20m", mode="SSB")
+
+
+def test_apply_limit_restricts():
+    """Limit > 0 und total > limit: gibt abgeschnittene Liste zurück."""
+    cands = [_make_simple_cand(i) for i in range(10)]
+    shown, total = apply_display_limit(cands, limit=3)
+    assert total == 10
+    assert len(shown) == 3
+
+
+def test_apply_limit_zero_means_no_limit():
+    """Limit=0 = kein Limit — alle Kandidaten werden angezeigt."""
+    cands = [_make_simple_cand(i) for i in range(200)]
+    shown, total = apply_display_limit(cands, limit=0)
+    assert total == 200
+    assert len(shown) == 200
+
+
+def test_apply_limit_total_below_limit():
+    """total < limit → alle angezeigt, total wird korrekt zurückgegeben."""
+    cands = [_make_simple_cand(i) for i in range(5)]
+    shown, total = apply_display_limit(cands, limit=100)
+    assert total == 5
+    assert len(shown) == 5
+
+
+def test_apply_limit_exact_match():
+    """total == limit → alle angezeigt (kein Hinweis nötig)."""
+    cands = [_make_simple_cand(i) for i in range(10)]
+    shown, total = apply_display_limit(cands, limit=10)
+    assert total == 10
+    assert len(shown) == 10
+
+
+def test_apply_limit_empty_list():
+    shown, total = apply_display_limit([], limit=100)
+    assert shown == []
+    assert total == 0

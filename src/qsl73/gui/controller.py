@@ -31,6 +31,7 @@ class RunDoneEvent:
 @dataclass
 class WriteDoneEvent:
     result: WriteResult
+    confirmed_doc_ids: list
 
 
 @dataclass
@@ -104,7 +105,7 @@ class RunController:
                     confirmed_doc_ids=confirmed_doc_ids,
                     tags_config=tags_config,
                 )
-                self._queue.put(WriteDoneEvent(result))
+                self._queue.put(WriteDoneEvent(result, confirmed_doc_ids))
             except Exception as exc:
                 self._queue.put(ErrorEvent(exc, tb.format_exc()))
 
