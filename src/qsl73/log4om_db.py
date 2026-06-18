@@ -81,6 +81,7 @@ class DatabaseChangedError(Exception):
 class WriteResult:
     written: int
     skipped: list = field(default_factory=list)  # [{"qsoid": str, "reason": str}]
+    backup_path: Path | None = None              # Pfad zur Vor-Backup-Datei (None wenn kein Backup)
 
 
 # ---------------------------------------------------------------------------
@@ -527,8 +528,9 @@ def write_confirmations(
                 )
 
         # (3) Vor-Backup (nur bei tatsächlichem Schreiben, ADR-0003)
+        backup_path: Path | None = None
         if items:
-            create_backup(db_path, backup_dir, max_count=backup_count)
+            backup_path = create_backup(db_path, backup_dir, max_count=backup_count)
 
         # (4) Atomare Transaktion mit SQLITE_BUSY-Retry (ADR-0008)
         written = 0
@@ -554,6 +556,6 @@ def write_confirmations(
                 _safe_rollback(conn)
                 raise
 
-        return WriteResult(written=written, skipped=skipped)
+        return WriteResult(written=written, skipped=skipped, backup_path=backup_path)
     finally:
         conn.close()

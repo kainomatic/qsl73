@@ -1082,3 +1082,39 @@ def test_hash_unchanged_original_db_after_skip(tmp_path):
     # DB unverändert (alle schon bestätigt → skip → kein COMMIT)
     final_hash = hashlib.sha256(db_path.read_bytes()).hexdigest()
     assert baseline_hash == final_hash
+
+
+# ---------------------------------------------------------------------------
+# WriteResult.backup_path
+# ---------------------------------------------------------------------------
+
+
+def test_write_result_has_backup_path_field(tmp_path):
+    """WriteResult muss backup_path-Feld (Path | None) haben."""
+    r = WriteResult(written=1, skipped=[], backup_path=None)
+    assert r.backup_path is None
+    r2 = WriteResult(written=1, skipped=[], backup_path=tmp_path / "bk.sqlite")
+    assert r2.backup_path == tmp_path / "bk.sqlite"
+
+
+def test_write_confirmations_sets_backup_path(tmp_path):
+    """write_confirmations setzt backup_path im WriteResult wenn items nicht leer."""
+    db_path = _make_write_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    result = write_confirmations(db_path, [("QSO1", "bureau")], backup_dir)
+
+    assert result.backup_path is not None
+    assert isinstance(result.backup_path, Path)
+    assert result.backup_path.exists()
+    assert result.backup_path.parent == backup_dir
+
+
+def test_write_confirmations_backup_path_none_for_empty_items(tmp_path):
+    """write_confirmations liefert backup_path=None wenn keine items übergeben werden."""
+    db_path = _make_write_db(tmp_path)
+    backup_dir = tmp_path / "backups"
+
+    result = write_confirmations(db_path, [], backup_dir)
+
+    assert result.backup_path is None
