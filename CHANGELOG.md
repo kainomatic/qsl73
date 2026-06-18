@@ -9,6 +9,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Echter Fortschrittsbalken beim Durchlauf (Fixes #23):** Statt Endlos-Animation
+  zeigt der Balken jetzt echten Prozentfortschritt (X/N Karten) — Vorbereitungsphase
+  (HTTP-Abfrage) bleibt kurzzeitig indeterminat, beim ersten ProgressEvent mit total > 0
+  schaltet der Balken auf deterministischen Fortschritt um. Statuszeile zeigt „Karte X/N
+  ausgewertet — P %". Schreib-Animation unverändert. Neue Hilfsfunktion
+  `format_progress_text` (tk-frei, getestet, i18n-vorbereitet).
 - **Benutzerfreundliche Fehlermeldungen bei erwarteten Lauf-/Schreibfehlern (ADR-0039,
   Fixes #18):** `DatabaseChangedError` (Optimistic-Locking-Konflikt), `SchemaError`,
   `DatabaseBusyError`, `QslEntryNotFoundError` sowie Paperless-Verbindungsfehler zeigen

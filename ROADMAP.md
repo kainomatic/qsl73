@@ -302,6 +302,12 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   steuerung in `main_window.py` (`_continue_workflow`, `_run_workflow_phase`). ADR-0037.
 - 981 Tests grün (3 erwartete Skips), CI ausstehend.
 
+### ✅ UX — Echter Fortschrittsbalken (Issue #23)
+
+- Balken zeigt echten Prozentfortschritt (X/N, P %) statt Endlos-Animation; kurze
+  indeterminante Vorbereitungsphase beim HTTP-Laden, danach deterministisch.
+  `format_progress_text` (tk-frei, 7 Tests). 997 Tests grün.
+
 ### ✅ UX/Robustheit — Benutzerfreundliche Fehlermeldungen (ADR-0039, Issue #18)
 
 - `DatabaseChangedError` und verwandte erwartete Fehler zeigen jetzt Klartext statt

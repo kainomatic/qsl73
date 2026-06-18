@@ -28,6 +28,7 @@ from qsl73.gui.filter_util import (
     build_workflow_sequence,
     build_write_selections,
     filter_results,
+    format_progress_text,
     is_batch_writable,
     merge_selections,
     qso_by_id,
@@ -260,8 +261,14 @@ class MainWindow(tk.Tk):
     def _handle_event(self, event: object) -> None:
         if isinstance(event, ProgressEvent):
             if event.total > 0:
-                self._progress.configure(maximum=event.total, value=event.done)
-            self._status_var.set(event.message)
+                # Vorbereitungsphase endet: indeterminate → determinaten Balken
+                self._progress.stop()
+                self._progress.configure(
+                    mode="determinate",
+                    maximum=event.total,
+                    value=event.done,
+                )
+            self._status_var.set(format_progress_text(event.done, event.total, event.message))
         elif isinstance(event, RunDoneEvent):
             self._run_result = event.result
             self._refresh_tree()

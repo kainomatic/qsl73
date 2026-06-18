@@ -207,3 +207,20 @@ def merge_selections(
             merged_ids.append(doc_id)
 
     return merged_sel, merged_ids
+
+
+# ---------------------------------------------------------------------------
+# Fortschritts-Formatierung (tk-frei, testbar)
+# ---------------------------------------------------------------------------
+
+
+def format_progress_text(done: int, total: int, message: str) -> str:
+    """Ergänzt eine Fortschritts-Nachricht um den Prozent-Wert.
+
+    Gibt 'message — X %' zurück wenn total > 0, sonst unverändert 'message'.
+    Division durch 0 wird sicher vermieden.
+    """
+    if total <= 0:
+        return message
+    pct = done * 100 // total
+    return f"{message} — {pct} %"

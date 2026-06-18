@@ -1,10 +1,11 @@
 """Tests für filter_results(), merge_selections(), written_doc_ids(), qso_by_id(), sort_cards_written_last(), qso_display_values(),
-build_workflow_sequence(), workflow_card_context() — reine Funktionen."""
+build_workflow_sequence(), workflow_card_context(), format_progress_text() — reine Funktionen."""
 import pytest
 from qsl73.gui.filter_util import (
     FILTER_MODES,
     build_workflow_sequence,
     filter_results,
+    format_progress_text,
     merge_selections,
     qso_by_id,
     qso_display_values,
@@ -308,6 +309,36 @@ class TestWrittenDocIds:
         ids = written_doc_ids([10, 20], [("Q1","b"),("Q2","b")],
                               [{"qsoid": "Q_UNKNOWN"}])
         assert ids == {10, 20}
+
+
+class TestFormatProgressText:
+    def test_total_zero_returns_message_unchanged(self):
+        assert format_progress_text(0, 0, "Vorbereiten") == "Vorbereiten"
+
+    def test_total_negative_returns_message_unchanged(self):
+        assert format_progress_text(0, -1, "X") == "X"
+
+    def test_done_zero_gives_0_pct(self):
+        result = format_progress_text(0, 7, "Karte 0/7 ausgewertet")
+        assert "0 %" in result
+        assert "Karte 0/7 ausgewertet" in result
+
+    def test_half_gives_50_pct(self):
+        result = format_progress_text(3, 6, "Karte 3/6 ausgewertet")
+        assert "50 %" in result
+
+    def test_done_equals_total_gives_100_pct(self):
+        result = format_progress_text(7, 7, "Karte 7/7 ausgewertet")
+        assert "100 %" in result
+
+    def test_done_one_of_three_rounds_down(self):
+        result = format_progress_text(1, 3, "msg")
+        assert "33 %" in result
+
+    def test_message_preserved_in_output(self):
+        msg = "Karte 5/10 ausgewertet"
+        result = format_progress_text(5, 10, msg)
+        assert msg in result
 
     def test_empty_inputs(self):
         assert written_doc_ids([], [], []) == set()
