@@ -232,6 +232,13 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - `run.py`: `write_selected()` gibt `(WriteResult, list[str])` zurück; fehlender Tag →
   sichtbare Warnung in GUI-Dialog + Statuszeile statt stilles Verschlucken. ADR-0031.
 
+#### ✅ Schritt 6e — Bestätigte Karten serverseitig ausfiltern (ADR-0032)
+
+- `paperless.py`: `get_documents_by_tag` um `exclude_tag_name=None` ergänzt; bei gesetztem
+  Ausschluss-Tag wird `tags__id__none={id}` an die Paperless-Query angehängt.
+- `run.py`: `run_pass` übergibt `exclude_tag_name=config.tags.confirmed` → bereits bestätigte
+  Karten erscheinen im zweiten Durchlauf nicht mehr als „Kein Treffer". ADR-0032.
+
 ## 🔧 Schritt 7 — Logging & Fehler-Reporting — IN ARBEIT
 
 ### ✅ Schritt 7a — Diagnose-Logging + QR-Startwarnung (Issue #14)

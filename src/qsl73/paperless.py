@@ -110,13 +110,23 @@ class PaperlessClient:
 
     # ── Dokument-Abfragen ────────────────────────────────────────────────
 
-    def get_documents_by_tag(self, tag_name: str) -> list[dict]:
+    def get_documents_by_tag(
+        self,
+        tag_name: str,
+        exclude_tag_name: str | None = None,
+    ) -> list[dict]:
         """Gibt alle Dokumente mit dem angegebenen Tag zurück.
-        Paginierung wird vollständig aufgelöst (alle Seiten werden eingesammelt).
+
+        exclude_tag_name: Wenn gesetzt, werden Dokumente mit diesem Tag serverseitig
+        ausgeschlossen (tags__id__none). Existiert der Ausschluss-Tag nicht in Paperless,
+        wird kein Ausschluss angewendet. Paginierung vollständig aufgelöst.
         """
-        url: str | None = (
-            f"{self._base}/api/documents/?tags__name__iexact={tag_name}"
-        )
+        base_query = f"{self._base}/api/documents/?tags__name__iexact={tag_name}"
+        if exclude_tag_name is not None:
+            exclude_id = self.get_tag_id(exclude_tag_name)
+            if exclude_id is not None:
+                base_query += f"&tags__id__none={exclude_id}"
+        url: str | None = base_query
         results: list[dict] = []
         while url:
             data = self._get_json(url)

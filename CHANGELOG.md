@@ -7,6 +7,13 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Schritt 6e — Bestätigte Karten serverseitig ausfiltern (ADR-0032):**
+  `get_documents_by_tag` akzeptiert `exclude_tag_name`; `run_pass` übergibt
+  `config.tags.confirmed` als Ausschluss, damit bereits bestätigte Karten im
+  zweiten Durchlauf nicht mehr als „Kein Treffer" erscheinen.
+
 ### Fixed
 
 - **Manuell zugeordnete Karten behalten nach dem Schreiben ihre QSO-Werte:** Nach

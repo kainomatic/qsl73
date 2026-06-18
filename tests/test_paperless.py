@@ -188,6 +188,61 @@ class TestDocumentsByTag:
             client.get_documents_by_tag("qsl-card")
 
 
+class TestGetDocumentsByTagExclude:
+    """get_documents_by_tag(exclude_tag_name=...) — Tag-Ausschluss."""
+
+    @rsps.activate
+    def test_exclude_tag_appends_tags_id_none_param(self, client):
+        """Wenn exclude_tag_name gesetzt und Tag existiert: tags__id__none={id} in Query."""
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 7, "name": "qsl-bestätigt"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 1, "next": None, "results": [{"id": 42}]})
+        docs = client.get_documents_by_tag("qsl-card", exclude_tag_name="qsl-bestätigt")
+        assert len(docs) == 1
+        req_url = rsps.calls[1].request.url
+        assert "tags__name__iexact=qsl-card" in req_url
+        assert "tags__id__none=7" in req_url
+
+    @rsps.activate
+    def test_exclude_tag_not_found_loads_all_without_exclusion(self, client):
+        """Wenn exclude-Tag nicht in Paperless: kein Ausschluss, alle Dokumente laden."""
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 2, "next": None,
+                       "results": [{"id": 1}, {"id": 2}]})
+        docs = client.get_documents_by_tag("qsl-card", exclude_tag_name="nonexistent")
+        assert len(docs) == 2
+        req_url = rsps.calls[1].request.url
+        assert "tags__id__none" not in req_url
+
+    @rsps.activate
+    def test_exclude_tag_pagination_collects_all(self, client):
+        """Paginierung funktioniert auch mit Ausschluss-Parameter."""
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 5, "name": "qsl-bestätigt"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 2, "next": f"{BASE}/api/documents/?page=2",
+                       "results": [{"id": 1}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 2, "next": None, "results": [{"id": 2}]})
+        docs = client.get_documents_by_tag("qsl-card", exclude_tag_name="qsl-bestätigt")
+        assert len(docs) == 2
+        assert [d["id"] for d in docs] == [1, 2]
+
+    @rsps.activate
+    def test_without_exclude_behaves_as_before(self, client):
+        """Ohne exclude_tag_name: unverändertes Verhalten, kein Tag-Lookup."""
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 1, "next": None, "results": [{"id": 99}]})
+        docs = client.get_documents_by_tag("qsl-card")
+        assert len(docs) == 1
+        assert len(rsps.calls) == 1  # kein extra GET /api/tags/
+
+
 # ── OCR-Text ──────────────────────────────────────────────────────────────────
 
 

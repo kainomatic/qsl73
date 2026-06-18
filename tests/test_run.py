@@ -579,6 +579,25 @@ def test_run_pass_r_yes_excluded_from_candidates(tmp_path):
     assert len(result.no_match) == 1
 
 
+def test_run_pass_passes_exclude_tag_to_paperless(tmp_path):
+    """run_pass übergibt config.tags.confirmed als exclude_tag_name an get_documents_by_tag."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    conn.commit(); conn.close()
+
+    client = _make_paperless_mock([])
+    cfg = _make_config()
+
+    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
+        run_pass(client, db_path, cfg)
+
+    client.get_documents_by_tag.assert_called_once_with(
+        cfg.tags.input,
+        exclude_tag_name=cfg.tags.confirmed,
+    )
+
+
 # --- write_selected ---
 
 def _make_writable_db(tmp_path: Path, name: str = "write_test.sqlite") -> tuple[sqlite3.Connection, Path]:

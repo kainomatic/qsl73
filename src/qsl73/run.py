@@ -391,10 +391,17 @@ def run_pass(
         if on_progress:
             on_progress(done, total, msg)
 
-    # 1. Paperless-Dokumente mit qsl-card-Tag laden (paginiert)
+    # 1. Paperless-Dokumente mit qsl-card-Tag laden (paginiert).
+    #    Bereits bestätigte Karten (Bestätigt-Tag) werden serverseitig ausgeschlossen
+    #    damit sie im zweiten Durchlauf nicht erneut als „Kein Treffer" erscheinen (ADR-0032).
     tag_name = config.tags.input
-    docs = paperless_client.get_documents_by_tag(tag_name)
+    exclude_tag = config.tags.confirmed
+    docs = paperless_client.get_documents_by_tag(tag_name, exclude_tag_name=exclude_tag)
     total = len(docs)
+    _log.debug(
+        "Dokumente geladen — Tag '%s', Ausschluss '%s', Ergebnis: %d Dok.",
+        tag_name, exclude_tag, total,
+    )
     _progress(0, total, f"{total} Dokumente mit Tag '{tag_name}' geladen")
 
     # 2. DB-Kandidaten laden (rein lesend); Fingerabdruck und expected_states merken
