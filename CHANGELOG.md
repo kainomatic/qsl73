@@ -11,13 +11,16 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- **Über-Dialog-Höhe zuverlässig (Hotfix — v0.2.2-Fix war unvollständig):** Der v0.2.2-Fix
-  hat das `after(1, ...)`-Timing übernommen, aber die Höhenmessung war weiterhin fehlerhaft:
-  `dlg.minsize(340, 1)` erzwang eine Minimalhöhe von 1, und `dlg.winfo_reqheight()` lieferte
-  zum Messzeitpunkt diesen 1px-Wert zurück. Fix: Höhe wird nun aus dem inneren Frame
-  (`frame.winfo_reqheight()`) gemessen, ein Chrome-Aufschlag addiert und eine Mindesthöhe
-  erzwungen — analoges Muster wie `SetupWizard._adjust_window_size`. Neue tk-freie Hilfsfunktion
-  `_resolve_dialog_height` ausgelagert (testbar ohne Display; Regressionstest fängt 1px-Fall ab).
+- **Über-Dialog zuverlässig in korrekter Größe und zentriert (Hotfix):** Der Dialog öffnete
+  auf Win10 dauerhaft winzig und in der linken oberen Ecke — auch nach dem v0.2.2-Fix
+  (`after(1, ...)`-Timing). Ursache laut Laufzeit-Diagnose: fehlende Parent-Sichtbarkeitsprüfung
+  (`winfo_ismapped`) und kein Fallback auf Bildschirmmitte, zu kleiner Chrome-Aufschlag (40 px
+  statt 90 px) sowie Mindesthöhe 300 px statt 400 px. Fix: Über-Dialog vollständig dem bewährten
+  `SetupWizard._adjust_window_size`-Muster angeglichen — `update_idletasks()` vor `after(1, ...)`
+  zur Layout-Erzwingung, harte Mindestmaße (Breite 360 px / Höhe 400 px), Parent-Sichtbarkeits-
+  prüfung mit Bildschirmmitte-Fallback, `minsize(360, 400)`. Neue tk-freie Hilfsfunktion
+  `_resolve_dialog_width` ergänzt (analog zu `_resolve_dialog_height`); Regressionstests
+  decken 1px-Artefakt für Höhe und Breite ab; zusätzlicher tk-Test prüft reale Mindestmaße.
 
 ## [0.2.2] - 2026-06-19
 
