@@ -374,8 +374,10 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **GitHub-Actions-Release-Workflow:** `.github/workflows/release.yml`; windows-latest,
   Python 3.12; baut Stable bei Tag `vX.Y.Z`, Beta-Pre-Release bei Tag `vX.Y.Z-betaN`;
   Versions-Sync-Prüfung (Tag == `__version__.py`); AppVersion-Injektion per `/DAPP_VERSION`.
+- **README-Finalisierung:** ✅ Nutzer-Installationsweg, Funktionen/Bedienung, Daten &
+  Verzeichnisse, Beta-Hinweis — abgeschlossen; kein „in Entwicklung"-Status mehr.
 - **Erstes echtes Release (v0.1.0):** AUSSTEHEND — durch DF1DS auszulösen (Anleitung unten);
-  README-Finalisierung und vollständiger Realtest vor dem Release durch DF1DS.
+  vollständiger Realtest vor dem Release durch DF1DS.
 - **Review:** Workflow-Logik + Beta-Installer von Desktop zu reviewen; dann echtes Release.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen

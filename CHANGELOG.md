@@ -7,6 +7,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **README für Endnutzer überarbeitet:** Nutzer-Installationsweg (QSL73-Setup.exe von
+  der Releases-Seite) jetzt prominent vor der Entwickler-Installation; Beta-Variante
+  erklärt; neuer Abschnitt „Funktionen / Bedienung" beschreibt Setup-Assistent,
+  Durchlauf, sichere/manuelle Zuordnung, Durcharbeiten-Workflow, Backup/Audit-Log und
+  Menüstruktur; Abschnitt „Daten & Verzeichnisse" hinzugefügt; „Status: in Entwicklung"
+  entfernt; keine hartkodierte Versionsnummer (Verweis auf Releases-Seite).
+
 ### Added
 
 - **Versionierungs-Richtlinie (ADR-0043):** Verbindliche SemVer-Regel für QSL73: MAJOR
