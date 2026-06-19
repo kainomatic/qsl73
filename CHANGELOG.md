@@ -7,6 +7,16 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **SmartScreen-Hinweis in README (ADR-0044):** Knapper, sachlicher Hinweis im
+  Nutzer-Installationsteil erklärt, dass Windows beim nicht-signierten Installer eine
+  „Unbekannter Herausgeber"-Warnung zeigt, und beschreibt den Weg durch: „Weitere
+  Informationen" → „Trotzdem ausführen". Gilt für Stable und Beta.
+- **ADR-0044:** Entscheidung gegen Code-Signing-Zertifikat festgehalten — unverhältnismäßige
+  Kosten für ein GPLv3-Hobbyprojekt; Zielgruppe technikaffin; Quellcode öffentlich einsehbar.
+  Neubewertung möglich falls Projekt wächst.
+
 ### Changed
 
 - **README für Endnutzer überarbeitet:** Nutzer-Installationsweg (QSL73-Setup.exe von

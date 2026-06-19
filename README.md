@@ -45,6 +45,12 @@ Nutzerdaten: `%APPDATA%\QSL73\`
 installierbar und verwenden getrennte Installationspfade und Nutzerdaten-Verzeichnisse
 (`%APPDATA%\QSL73-Beta\`).
 
+**Hinweis zur SmartScreen-Warnung:** Windows zeigt beim Ausführen des Installers eine
+Meldung „Der Computer wurde durch Windows geschützt — Unbekannter Herausgeber". Das ist
+bei nicht-signierten Open-Source-Projekten normal und kein Hinweis auf Schadsoftware —
+der Quellcode ist auf GitHub öffentlich einsehbar. Zum Fortfahren: **„Weitere
+Informationen"** anklicken, dann **„Trotzdem ausführen"**. Dies gilt für Stable und Beta.
+
 ## Funktionen / Bedienung
 
 ### Erster Start — Setup-Assistent

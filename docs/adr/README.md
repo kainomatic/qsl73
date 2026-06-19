@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0044.
+Nächste freie Nummer: ADR-0045.
 
 ## Index
 
@@ -33,6 +33,7 @@ Nächste freie Nummer: ADR-0044.
 | ADR-0041 | Inno-Setup-Installer für QSL73 (Stable) |
 | ADR-0042 | Release-Automatisierung via GitHub Actions + Beta-Installer-Variante |
 | ADR-0043 | Versionierung nach Semantic Versioning (MAJOR.MINOR.PATCH) |
+| ADR-0044 | Kein Code-Signing — SmartScreen-Warnung dokumentiert statt Zertifikat |
 
 ## Abgrenzung
 
