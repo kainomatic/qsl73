@@ -118,7 +118,15 @@ jobs:
         run: pyinstaller qsl73.spec
 
       # ------------------------------------------------------------------
-      # 9. Inno Setup installieren
+      # 9a. HTML-Infodateien erzeugen (vor ISCC — werden ins Installationspaket eingebettet)
+      # ------------------------------------------------------------------
+      - name: HTML-Infodateien erzeugen (LIESMICH.html + AENDERUNGEN.html)
+        run: |
+          pip install "markdown>=3.0"
+          python tools/make_docs_html.py
+
+      # ------------------------------------------------------------------
+      # 9b. Inno Setup installieren
       # ------------------------------------------------------------------
       - name: Inno Setup installieren
         run: choco install innosetup --no-progress -y

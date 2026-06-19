@@ -368,6 +368,18 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - `installer\Output\` in `.gitignore`; `docs/BUILD.md` um Installer-Abschnitt ergänzt.
 - ADR-0041 angelegt. Finaler Wizard-Test (Sprache, Lizenz, MsgBox) durch DF1DS ausstehend.
 
+### ✅ Schritt 9d — Liesmich/Änderungen im Installer — ABGESCHLOSSEN
+
+- `tools/make_docs_html.py`: konvertiert `README.md` und `CHANGELOG.md` in offline-fähige,
+  UTF-8-korrekte HTML-Dateien (`installer/docs/LIESMICH.html`, `AENDERUNGEN.html`).
+  Abhängigkeit `markdown>=3.0` nur Build-Zeit (`requirements-dev.txt`).
+- Beide `.iss`-Dateien (Stable + Beta) um [Files]-, [Icons]- und [Run]-Einträge ergänzt:
+  HTML nach `{app}` kopieren, Startmenü-Verknüpfungen anlegen, am Setup-Abschluss
+  optionale Checkboxen (default nicht angehakt, shellexec → Standardbrowser).
+- `tools/build_installer.ps1` und `.github/workflows/release.yml` führen HTML-Erzeugung
+  automatisch vor ISCC aus. `installer/docs/` in `.gitignore`.
+- `docs/BUILD.md` um HTML-Infodateien-Abschnitt ergänzt (Abhängigkeit, Reihenfolge).
+
 ### ✅ Schritt 9c — Release-Automatisierung + Beta-Variante — ABGESCHLOSSEN (Release ausstehend)
 
 - **Beta-Installer-Variante (ADR-0042):** `installer/qsl73-beta.iss` mit eigener AppId-GUID

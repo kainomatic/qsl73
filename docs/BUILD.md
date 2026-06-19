@@ -123,6 +123,47 @@ committet. Das fertige Bundle wird als GitHub-Release bereitgestellt (Schritt 9b
 
 ---
 
+## HTML-Infodateien erzeugen
+
+Vor jedem Installer-Build müssen zwei HTML-Dateien aus `README.md` und `CHANGELOG.md`
+erzeugt werden. Sie werden vom Installer nach `{app}` kopiert und im Startmenü verlinkt.
+
+```
+python tools/make_docs_html.py
+```
+
+| Eingabe | Ausgabe |
+|---------|---------|
+| `README.md` | `installer/docs/LIESMICH.html` |
+| `CHANGELOG.md` | `installer/docs/AENDERUNGEN.html` |
+
+Die HTML-Dateien sind Build-Artefakte und **nicht** im Repo eingecheckt
+(`.gitignore`-Eintrag `installer/docs/`). Das Skript `tools/make_docs_html.py` ist versioniert.
+
+### Abhängigkeit (nur Build-Zeit)
+
+```
+pip install markdown        # einmalig, oder: pip install -r requirements-dev.txt
+```
+
+`markdown` ist eine reine Build-Zeit-Abhängigkeit — nicht in `requirements.txt` der App,
+nicht im PyInstaller-Bundle.
+
+### Build-Reihenfolge (lokal und CI)
+
+```
+1. python tools/make_icon.py        # Windows-Icon erzeugen
+2. pyinstaller qsl73.spec           # App-Bundle bauen
+3. python tools/make_docs_html.py   # HTML-Infodateien erzeugen  ← VOR ISCC!
+4. ISCC.exe installer\qsl73.iss     # Installer bauen
+```
+
+`tools/build_installer.ps1` (lokales Hilfsskript) und `.github/workflows/release.yml`
+(Release-Workflow) führen Schritt 3 automatisch vor ISCC aus. Bei direktem ISCC-Aufruf
+muss Schritt 3 manuell ausgeführt werden, sonst fehlen die HTML-Dateien im Installationspaket.
+
+---
+
 ## Installer bauen (Inno Setup)
 
 ### Voraussetzungen
@@ -223,9 +264,10 @@ git push origin v0.1.0-beta1
 3. Icon erzeugen (`tools/make_icon.py`)
 4. Bei Beta-Tag: `CHANNEL` in `__version__.py` auf `"beta"` patchen (nur im CI-Lauf)
 5. PyInstaller-Bundle bauen
-6. Inno Setup installieren (Chocolatey)
-7. ISCC mit `/DAPP_VERSION=x.y.z` für Stable oder Beta-Variante aufrufen
-8. GitHub-Release erstellen und Setup-Datei als Asset anhängen
+6. **HTML-Infodateien erzeugen** (`tools/make_docs_html.py` → `installer/docs/`)
+7. Inno Setup installieren (Chocolatey)
+8. ISCC mit `/DAPP_VERSION=x.y.z` für Stable oder Beta-Variante aufrufen
+9. GitHub-Release erstellen und Setup-Datei als Asset anhängen
 
 ### Versionsnummer anheben (vor jedem Release)
 

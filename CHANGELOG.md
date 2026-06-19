@@ -9,6 +9,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Installer zeigt Liesmich und Änderungshistorie:** `README.md` und `CHANGELOG.md`
+  werden beim Build automatisch in offline-fähige HTML-Dateien (`LIESMICH.html`,
+  `AENDERUNGEN.html`) konvertiert (`tools/make_docs_html.py`, Build-Abhängigkeit `markdown`
+  in `requirements-dev.txt`). Beide Dateien werden mit dem Installer nach `{app}` kopiert
+  und im Startmenü als „QSL73 – Liesmich" und „QSL73 – Änderungen" verlinkt. Am
+  Setup-Abschluss-Bildschirm stehen zwei optionale, standardmäßig **nicht** angehakte
+  Checkboxen „Liesmich anzeigen" / „Änderungen anzeigen" (öffnen die HTML im Standard-
+  browser via `shellexec`). Gilt für Stable- und Beta-Installer.
+
 - **Beta-Start-Hinweis-Dialog (ADR-0021):** Beim Start mit `CHANNEL="beta"` erscheint
   ein modaler, tonloser Hinweis-Dialog (eigenes Toplevel, kein Systemton) mit Vorabversions-
   Warnung, Empfehlung zur Log4OM-DB-Kopie, Verweis auf „Hilfe → Fehler melden" und

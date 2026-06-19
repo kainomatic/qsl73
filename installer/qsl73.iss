@@ -1,4 +1,4 @@
-﻿; QSL73 Inno-Setup-Skript (Stable-Variante) -- Copyright (C) 2026 DF1DS
+; QSL73 Inno-Setup-Skript (Stable-Variante) -- Copyright (C) 2026 DF1DS
 ; AppId-GUID: {4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B} -- NIEMALS ÄNDERN (Update/Deinstall)
 ; Beta-Variante: installer/qsl73-beta.iss (eigene GUID, parallel installierbar)
 
@@ -40,15 +40,22 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\dist\QSL73\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\QSL73\*";       DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; HTML-Infodateien (erzeugt vor dem ISCC-Lauf durch tools/make_docs_html.py)
+Source: "docs\LIESMICH.html";    DestDir: "{app}"; Flags: ignoreversion
+Source: "docs\AENDERUNGEN.html"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\QSL73"; Filename: "{app}\QSL73.exe"; IconFilename: "{app}\QSL73.exe"
-Name: "{commondesktop}\QSL73"; Filename: "{app}\QSL73.exe"; Tasks: desktopicon; IconFilename: "{app}\QSL73.exe"
+Name: "{group}\QSL73";                Filename: "{app}\QSL73.exe"; IconFilename: "{app}\QSL73.exe"
+Name: "{group}\QSL73 – Liesmich";    Filename: "{app}\LIESMICH.html"
+Name: "{group}\QSL73 – Änderungen";  Filename: "{app}\AENDERUNGEN.html"
+Name: "{commondesktop}\QSL73";        Filename: "{app}\QSL73.exe"; Tasks: desktopicon; IconFilename: "{app}\QSL73.exe"
 Name: "{group}\QSL73 deinstallieren"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\QSL73.exe"; Description: "{cm:LaunchProgram,QSL73}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\QSL73.exe";           Description: "{cm:LaunchProgram,QSL73}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\LIESMICH.html";       Description: "Liesmich anzeigen";    Flags: postinstall unchecked skipifsilent shellexec
+Filename: "{app}\AENDERUNGEN.html";    Description: "Änderungen anzeigen";  Flags: postinstall unchecked skipifsilent shellexec
 
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

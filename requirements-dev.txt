@@ -1,4 +1,5 @@
 -r requirements.txt
+markdown>=3.0   # HTML-Erzeugung aus README/CHANGELOG (tools/make_docs_html.py, build-only)
 pytest>=7.4
 pytest-timeout>=0.5  # Default-Timeout pro Test (60 s in pyproject.toml); verhindert dass ein hängender Test die Suite killt
 responses>=0.25
