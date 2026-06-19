@@ -7,6 +7,8 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-19
+
 ### Added
 
 - **Self-Update (Schritt 8, ADR-0045):** QSL73 prüft beim Start automatisch auf neue

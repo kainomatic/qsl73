@@ -407,6 +407,9 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Erstes echtes Release (v0.1.0):** AUSSTEHEND — durch DF1DS auszulösen (Anleitung unten);
   vollständiger Realtest vor dem Release durch DF1DS.
 - **Review:** Workflow-Logik + Beta-Installer von Desktop zu reviewen; dann echtes Release.
+- **Release v0.2.0 vorbereitet (2026-06-19):** `__version__ = "0.2.0"`, CHANGELOG
+  `[Unreleased]` → `[0.2.0] - 2026-06-19` umbenannt, neuer leerer `[Unreleased]`-Block
+  angelegt. Tag + dev→main-Merge durch DF1DS auszulösen.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
