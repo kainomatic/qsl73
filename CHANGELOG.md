@@ -7,6 +7,8 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-19
+
 ### Changed
 
 - **Installer-Dateiname versioniert (ab v0.2.1):** Installer-Assets enthalten jetzt die

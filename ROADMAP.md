@@ -416,6 +416,9 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   in allen drei Extraktionsmustern; `\s*\r?\n` → `[^\r\n]*\r?\n` in `[Unreleased]`-Mustern.
   Ursache des leeren GitHub-Release-Notes-Texts bei v0.2.0. Unit-Tests in
   `tests/test_changelog_extraction.py`.
+- **v0.2.1 Stable-Release vorbereitet (CHANGELOG eingefroren, 2026-06-19):**
+  `__version__ = "0.2.1"`, CHANGELOG `[Unreleased]` → `[0.2.1] - 2026-06-19` eingefroren,
+  neuer leerer `[Unreleased]`-Block angelegt. dev→main-Merge + Tag `v0.2.1` durch DF1DS.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
