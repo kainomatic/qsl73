@@ -419,6 +419,9 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **v0.2.1 Stable-Release vorbereitet (CHANGELOG eingefroren, 2026-06-19):**
   `__version__ = "0.2.1"`, CHANGELOG `[Unreleased]` → `[0.2.1] - 2026-06-19` eingefroren,
   neuer leerer `[Unreleased]`-Block angelegt. dev→main-Merge + Tag `v0.2.1` durch DF1DS.
+- **Hotfix v0.2.2 vorbereitet (2026-06-19, ADR-0048):** Bugfix Über-Dialog-Größe/Position
+  (`_on_about` via `after(1,...)`). Branch `hotfix/v0.2.2-about-dialog` von `main` (v0.2.1).
+  Release durch DF1DS (Hotfix → main mergen, Tag `v0.2.2` pushen, danach Hotfix → dev mergen).
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
