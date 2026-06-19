@@ -52,6 +52,8 @@ a = Analysis(
         + zxing_datas
         + pywin32_datas
         # Alle qsl73-Paketdateien (alle .py, kein separates TSV/CSV nötig)
+        # Icon-PNG für Runtime-Fenstericon + Über-Dialog (laufzeitsicher via sys._MEIPASS)
+        + [('src/qsl73/assets/qsl73_icon.png', '.')]
     ),
     hiddenimports=(
         tkcalendar_hiddenimports

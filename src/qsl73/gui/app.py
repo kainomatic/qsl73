@@ -102,6 +102,8 @@ def run_app() -> None:
             # Config fehlt → Wizard
             root = tk.Tk()
             root.withdraw()
+            from qsl73.gui._icon import apply_window_icon
+            apply_window_icon(root)
             wizard = SetupWizard(root)
             config = wizard.result
             root.destroy()

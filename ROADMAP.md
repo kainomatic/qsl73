@@ -338,7 +338,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 
 ## Schritt 9 — Build, Test, erstes Release
 
-### ✅ Schritt 9a — PyInstaller-Build + Icon — ABGESCHLOSSEN
+### ✅ Schritt 9a — PyInstaller-Build + Icon + Icon-Politur (Post-Release) — ABGESCHLOSSEN
 
 - **PyInstaller-Build (ADR-0040):** onedir-Bundle (`dist\QSL73\QSL73.exe`);
   alle Abhängigkeiten korrekt gebündelt:
@@ -352,6 +352,10 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Verifikation auf Windows Server 2025:** Start, QR-Decoding, DPAPI, Datepicker — grün.
   Issue #6 (pywin32-Bundle) und Issue #16 (Python 3.12 + zxingcpp) verifiziert.
 - **Build-Doku:** `docs/BUILD.md` + `tools/build.ps1`.
+- **Icon-Politur (Post-v0.1.0):** Icon-Transparenz (Flood-Fill-Hintergrundentfernung in
+  `make_icon.py`); tk-Feder → QSL73-Icon in allen Fenstern (`gui/_icon.py`); Logo im
+  Über-Dialog transparenter + 112 px groß; laufzeitsichere Bundle-Ressource in
+  `src/qsl73/assets/qsl73_icon.png` (datas in qsl73.spec). Release: v0.1.1.
 - **Finaler Realtest durch DF1DS** auf frischem System: ausstehend.
 
 ### ✅ Schritt 9b — Inno-Setup-Installer (Stable) — ABGESCHLOSSEN

@@ -7,6 +7,30 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Icon-Transparenz (tools/make_icon.py, assets/qsl73.ico):** `qsl73logo.png` hat einen
+  weißen statt transparenten Hintergrund. `make_icon.py` entfernt den Hintergrund jetzt
+  per Flood-Fill von den Ecken (Threshold 235, konservativ — Motivanteile bleiben erhalten)
+  bevor das ICO gespeichert wird. Das erzeugte `assets/qsl73.ico` hat damit transparente
+  Hintergrundbereiche in allen Größen (16/32/48/256 px) — kein weißer Kasten mehr im
+  Installer-/Desktop-Icon.
+- **tk-Feder durch QSL73-Icon ersetzt:** Alle Programmfenster (MainWindow, SetupWizard,
+  Fehlerdialog u. a.) zeigen jetzt das QSL73-Logo statt der Standard-tk-Feder in
+  Titelleiste und Taskleiste. Gelöst über `iconphoto(True, photo)` auf dem jeweiligen
+  tk.Tk-Root-Fenster — propagiert automatisch auf alle Kind-Toplevels (Tk 8.6+). Neues
+  Modul `gui/_icon.py` (`apply_window_icon`). Transparente 256-px-PNG-Ressource wird
+  laufzeitsicher aus dem PyInstaller-Bundle gefunden (datas `qsl73_icon.png` → `_MEIPASS`).
+  Icon-Laden ist try/except-geschützt — Start wird bei Fehler nie blockiert.
+
+### Changed
+
+- **Logo im Über-Dialog größer und ohne weißen Rand:** Das transparente QSL73-Logo wird
+  jetzt oben im Dialog in 112 × 112 Pixeln angezeigt (`gui/_icon.py: load_about_logo`).
+  Bildreferenz am Label-Widget gehalten (GC-Schutz). Laufzeitsichere Pfadauflösung wie
+  beim Fenster-Icon. Dialog kann dafür etwas größer werden; Layout bleibt sauber
+  (Logo → Titel/Version → Rest).
+
 ### Added
 
 - **Beta-Start-Hinweis-Dialog (ADR-0021):** Beim Start mit `CHANNEL="beta"` erscheint

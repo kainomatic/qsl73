@@ -228,9 +228,11 @@ def show_config_error_dialog(
     Funktioniert vor Existenz eines MainWindow — verwendet eigenes tk.Tk()-Root.
     """
     import tkinter as tk
+    from qsl73.gui._icon import apply_window_icon
 
     root = tk.Tk()
     root.withdraw()
+    apply_window_icon(root)
 
     dialog = _ConfigErrorDialog(root, error_msg, config_path, backup_dir, crypto)
 

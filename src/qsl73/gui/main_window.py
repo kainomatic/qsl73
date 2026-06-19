@@ -129,6 +129,9 @@ class MainWindow(tk.Tk):
         self.title(title)
         self.minsize(750, 450)
 
+        from qsl73.gui._icon import apply_window_icon
+        apply_window_icon(self)
+
         self._build_ui()
         self._poll()
 
@@ -878,6 +881,14 @@ class MainWindow(tk.Tk):
 
         frame = ttk.Frame(dlg, padding=24)
         frame.pack(fill="both", expand=True)
+
+        # Logo oben (transparent, 112 px)
+        from qsl73.gui._icon import load_about_logo
+        logo_photo = load_about_logo(size=112)
+        if logo_photo is not None:
+            logo_lbl = tk.Label(frame, image=logo_photo, bg=frame.cget("background"))
+            logo_lbl.image = logo_photo  # GC-Schutz
+            logo_lbl.pack(pady=(0, 10))
 
         # App-Titel und Version (klar als Überschrift)
         ttk.Label(
