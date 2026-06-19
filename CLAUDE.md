@@ -166,6 +166,21 @@ setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
 - `CHANGELOG.md` bei jedem Release pflegen
 - Eingebaute Version = Git-Tag = GitHub-Release — alle drei immer konsistent halten
 
+### Versionsregel (ADR-0043)
+
+| Stelle | Wann erhöhen |
+|--------|-------------|
+| **MAJOR** | Inkompatible Änderung — Config-Schema-Bruch (alte `config.yaml` lädt nicht), Schreibformat-Inkompatibilität in Log4OM-DB, Entfernen zentraler Felder/Funktionen. |
+| **MINOR** | Neue Funktion, abwärtskompatibel — bestehende Config und DB-Daten laufen unverändert weiter. |
+| **PATCH** | Bugfix oder kleine Verbesserung — kein neues Verhalten, keine Schema-/Format-Änderung. |
+
+**Faustregel:** Im Zweifel MINOR für Features, PATCH für Fixes. MAJOR nur bei echter
+Inkompatibilität. Solange MAJOR=0 (aktuell), können Breaking Changes auch in MINOR
+vorkommen (Pre-1.0-Ausnahme; ab 1.0.0 gilt SemVer strikt).
+
+**Bei jedem Release:** (1) `__version__` setzen, (2) `[Unreleased]` in `[X.Y.Z] — DATUM`
+umbenennen, (3) committen, Tag pushen → Release-Workflow (ADR-0042) prüft Konsistenz.
+
 ---
 
 ## Testen

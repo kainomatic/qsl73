@@ -9,6 +9,11 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Versionierungs-Richtlinie (ADR-0043):** Verbindliche SemVer-Regel für QSL73: MAJOR
+  bei Config-Schema-Bruch oder Log4OM-Schreibformat-Inkompatibilität; MINOR für neue
+  Funktionen; PATCH für Bugfixes. Pre-1.0-Ausnahme (Breaking Changes in MINOR solange
+  MAJOR=0) und Übergang zu 1.0.0 dokumentiert. Versionsregel-Abschnitt in CLAUDE.md
+  ergänzt (nachschlagbar bei jedem Release).
 - **Beta-Installer-Variante (ADR-0042):** `installer/qsl73-beta.iss` — separate Inno-Setup-
   Konfiguration für die Beta-Variante; eigene AppId-GUID `{A3F5C8D2-7E4B-4A91-B5C6-2D8E9F3A1B07}`;
   Installationspfad `C:\Program Files\QSL73 Beta`; Nutzerdaten in `%APPDATA%\QSL73-Beta\`;
