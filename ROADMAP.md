@@ -481,6 +481,18 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Pre-Release `v0.3.0-beta2` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und gefüllten
   Release-Notes (aus [Unreleased]) veröffentlicht. `v0.2.2` bleibt weiterhin Stable/Latest.
 
+### Beta-Release v0.3.0-beta3 (Logo-robuster Über-Dialog-Fix — Win10-Verifikation ausstehend)
+
+- Enthält verbesserten Über-Dialog-Fix: `_ABOUT_MIN_H=520`, `_ABOUT_MIN_W=360`,
+  `_resolve_dialog_width`, `update_idletasks`, `ismapped`-Fallback (vollständiges
+  SetupWizard-Muster). Rück-Merge `hotfix/v0.2.3-about-dialog-height` → `dev` war
+  konfliktfrei (auto-aufgelöst); Tooltips bleiben vollständig erhalten.
+- Tag `v0.3.0-beta3` gepusht → GitHub Actions Workflow grün (2m4s) →
+  Pre-Release `v0.3.0-beta3` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und gefüllten
+  Release-Notes (aus [Unreleased]) veröffentlicht. `v0.2.2` bleibt weiterhin Stable/Latest.
+- **Win10-Verifikation durch DF1DS ausstehend:** Über-Dialog öffnet mit Logo vollständig
+  sichtbar und mittig über dem Hauptfenster?
+
 ### ✅ Tooltips (Issue #15) — geplant für v0.3.0
 
 - Flächendeckende Hover-Tooltips über alle Fenster (Haupt, Setup, manuelle Zuordnung,
