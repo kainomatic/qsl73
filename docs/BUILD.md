@@ -157,3 +157,99 @@ Nach der Installation: `C:\Program Files\QSL73\QSL73.exe` starten.
 - AppId-GUID (`{4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B}`) **NIEMALS** ändern — sonst erkennt
   Windows den Installer nicht als Update zum bestehenden Eintrag in „Apps & Features"
 - UAC-Elevation: Der Installer benötigt Admin-Rechte (`PrivilegesRequired=admin`)
+
+### Beta-Installer lokal bauen
+
+```
+ISCC.exe /DAPP_VERSION=0.1.0 installer\qsl73-beta.iss
+```
+
+Ergebnis: `installer\Output\QSL73-Beta-Setup.exe`
+
+Wichtig: Beta-Bundle benötigt `CHANNEL="beta"` in `__version__.py`. Für lokale Tests
+vor dem Bau einmalig anpassen (Datei danach zurücksetzen — nicht committen):
+
+```
+# In src\qsl73\__version__.py:
+# CHANNEL = "beta"   ← temporär für Beta-Bundle-Test
+```
+
+---
+
+## Release-Prozess (automatisiert via GitHub Actions)
+
+Releases werden durch Push eines Versions-Tags ausgelöst. Der Workflow
+`.github/workflows/release.yml` baut dann automatisch auf `windows-latest`.
+
+### Tag-Konventionen
+
+| Tag-Muster | Beispiel | Release-Typ |
+|------------|----------|-------------|
+| `vX.Y.Z` | `v0.1.0` | Stable — normales GitHub-Release |
+| `vX.Y.Z-betaN` | `v0.1.0-beta1` | Beta — GitHub-Pre-Release |
+
+### Voraussetzungen für ein Release
+
+1. `src/qsl73/__version__.py` enthält die Ziel-Version (z. B. `__version__ = "0.1.0"`)
+2. `CHANGELOG.md` unter `## [Unreleased]` beschreibt die Änderungen
+3. Alle Tests grün (lokal + CI)
+4. Auf `dev` committen und pushen
+
+### Stabiles Release auslösen (Beispiel v0.1.0)
+
+```
+# 1. dev → main mergen
+git checkout main
+git merge dev
+git push origin main
+
+# 2. Tag setzen und pushen → Workflow startet automatisch
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+### Beta-Release auslösen (Beispiel v0.1.0-beta1)
+
+```
+# Direkt von dev (kein main-Merge nötig)
+git tag v0.1.0-beta1
+git push origin v0.1.0-beta1
+```
+
+### Was der Workflow tut
+
+1. Versions-Sync prüfen: Tag-Nummer muss mit `__version__.py` übereinstimmen
+2. Python 3.12 + Abhängigkeiten installieren
+3. Icon erzeugen (`tools/make_icon.py`)
+4. Bei Beta-Tag: `CHANNEL` in `__version__.py` auf `"beta"` patchen (nur im CI-Lauf)
+5. PyInstaller-Bundle bauen
+6. Inno Setup installieren (Chocolatey)
+7. ISCC mit `/DAPP_VERSION=x.y.z` für Stable oder Beta-Variante aufrufen
+8. GitHub-Release erstellen und Setup-Datei als Asset anhängen
+
+### Versionsnummer anheben (vor jedem Release)
+
+Einzige Quelle der Wahrheit: `src/qsl73/__version__.py`
+
+```python
+__version__ = "0.2.0"   # ← hier ändern
+CHANNEL = "stable"       # unverändert lassen
+```
+
+Weg zu v1.0.0: Minor-Versionen (0.2.0, 0.3.0 …) bis zur Praxisbewährung;
+v1.0.0 nach stabiler Feldnutzung durch DF1DS.
+
+### Versions-Sync-Fehler beheben
+
+Wenn der Workflow mit „Versions-Mismatch" abbricht:
+
+```
+# Falsches Tag löschen und neu setzen:
+git tag -d v0.2.0
+git push origin :refs/tags/v0.2.0
+
+# __version__.py korrigieren, committen, pushen
+# Dann Tag neu setzen:
+git tag v0.2.0
+git push origin v0.2.0
+```

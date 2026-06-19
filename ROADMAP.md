@@ -364,20 +364,31 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - `installer\Output\` in `.gitignore`; `docs/BUILD.md` um Installer-Abschnitt ergänzt.
 - ADR-0041 angelegt. Finaler Wizard-Test (Sprache, Lizenz, MsgBox) durch DF1DS ausstehend.
 
-### Schritt 9c — Erstes Release
+### ✅ Schritt 9c — Release-Automatisierung + Beta-Variante — ABGESCHLOSSEN (Release ausstehend)
 
-- PyInstaller-Build (64-Bit), Inno-Setup-Paket, Test auf Win10/11. Versionspflege +
-  CHANGELOG, Tag `v0.x.0`, GitHub-Release.
-- **README finalisieren:** Feature-Doku für neue Features (Menüleiste, Einstellungen-Dialog,
-  Durcharbeiten-Workflow, Audit-Log, „Fehler melden") wird hier ergänzt — bewusst erst
-  im Release-Schritt.
-- **Python 3.12** als Referenzversion für Build und Bundle (ADR-0024; Issue #16).
-- **Beta-Kanal:** zweiter Installer (`QSL73-Beta-Setup.exe`) mit eigenem Installationspfad
-  (`C:\Program Files\QSL73 Beta`), eigenem APPDATA-Verzeichnis (`%APPDATA%\QSL73-Beta\`),
-  BETA-Kennzeichnung in Fenstertitel und „Über"-Dialog, DB-Pfad-Hinweis im Setup-Assistent
-  (→ ADR-0021; Packaging-Grundlage Issue #6 unberührt).
-- **Review:** Lauf Ende-zu-Ende (Vorschau → „Jetzt schreiben") auf echtem System;
-  Release konsistent.
+- **Beta-Installer-Variante (ADR-0042):** `installer/qsl73-beta.iss` mit eigener AppId-GUID
+  `{A3F5C8D2-7E4B-4A91-B5C6-2D8E9F3A1B07}`, Pfad `C:\Program Files\QSL73 Beta`,
+  APPDATA `%APPDATA%\QSL73-Beta\` — Stable und Beta parallel installierbar (ADR-0021).
+- **CHANNEL-Schalter:** Der Release-Workflow patcht `CHANNEL = "stable"` → `"beta"` in
+  `__version__.py` ephemer (nur im CI-Lauf) vor dem PyInstaller-Bundle-Bau; kein Commit.
+- **GitHub-Actions-Release-Workflow:** `.github/workflows/release.yml`; windows-latest,
+  Python 3.12; baut Stable bei Tag `vX.Y.Z`, Beta-Pre-Release bei Tag `vX.Y.Z-betaN`;
+  Versions-Sync-Prüfung (Tag == `__version__.py`); AppVersion-Injektion per `/DAPP_VERSION`.
+- **Erstes echtes Release (v0.1.0):** AUSSTEHEND — durch DF1DS auszulösen (Anleitung unten);
+  README-Finalisierung und vollständiger Realtest vor dem Release durch DF1DS.
+- **Review:** Workflow-Logik + Beta-Installer von Desktop zu reviewen; dann echtes Release.
+
+#### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
+
+1. Sicherstellen, dass `src/qsl73/__version__.py` `__version__ = "0.1.0"` enthält.
+2. `dev` auf den aktuellen Stand bringen (`git pull`), Schritt abschließen.
+3. `dev` in `main` mergen: `git checkout main && git merge dev && git push origin main`
+4. Tag setzen und pushen: `git tag v0.1.0 && git push origin v0.1.0`
+5. GitHub Actions startet automatisch `.github/workflows/release.yml`.
+6. Nach erfolgreichem Lauf: `QSL73-Setup.exe` ist unter
+   https://github.com/DF1DS/qsl73/releases als Asset verfügbar.
+7. README-Feature-Doku (Menüleiste, Einstellungen, Durcharbeiten-Workflow, Audit-Log)
+   als eigener Commit vor dem Release-Merge hinzufügen.
 
 ---
 

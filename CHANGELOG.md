@@ -7,6 +7,22 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Beta-Installer-Variante (ADR-0042):** `installer/qsl73-beta.iss` — separate Inno-Setup-
+  Konfiguration für die Beta-Variante; eigene AppId-GUID `{A3F5C8D2-7E4B-4A91-B5C6-2D8E9F3A1B07}`;
+  Installationspfad `C:\Program Files\QSL73 Beta`; Nutzerdaten in `%APPDATA%\QSL73-Beta\`;
+  Ausgabedatei `QSL73-Beta-Setup.exe`. Stable und Beta sind dauerhaft parallel installierbar
+  (ADR-0021).
+- **GitHub-Actions-Release-Workflow (ADR-0042):** `.github/workflows/release.yml` baut bei
+  Push eines Versions-Tags (`vX.Y.Z` → Stable-Release, `vX.Y.Z-betaN` → Beta-Pre-Release)
+  automatisch den PyInstaller-Bundle und den passenden Installer auf `windows-latest`
+  (Python 3.12, ADR-0024) und lädt die Setup-Datei als GitHub-Release-Asset hoch.
+- **Versions-Sync-Prüfung im Release-Workflow (ADR-0042):** Der Workflow bricht mit
+  Fehlermeldung ab, wenn der Git-Tag nicht mit `__version__` in `__version__.py` übereinstimmt.
+  `AppVersion` in den .iss-Dateien wird per `/DAPP_VERSION=x.y.z` vom Workflow injiziert —
+  einzige Versionsquelle ist `__version__.py`.
+
 ### Fixed
 
 - **Umlaute im Installer/Deinstaller-Dialog (installer/qsl73.iss):** Ersatzschreibungen

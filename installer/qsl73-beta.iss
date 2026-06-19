@@ -1,25 +1,23 @@
-﻿; QSL73 Inno-Setup-Skript (Stable-Variante) -- Copyright (C) 2026 DF1DS
-; AppId-GUID: {4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B} -- NIEMALS ÄNDERN (Update/Deinstall)
-; Beta-Variante: installer/qsl73-beta.iss (eigene GUID, parallel installierbar)
+﻿; QSL73 Inno-Setup-Skript (Beta-Variante) -- Copyright (C) 2026 DF1DS
+; AppId-GUID: {A3F5C8D2-7E4B-4A91-B5C6-2D8E9F3A1B07} -- NIEMALS ÄNDERN (Update/Deinstall)
+; Stabile Variante: installer/qsl73.iss (eigene GUID, eigener Pfad -- parallel installierbar)
 
-; APP_VERSION wird vom Release-Workflow per /DAPP_VERSION=x.y.z injiziert.
-; Lokaler Build ohne /D-Flag verwendet den hardkodierten Fallback.
 #ifndef APP_VERSION
   #define APP_VERSION "0.1.0"
 #endif
 
 [Setup]
-AppId={{4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B}
-AppName=QSL73
+AppId={{A3F5C8D2-7E4B-4A91-B5C6-2D8E9F3A1B07}
+AppName=QSL73 Beta
 AppVersion={#APP_VERSION}
 AppPublisher=DF1DS – Stephan Dahmen
 AppPublisherURL=https://github.com/DF1DS/qsl73
 AppSupportURL=https://github.com/DF1DS/qsl73/issues
-DefaultDirName={autopf}\QSL73
-DefaultGroupName=QSL73
+DefaultDirName={autopf}\QSL73 Beta
+DefaultGroupName=QSL73 Beta
 AllowNoIcons=yes
 OutputDir=Output
-OutputBaseFilename=QSL73-Setup
+OutputBaseFilename=QSL73-Beta-Setup
 SetupIconFile=..\assets\qsl73.ico
 Compression=lzma2/max
 SolidCompression=yes
@@ -43,12 +41,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "..\dist\QSL73\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\QSL73"; Filename: "{app}\QSL73.exe"; IconFilename: "{app}\QSL73.exe"
-Name: "{commondesktop}\QSL73"; Filename: "{app}\QSL73.exe"; Tasks: desktopicon; IconFilename: "{app}\QSL73.exe"
-Name: "{group}\QSL73 deinstallieren"; Filename: "{uninstallexe}"
+Name: "{group}\QSL73 Beta"; Filename: "{app}\QSL73.exe"; IconFilename: "{app}\QSL73.exe"
+Name: "{commondesktop}\QSL73 Beta"; Filename: "{app}\QSL73.exe"; Tasks: desktopicon; IconFilename: "{app}\QSL73.exe"
+Name: "{group}\QSL73 Beta deinstallieren"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\QSL73.exe"; Description: "{cm:LaunchProgram,QSL73}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\QSL73.exe"; Description: "{cm:LaunchProgram,QSL73 Beta}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
@@ -58,11 +56,11 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    AppDataPath := ExpandConstant('{userappdata}\QSL73');
+    AppDataPath := ExpandConstant('{userappdata}\QSL73-Beta');
     if DirExists(AppDataPath) then
     begin
       Antwort := MsgBox(
-        'Möchten Sie auch die persönlichen Daten und Einstellungen von QSL73 entfernen?' + #13#10 +
+        'Möchten Sie auch die persönlichen Daten und Einstellungen von QSL73 Beta entfernen?' + #13#10 +
         '(Konfiguration, Logs, Sicherungen in ' + AppDataPath + ')' + #13#10 + #13#10 +
         'Empfehlung: NEIN – Einstellungen bleiben für eine spätere Neuinstallation erhalten.',
         mbConfirmation,
