@@ -20,13 +20,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- **Über-Dialog-Höhe zuverlässig (Hotfix — v0.2.2-Fix war unvollständig):** Der v0.2.2-Fix
-  hat das `after(1, ...)`-Timing übernommen, aber die Höhenmessung war weiterhin fehlerhaft:
-  `dlg.minsize(340, 1)` erzwang eine Minimalhöhe von 1, und `dlg.winfo_reqheight()` lieferte
-  zum Messzeitpunkt diesen 1px-Wert zurück. Fix: Höhe wird nun aus dem inneren Frame
-  (`frame.winfo_reqheight()`) gemessen, ein Chrome-Aufschlag addiert und eine Mindesthöhe
-  erzwungen — analoges Muster wie `SetupWizard._adjust_window_size`. Neue tk-freie Hilfsfunktion
-  `_resolve_dialog_height` ausgelagert (testbar ohne Display; Regressionstest fängt 1px-Fall ab).
+- **Über-Dialog öffnet in korrekter Größe und mittig über dem Hauptfenster (Hotfix):**
+  Der Dialog öffnete auf Win10 weiterhin zu klein und nahe der linken oberen Ecke — auch nach
+  dem v0.2.2-Fix. Laufzeit-Diagnose (CC-Maschine): `frame.winfo_reqheight()` liefert vor
+  `update_idletasks()` den Wert 1 (nicht gemessen); nach `update_idletasks()` korrekt 411 px
+  (inkl. Logo 116 px). Auf Win10 schlägt diese Ausbreitung offenbar fehl → Messwert bleibt 1 →
+  `min_h=400` greift, Dialog nur 400 px hoch statt der benötigten ≥ 491 px (Logo+Inhalt+Chrome).
+  Fix: Mindesthöhe auf `_ABOUT_MIN_H = 520 px` erhöht (deckt Logo 112 px + alle Inhalte +
+  Chrome 90 px sicher ab); Bildschirm-Deckel 90 % wie `SetupWizard._adjust_window_size`
+  hinzugefügt; Breite via `dlg.winfo_reqwidth()` statt `frame.winfo_reqwidth()` (robuster);
+  `dlg.minsize` auf die neuen Konstanten angehoben. Über-Dialog öffnet damit korrekt groß
+  (Logo vollständig sichtbar) und mittig über dem Hauptfenster, unabhängig davon, ob/wann
+  das PhotoImage in die Frame-Messung eingeht. Neue Regressionstests decken: 1px-Messwert
+  → `_ABOUT_MIN_H` greift; frame-Höhe ohne Logo → Minimum hält; Zentrierung wenn Dialog
+  höher als Parent; tk-Test mit und ohne Logo prüft Mindestmaße und positive Koordinaten.
 
 ## [0.2.2] - 2026-06-19
 
