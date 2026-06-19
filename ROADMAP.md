@@ -444,6 +444,12 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   nativer DLL-Ballast mehr. ~~`zxing-cpp` + `pywin32` im PyInstaller-Bundle einbetten~~
   — **erledigt in Schritt 9a (ADR-0040, Issue #6 geschlossen)**.
 
+### ✅ Beta-Release v0.3.0-beta1 (erstes Beta-Release des Projekts)
+
+- Tag `v0.3.0-beta1` gepusht → GitHub Actions Workflow grün (1m57s) →
+  Pre-Release `v0.3.0-beta1` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und
+  gefüllten Release-Notes veröffentlicht. `v0.2.1` bleibt weiterhin Stable/Latest.
+
 ### ✅ Tooltips (Issue #15) — geplant für v0.3.0
 
 - Flächendeckende Hover-Tooltips über alle Fenster (Haupt, Setup, manuelle Zuordnung,
