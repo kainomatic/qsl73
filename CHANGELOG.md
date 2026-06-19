@@ -16,6 +16,18 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Alle Tooltip-Texte als `_TT_*`-Modulkonstanten (i18n-Vorbereitung). Keine Fragezeichen-
   Icons. Konvention für künftige Fenster in CLAUDE.md und ADR-0047 verankert.
 
+## [0.2.3] - 2026-06-19
+
+### Fixed
+
+- **Über-Dialog-Höhe zuverlässig (Hotfix — v0.2.2-Fix war unvollständig):** Der v0.2.2-Fix
+  hat das `after(1, ...)`-Timing übernommen, aber die Höhenmessung war weiterhin fehlerhaft:
+  `dlg.minsize(340, 1)` erzwang eine Minimalhöhe von 1, und `dlg.winfo_reqheight()` lieferte
+  zum Messzeitpunkt diesen 1px-Wert zurück. Fix: Höhe wird nun aus dem inneren Frame
+  (`frame.winfo_reqheight()`) gemessen, ein Chrome-Aufschlag addiert und eine Mindesthöhe
+  erzwungen — analoges Muster wie `SetupWizard._adjust_window_size`. Neue tk-freie Hilfsfunktion
+  `_resolve_dialog_height` ausgelagert (testbar ohne Display; Regressionstest fängt 1px-Fall ab).
+
 ## [0.2.2] - 2026-06-19
 
 ### Fixed

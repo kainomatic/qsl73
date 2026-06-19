@@ -127,6 +127,16 @@ def _compute_dialog_geometry(dw: int, dh: int, px: int, py: int, pw: int, ph: in
     return f"{dw}x{dh}+{x}+{y}"
 
 
+def _resolve_dialog_height(inner_h: int, chrome: int = 40, min_h: int = 300) -> int:
+    """Berechnet die finale Dialog-Höhe aus der Inhaltshöhe des inneren Frames.
+
+    Addiert den Chrome-Overhead (Titelleiste, Fensterrand) und erzwingt eine Mindesthöhe.
+    Verhindert 1px-Fenster wenn die Toplevel-Messung zu früh/zu klein ist.
+    Tk-frei und vollständig testbar ohne Display.
+    """
+    return max(inner_h + chrome, min_h)
+
+
 _RESULT_LABELS = {
     MatchResult.CERTAIN: "Sicher",
     MatchResult.UNCERTAIN: "Unsicher",
@@ -1007,16 +1017,18 @@ class MainWindow(tk.Tk):
         ttk.Button(frame, text=_ABOUT_BTN_CLOSE, command=dlg.destroy).pack()
 
         dlg.bind("<Escape>", lambda _e: dlg.destroy())
-        dlg.minsize(340, 1)
+        dlg.minsize(340, 200)
 
         # Größe/Position NACH erstem Mapping berechnen, damit winfo_req* reale Maße liefert.
+        # Höhe aus innerem Frame (frame.winfo_reqheight()), nicht aus dem Toplevel —
+        # das Toplevel kann zum Messzeitpunkt noch minsize-bedingt zu klein sein.
         # Analoges Muster wie SetupWizard._adjust_window_size (ADR-0037 TEIL A1).
         def _do_center() -> None:
             if not dlg.winfo_exists():
                 return
             dlg.update_idletasks()
             dw = max(340, dlg.winfo_reqwidth())
-            dh = dlg.winfo_reqheight()
+            dh = _resolve_dialog_height(frame.winfo_reqheight())
             dlg.geometry(_compute_dialog_geometry(
                 dw, dh,
                 self.winfo_rootx(), self.winfo_rooty(),

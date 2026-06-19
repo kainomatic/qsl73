@@ -426,6 +426,14 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   unverändert; `__version__=0.3.0`. Konflikte in `__version__`, ADR-Index, CHANGELOG
   korrekt aufgelöst. Hotfix-Branch gelöscht (lokal + remote). ADR-0049 angelegt
   (Git-Branch-Operationen sind CC-Aufgabe).
+- **Hotfix v0.2.3 vorbereitet (2026-06-19):** v0.2.2-Über-Dialog-Fix war unvollständig —
+  `dlg.winfo_reqheight()` lieferte durch `minsize(340, 1)` stets 1px zurück. Neuer Fix:
+  Höhe aus innerem Frame (`frame.winfo_reqheight()`) + Chrome-Aufschlag + Mindesthöhe via
+  `_resolve_dialog_height`, analog `SetupWizard._adjust_window_size`. Branch
+  `hotfix/v0.2.3-about-dialog-height` von `main` (v0.2.2). Release durch DF1DS (Hotfix →
+  main mergen, Tag `v0.2.3` pushen; danach Rück-Merge hotfix → dev als separater CC-Auftrag).
+- **v0.2.3-Über-Dialog-Höhen-Fix nach dev gemergt (2026-06-19):** Wird über v0.3.0-beta2
+  getestet; Stable-Release v0.2.3 folgt separat über main.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
