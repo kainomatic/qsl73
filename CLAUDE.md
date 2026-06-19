@@ -289,6 +289,19 @@ einzelner Test gezielt fehlschlägt statt die gesamte Suite zu killen.
 
 ---
 
+## GUI-Konventionen
+
+### Hover-Tooltips (ADR-0047)
+
+Jedes neue Fenster/Widget, das eine Erklärung verdient, bekommt einen Hover-Tooltip.
+**Kein Fragezeichen-Icon, kein separates Hilfe-Widget.**
+
+- Infrastruktur: `from qsl73.gui.tooltip import attach_tooltip`; danach `attach_tooltip(widget, text)`.
+- Texte als `_TT_*`-Modulkonstanten direkt im Fenster-Modul (neben `_LBL_*`/`_MSG_*`).
+- Delay 500 ms (Standard), crash-sicher, Bildschirmrand-Clamp eingebaut.
+
+---
+
 ## Weiterführende Dokumente
 
 | Dokument | Inhalt |

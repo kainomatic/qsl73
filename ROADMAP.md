@@ -444,6 +444,12 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   nativer DLL-Ballast mehr. ~~`zxing-cpp` + `pywin32` im PyInstaller-Bundle einbetten~~
   — **erledigt in Schritt 9a (ADR-0040, Issue #6 geschlossen)**.
 
+### ✅ Tooltips (Issue #15) — geplant für v0.3.0
+
+- Flächendeckende Hover-Tooltips über alle Fenster (Haupt, Setup, manuelle Zuordnung,
+  Update-Dialog, Fehlermelde-Dialog). Wiederverwendbare Infrastruktur `gui/tooltip.py`;
+  Texte als `_TT_*`-Konstanten; Konvention in CLAUDE.md + ADR-0047. __version__ = 0.3.0.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

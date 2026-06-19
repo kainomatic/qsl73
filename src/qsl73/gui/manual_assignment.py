@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 
 from qsl73.gui.filter_util import apply_display_limit
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
+from qsl73.gui.tooltip import attach_tooltip
 from qsl73.matching import CardFields, MatchResult, QsoCandidate
 from qsl73.run import CardResult
 
@@ -42,6 +43,20 @@ _BTN_SAVE_NEXT = "Speichern und nächste"
 _BTN_NEXT = "Nächste"
 _BTN_CANCEL = "Abbrechen"
 _BTN_DATE_CLEAR = "✕"
+
+# Tooltip-Texte (i18n-Vorbereitung)
+_TT_CALL_FIELD = "Rufzeichen der Gegenstation — aus QR-Code oder OCR vorbefüllt, bearbeitbar"
+_TT_DATE_FIELD = "Datum des QSOs (Format YYYY-MM-DD) — leer lassen für keinen Datumsfilter"
+_TT_DATE_CLEAR = "Datumsfilter zurücksetzen (kein Datum = alle Daten werden berücksichtigt)"
+_TT_BAND_FIELD = "Amateurfunkband des QSOs — Vorschläge aus den gefundenen Kandidaten"
+_TT_MODE_FIELD = "Betriebsart des QSOs — Vorschläge aus den gefundenen Kandidaten"
+_TT_PREV_PAGE = "Vorherige Seite der QSL-Karte (Vorderseite / Rückseite)"
+_TT_NEXT_PAGE = "Nächste Seite der QSL-Karte (Vorderseite / Rückseite)"
+_TT_CANDIDATES = "Übereinstimmende QSOs aus dem Log4OM-Logbuch — QSO auswählen und 'Speichern' klicken"
+_TT_BTN_SAVE = "Zuordnung speichern — Karte wird diesem QSO zugeordnet vorgemerkt"
+_TT_BTN_SAVE_NEXT = "Zuordnung speichern und direkt zur nächsten Karte weitergehen"
+_TT_BTN_NEXT = "Diese Karte überspringen und zur nächsten weitergehen (keine Zuordnung)"
+_TT_BTN_CANCEL = "Dialog schließen ohne Zuordnung"
 
 # ---------------------------------------------------------------------------
 # Reine Helfer — tk-frei, vollständig ohne Display testbar
@@ -287,6 +302,7 @@ if _TK_OK:
                 command=self._on_prev_page, state="disabled",
             )
             self._prev_btn.pack(side="left")
+            attach_tooltip(self._prev_btn, _TT_PREV_PAGE)
             self._page_label = ttk.Label(nav_frame, text="", anchor="center")
             self._page_label.pack(side="left", expand=True, fill="x")
             self._next_btn = ttk.Button(
@@ -294,6 +310,7 @@ if _TK_OK:
                 command=self._on_next_page, state="disabled",
             )
             self._next_btn.pack(side="right")
+            attach_tooltip(self._next_btn, _TT_NEXT_PAGE)
 
             # Suchfelder
             fld_frame = ttk.LabelFrame(top, text="Suchfelder (editierbar)", padding=4)
@@ -321,9 +338,9 @@ if _TK_OK:
             ttk.Label(fld_frame, text="Rufzeichen:").grid(
                 row=0, column=0, sticky="w", padx=(0, 4), pady=2
             )
-            ttk.Entry(fld_frame, textvariable=self._var_call, width=20).grid(
-                row=0, column=1, sticky="ew", pady=2
-            )
+            _call_entry = ttk.Entry(fld_frame, textvariable=self._var_call, width=20)
+            _call_entry.grid(row=0, column=1, sticky="ew", pady=2)
+            attach_tooltip(_call_entry, _TT_CALL_FIELD)
 
             # Row 1 — Datum: DateEntry (tkcalendar) mit Fallback auf Entry
             ttk.Label(fld_frame, text="Datum:").grid(
@@ -362,10 +379,13 @@ if _TK_OK:
                 self._var_date.trace_add("write", self._on_field_change)
                 self._use_datepicker = False
             self._date_entry.grid(row=1, column=1, sticky="ew", pady=2)
-            ttk.Button(
+            attach_tooltip(self._date_entry, _TT_DATE_FIELD)
+            _date_clear_btn = ttk.Button(
                 fld_frame, text=_BTN_DATE_CLEAR,
                 command=self._on_clear_date, width=2,
-            ).grid(row=1, column=2, padx=(4, 0), pady=2)
+            )
+            _date_clear_btn.grid(row=1, column=2, padx=(4, 0), pady=2)
+            attach_tooltip(_date_clear_btn, _TT_DATE_CLEAR)
 
             # Grab-Konflikt: DateEntry-Kalender-Popup vs. grab_set() auf dem Dialog.
             # Wenn der Kalender aufklappt (Map), Grab freigeben; beim Schließen (Unmap)
@@ -383,20 +403,24 @@ if _TK_OK:
             ttk.Label(fld_frame, text="Band:").grid(
                 row=2, column=0, sticky="w", padx=(0, 4), pady=2
             )
-            ttk.Combobox(
+            _band_combo = ttk.Combobox(
                 fld_frame, textvariable=self._var_band,
                 values=bands, width=18,
-            ).grid(row=2, column=1, sticky="ew", pady=2)
+            )
+            _band_combo.grid(row=2, column=1, sticky="ew", pady=2)
+            attach_tooltip(_band_combo, _TT_BAND_FIELD)
 
             # Row 3 — Mode: Combobox mit DB-Kandidaten-Werten
             modes = distinct_modes(self._candidates)
             ttk.Label(fld_frame, text="Mode:").grid(
                 row=3, column=0, sticky="w", padx=(0, 4), pady=2
             )
-            ttk.Combobox(
+            _mode_combo = ttk.Combobox(
                 fld_frame, textvariable=self._var_mode,
                 values=modes, width=18,
-            ).grid(row=3, column=1, sticky="ew", pady=2)
+            )
+            _mode_combo.grid(row=3, column=1, sticky="ew", pady=2)
+            attach_tooltip(_mode_combo, _TT_MODE_FIELD)
 
             fld_frame.columnconfigure(1, weight=1)
 
@@ -423,20 +447,24 @@ if _TK_OK:
             self._tree.configure(yscrollcommand=sb.set)
             sb.pack(side="right", fill="y")
             self._tree.pack(fill="both", expand=True)
+            attach_tooltip(self._tree, _TT_CANDIDATES)
             self._tree.bind("<<TreeviewSelect>>", self._on_tree_select)
 
             # --- Schaltflächen ---
             btn_frame = ttk.Frame(main)
             btn_frame.pack(fill="x")
 
-            ttk.Button(
+            _cancel_btn = ttk.Button(
                 btn_frame, text=_BTN_CANCEL, command=self._on_cancel
-            ).pack(side="right", padx=(4, 0))
+            )
+            _cancel_btn.pack(side="right", padx=(4, 0))
+            attach_tooltip(_cancel_btn, _TT_BTN_CANCEL)
 
             self._btn_save = ttk.Button(
                 btn_frame, text=_BTN_SAVE, command=self._on_save, state="disabled"
             )
             self._btn_save.pack(side="right", padx=(4, 0))
+            attach_tooltip(self._btn_save, _TT_BTN_SAVE)
 
             _next_state = "normal" if self._has_next else "disabled"
             self._btn_save_next = ttk.Button(
@@ -444,12 +472,14 @@ if _TK_OK:
                 state="disabled",
             )
             self._btn_save_next.pack(side="right", padx=(4, 0))
+            attach_tooltip(self._btn_save_next, _TT_BTN_SAVE_NEXT)
 
             self._btn_next = ttk.Button(
                 btn_frame, text=_BTN_NEXT, command=self._on_next_card,
                 state=_next_state,
             )
             self._btn_next.pack(side="right", padx=(4, 0))
+            attach_tooltip(self._btn_next, _TT_BTN_NEXT)
 
         # ------------------------------------------------------------------
         # Event-Handler

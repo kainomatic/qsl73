@@ -7,6 +7,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Hover-Tooltips (Issue #15, ADR-0047):** Flächendeckende, einheitliche Tooltips in allen
+  Fenstern (Hauptfenster, Setup/Einstellungen, manueller Zuordnungs-Dialog, Update-Dialog,
+  Fehlermelde-Dialog). Neue wiederverwendbare Infrastruktur `gui/tooltip.py` mit
+  `attach_tooltip(widget, text)` — 500 ms Verzögerung, crash-sicher, Bildschirmrand-Clamp.
+  Alle Tooltip-Texte als `_TT_*`-Modulkonstanten (i18n-Vorbereitung). Keine Fragezeichen-
+  Icons. Konvention für künftige Fenster in CLAUDE.md und ADR-0047 verankert.
+
 ## [0.2.1] - 2026-06-19
 
 ### Changed
