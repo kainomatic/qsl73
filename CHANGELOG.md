@@ -7,30 +7,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Fixed
-
-- **Icon-Transparenz (tools/make_icon.py, assets/qsl73.ico):** `qsl73logo.png` hat einen
-  weißen statt transparenten Hintergrund. `make_icon.py` entfernt den Hintergrund jetzt
-  per Flood-Fill von den Ecken (Threshold 235, konservativ — Motivanteile bleiben erhalten)
-  bevor das ICO gespeichert wird. Das erzeugte `assets/qsl73.ico` hat damit transparente
-  Hintergrundbereiche in allen Größen (16/32/48/256 px) — kein weißer Kasten mehr im
-  Installer-/Desktop-Icon.
-- **tk-Feder durch QSL73-Icon ersetzt:** Alle Programmfenster (MainWindow, SetupWizard,
-  Fehlerdialog u. a.) zeigen jetzt das QSL73-Logo statt der Standard-tk-Feder in
-  Titelleiste und Taskleiste. Gelöst über `iconphoto(True, photo)` auf dem jeweiligen
-  tk.Tk-Root-Fenster — propagiert automatisch auf alle Kind-Toplevels (Tk 8.6+). Neues
-  Modul `gui/_icon.py` (`apply_window_icon`). Transparente 256-px-PNG-Ressource wird
-  laufzeitsicher aus dem PyInstaller-Bundle gefunden (datas `qsl73_icon.png` → `_MEIPASS`).
-  Icon-Laden ist try/except-geschützt — Start wird bei Fehler nie blockiert.
-
-### Changed
-
-- **Logo im Über-Dialog größer und ohne weißen Rand:** Das transparente QSL73-Logo wird
-  jetzt oben im Dialog in 112 × 112 Pixeln angezeigt (`gui/_icon.py: load_about_logo`).
-  Bildreferenz am Label-Widget gehalten (GC-Schutz). Laufzeitsichere Pfadauflösung wie
-  beim Fenster-Icon. Dialog kann dafür etwas größer werden; Layout bleibt sauber
-  (Logo → Titel/Version → Rest).
-
 ### Added
 
 - **Beta-Start-Hinweis-Dialog (ADR-0021):** Beim Start mit `CHANNEL="beta"` erscheint
@@ -46,18 +22,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **ADR-0044:** Entscheidung gegen Code-Signing-Zertifikat festgehalten — unverhältnismäßige
   Kosten für ein GPLv3-Hobbyprojekt; Zielgruppe technikaffin; Quellcode öffentlich einsehbar.
   Neubewertung möglich falls Projekt wächst.
-
-### Changed
-
-- **README für Endnutzer überarbeitet:** Nutzer-Installationsweg (QSL73-Setup.exe von
-  der Releases-Seite) jetzt prominent vor der Entwickler-Installation; Beta-Variante
-  erklärt; neuer Abschnitt „Funktionen / Bedienung" beschreibt Setup-Assistent,
-  Durchlauf, sichere/manuelle Zuordnung, Durcharbeiten-Workflow, Backup/Audit-Log und
-  Menüstruktur; Abschnitt „Daten & Verzeichnisse" hinzugefügt; „Status: in Entwicklung"
-  entfernt; keine hartkodierte Versionsnummer (Verweis auf Releases-Seite).
-
-### Added
-
 - **Versionierungs-Richtlinie (ADR-0043):** Verbindliche SemVer-Regel für QSL73: MAJOR
   bei Config-Schema-Bruch oder Log4OM-Schreibformat-Inkompatibilität; MINOR für neue
   Funktionen; PATCH für Bugfixes. Pre-1.0-Ausnahme (Breaking Changes in MINOR solange
@@ -76,63 +40,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Fehlermeldung ab, wenn der Git-Tag nicht mit `__version__` in `__version__.py` übereinstimmt.
   `AppVersion` in den .iss-Dateien wird per `/DAPP_VERSION=x.y.z` vom Workflow injiziert —
   einzige Versionsquelle ist `__version__.py`.
-
-### Fixed
-
-- **Umlaute im Installer/Deinstaller-Dialog (installer/qsl73.iss):** Ersatzschreibungen
-  (ae/oe/ue) durch echte Umlaute ersetzt; `qsl73.iss` als UTF-8 mit BOM gespeichert
-  (Inno Setup 6 rendert Umlaute damit kodierungsunabhängig, unabhängig von der
-  System-Codepage des bauenden Systems). Finale Umlaut-Verifikation durch DF1DS auf
-  deutschem System ausstehend.
-
-### Changed
-
-- **Shift-Klick-Bereichsauswahl für CERTAIN-Karten:** Klick auf Karte A, dann
-  Shift-Klick auf Karte B → alle auswählbaren Karten zwischen A und B (inklusive,
-  in Anzeigereihenfolge) werden markiert; bereits geschriebene/nicht-auswählbare
-  werden übersprungen. Normaler Klick setzt den Anker neu. Logik in `select_range`
-  (tk-frei, 10 Tests).
-- **Datum-Löschen-Button im manuellen Zuordnungs-Dialog:** Kompakter ✕-Button neben
-  dem Datumsfeld; setzt `_date_explicit = False` → kein Datumsfilter mehr aktiv;
-  Trefferliste aktualisiert sich sofort. Für DateEntry-Fallback (Textfeld): Feld leeren.
-- **Echter Fortschrittsbalken beim Durchlauf (Fixes #23):** Statt Endlos-Animation
-  zeigt der Balken jetzt echten Prozentfortschritt (X/N Karten) — Vorbereitungsphase
-  (HTTP-Abfrage) bleibt kurzzeitig indeterminat, beim ersten ProgressEvent mit total > 0
-  schaltet der Balken auf deterministischen Fortschritt um. Statuszeile zeigt „Karte X/N
-  ausgewertet — P %". Schreib-Animation unverändert. Neue Hilfsfunktion
-  `format_progress_text` (tk-frei, getestet, i18n-vorbereitet).
-- **Ruhigere Fortschrittsbalken-Animation:** Pulsintervall von 10 ms auf 40 ms
-  erhöht (`_PROGRESS_PULSE_MS = 40`) — betrifft Vorbereitungsphase beim Durchlauf
-  und Schreiben; determinater Prozentbalken (ab total > 0) unverändert.
-- **Benutzerfreundliche Fehlermeldungen bei erwarteten Lauf-/Schreibfehlern (ADR-0039,
-  Fixes #18):** `DatabaseChangedError` (Optimistic-Locking-Konflikt), `SchemaError`,
-  `DatabaseBusyError`, `QslEntryNotFoundError` sowie Paperless-Verbindungsfehler zeigen
-  jetzt eine verständliche Klartexterklärung mit Handlungshinweis statt eines rohen
-  Tracebacks. Unerwartete Fehler zeigen weiterhin den Traceback. Mapping-Logik in
-  `gui/error_messages.py` tk-frei und vollständig getestet. Schreibsicherheitsmodell
-  (ADR-0008) unverändert.
-- **Autor in allen Fenstertiteln:** Jedes echte Toplevel-Fenster trägt jetzt „— by DF1DS"
-  im Titel (MainWindow, SetupWizard, ManualAssignmentDialog, Zoom-Fenster, Über-Dialog,
-  Neustart-Dialog, Fehler-Dialog, Fehlerbericht-Dialog, Konfigurationsfehler-Dialog).
-  Format bei BETA: „QSL73 v{v} [BETA] — by DF1DS".
-- **Über-Dialog — vollständiger Autor:** Autor-Zeile zeigt jetzt
-  „DF1DS | Stephan Dahmen | DOK: G16" (fett hervorgehoben).
-- **README:** Autor-Eintrag um Klarname und DOK ergänzt; Paperless-Tag als frei
-  wählbar (Standardvorschlag `qsl-card`) formuliert; README-Feature-Doku in
-  Schritt 9 (ROADMAP) vorgemerkt.
-- **Über-Dialog verfeinert:** Luftigeres Layout (mehr Padding, Separator, Mindestbreite 340 px);
-  Titel als klare Überschrift; Autor „DF1DS" fett hervorgehoben; Links „GitHub" und „QRZ.com"
-  als kurze Texte nebeneinander mit Hover-Unterstreichung; nutzersichtbare Texte als
-  Modul-Konstanten (i18n-Vorbereitung).
-
-### Removed
-
-- **Wirkungslose Sprachauswahl (ADR-0038, Issue #25):** Das Feld „Sprache (de/en)" im
-  Einstellungen-Dialog entfernt — es hatte keine Wirkung, da keine i18n-Infrastruktur
-  existiert. `app.language` bleibt im Config-Modell (Default: `de`); bestehende
-  `config.yaml`-Dateien laden weiterhin ohne Fehler. Mehrsprachigkeit → V2 (#25).
-
-### Added
 
 - **Inno-Setup-Installer Stable (Schritt 9b, ADR-0041):** `QSL73-Setup.exe`; installiert nach
   `C:\Program Files\QSL73` (64-Bit); GPLv3-Lizenzseite; Startmenü + optionale Desktop-
@@ -157,33 +64,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Über-Dialog ohne Systemsound (ADR-0037):** Custom `tk.Toplevel` statt
   `messagebox.showinfo` — kein Windows-Klingeln beim Öffnen. Dialog enthält klickbare
   Links zu GitHub und QRZ.com sowie Paperless-ngx-Beschreibung.
-
-### Fixed
-
-- **Einstellungen-Dialog — Fenstergröße nach Mapping (ADR-0037):** `_adjust_window_size`
-  wird nach dem ersten Mapping via `after(1, ...)` aufgerufen; Höhe aus
-  `inner_frame.winfo_reqheight()` statt `winfo_reqheight()` des Toplevels (welche vor
-  dem Mapping 0 lieferte). Fenster wird jetzt korrekt über dem Parent-Fenster zentriert.
-- **Einstellungen-Dialog — Attention-Handler (ADR-0037):** FocusIn/FocusOut-Ansatz
-  ersetzt durch `<Button-1>`-Bindung am Parent-Fenster mit sauberem Cleanup (Funcid).
-  Im Erstkonfigurationsmodus (Parent nicht sichtbar) wird kein Handler gesetzt.
-- **Einstellungen-Dialog — Fenstergröße und Mausrad-Scrollen:** Dialog öffnet jetzt
-  automatisch in der benötigten Höhe (max. 90 % Bildschirmhöhe); Mausrad-Scrollen
-  funktioniert bei überfüllem Inhalt zuverlässig.
-- **Einstellungen-Dialog — „Verbindung testen" im Bearbeiten-Modus:** Test schlug
-  bisher mit 401 fehl, weil das Token-Feld absichtlich leer bleibt (§4). Lösung:
-  `resolve_effective_token` — leeres Feld + bestehendes Token in `existing_config` →
-  entschlüsseltes Token intern nutzen (nie im Feld anzeigen). Neue, differenzierte
-  Fehlermeldungen: URL leer, Server nicht erreichbar, Auth fehlgeschlagen, sonstiges.
-- **Einstellungen speichern — Neustart-Hinweis:** Statt vagem „greift beim nächsten
-  Durchlauf" erscheint jetzt ein Dialog „Bitte neu starten" mit Buttons „Jetzt beenden"
-  / „Später". „Jetzt beenden" schließt die App sauber (Lock-Freigabe via `finally`
-  in `run_app()`); „Später" zeigt Hinweis in Statuszeile.
-- **Einstellungen-Dialog — Fokus-Feedback:** Klick ins gesperrte Hauptfenster bei
-  offenem Einstellungen-Dialog → Dialog piept (`bell()`) und hebt sich in den Vordergrund
-  (`lift()` + `focus_force()`).
-
-### Added
 
 - **Menüleiste mit Einstellungen-Dialog (ADR-0036, Fixes #24):** Standard-Menüleiste
   Datei / Bearbeiten / Hilfe im Hauptfenster.
@@ -479,20 +359,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     - is_log4om_running: found/not found/leer/case-insensitiv/blockiert nicht/CI (6 Tests)
     - Integrations-Hash: Original-DB unverändert wenn alle QSOs übersprungen (1 Test)
 
-- **Schritt 5a — Schreiblogik (isoliert):**
-  - `src/qsl73/log4om_write.py`: reine JSON-Transformationslogik für Papier-QSL-Bestätigung
-    - `apply_paper_qsl(json_str, route)`: setzt im CT='QSL'-Eintrag R→"Yes", RV per route
-      (bureau/direct/undefined); alle anderen Einträge/Spalten unberührt; kein RD
-    - `write_paper_qsl(conn, qsoid, route)`: liest qsoconfirmations, wendet Transformation
-      an, schreibt zurück (bewusst ohne Transaktion/Backup — kommt in 5b)
-    - Exceptions: `InvalidRouteError`, `QslEntryNotFoundError`, `ValueError`
-  - ADR-0019: fehlender CT='QSL'-Eintrag → Exception, kein stilles Neuanlegen
-  - `tests/test_log4om_write.py`: 38 Unit-Tests (alle Routen, Idempotenz, Fehlerfälle,
-    Unversehrtheit anderer Einträge, Ausgabeformat)
-  - `tests/acceptance/test_write_acceptance.py`: 9 Abnahme-Tests gegen DB-Kopie —
-    bureau/direct/undefined korrekt; andere CT-Typen/Spalten/QSOs unverändert;
-    Original-DB-Integrität per SHA-256 verifiziert
-
 - **Schritt 5b — Sicherheits- & Transaktionsschicht:**
   - `src/qsl73/log4om_db.py`: Orchestrierungsmodul für sichere DB-Schreibvorgänge
     - `validate_schema(conn)`: prüft Tabelle/Spalte/Stichprobe (CT='QSL'+R-Feld);
@@ -514,6 +380,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Abgrenzung 5c (bewusst NICHT in 5b): SQLITE_BUSY-Retry, data_version-Check,
     optimistic locking (Pro-QSO-Gegenprüfung), Log4OM-Running-Erkennung,
     Paperless-Tags (kommen mit GUI/Orchestrierung)
+
+- **Schritt 5a — Schreiblogik (isoliert):**
+  - `src/qsl73/log4om_write.py`: reine JSON-Transformationslogik für Papier-QSL-Bestätigung
+    - `apply_paper_qsl(json_str, route)`: setzt im CT='QSL'-Eintrag R→"Yes", RV per route
+      (bureau/direct/undefined); alle anderen Einträge/Spalten unberührt; kein RD
+    - `write_paper_qsl(conn, qsoid, route)`: liest qsoconfirmations, wendet Transformation
+      an, schreibt zurück (bewusst ohne Transaktion/Backup — kommt in 5b)
+    - Exceptions: `InvalidRouteError`, `QslEntryNotFoundError`, `ValueError`
+  - ADR-0019: fehlender CT='QSL'-Eintrag → Exception, kein stilles Neuanlegen
+  - `tests/test_log4om_write.py`: 38 Unit-Tests (alle Routen, Idempotenz, Fehlerfälle,
+    Unversehrtheit anderer Einträge, Ausgabeformat)
+  - `tests/acceptance/test_write_acceptance.py`: 9 Abnahme-Tests gegen DB-Kopie —
+    bureau/direct/undefined korrekt; andere CT-Typen/Spalten/QSOs unverändert;
+    Original-DB-Integrität per SHA-256 verifiziert
 
 - **RV-Hand-Test empirisch bestätigt** (2026-06-17): exaktes Schreibformat für Papier-QSL-
   Bestätigung in Log4OM bewiesen — `docs/discovery.md §3`, ADR-0005/0006 aktualisiert.
@@ -580,8 +460,70 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (`.github/workflows/ci.yml`) bei Push auf `dev` und `main`
   - ADR-0010: Kryptographie-Abstraktionsschicht (DPAPI-Backend, fail-closed)
 
+- Initiales Repo-Grundgerüst (Verzeichnisstruktur, Branches `main` und `dev`)
+- `KONZEPT.md` — technische Spezifikation (Datenquellen, Matching-Logik, GUI, Sicherheit)
+- `ROADMAP.md` — Schrittplan mit Review-Punkten
+- `config.example.yaml` — Konfigurationsvorlage ohne echte Werte
+- Zentrale Versions-Stelle: `src/qsl73/__version__.py` (`0.1.0`)
+- `assets/qsl73logo.png` — Logo-Originaldatei
+
 ### Changed
 
+- **CHANGELOG-Prozess und Versionierungsregel präzisiert (Dokumentation):** CLAUDE.md um
+  reproduzierbaren Release-Handgriff (5 Schritte: `__version__` setzen, `[Unreleased]`
+  umbenennen, neuen leeren Block anlegen, Kategorien-Reihenfolge prüfen, Tag pushen) und
+  Entscheidungsregel bei gemischten Änderungen ergänzt (höchste Stelle gewinnt; Desktop
+  schlägt Versionsnummer vor; Maintainer entscheidet). CHANGELOG selbst bereinigt:
+  Mehrfach-Blöcke gleicher Kategorie aus der Sammelphase zu je einem Block zusammengeführt;
+  alter separater `[0.1.0]`-Abschnitt integriert.
+- **Logo im Über-Dialog größer und ohne weißen Rand:** Das transparente QSL73-Logo wird
+  jetzt oben im Dialog in 112 × 112 Pixeln angezeigt (`gui/_icon.py: load_about_logo`).
+  Bildreferenz am Label-Widget gehalten (GC-Schutz). Laufzeitsichere Pfadauflösung wie
+  beim Fenster-Icon. Dialog kann dafür etwas größer werden; Layout bleibt sauber
+  (Logo → Titel/Version → Rest).
+- **README für Endnutzer überarbeitet:** Nutzer-Installationsweg (QSL73-Setup.exe von
+  der Releases-Seite) jetzt prominent vor der Entwickler-Installation; Beta-Variante
+  erklärt; neuer Abschnitt „Funktionen / Bedienung" beschreibt Setup-Assistent,
+  Durchlauf, sichere/manuelle Zuordnung, Durcharbeiten-Workflow, Backup/Audit-Log und
+  Menüstruktur; Abschnitt „Daten & Verzeichnisse" hinzugefügt; „Status: in Entwicklung"
+  entfernt; keine hartkodierte Versionsnummer (Verweis auf Releases-Seite).
+- **Shift-Klick-Bereichsauswahl für CERTAIN-Karten:** Klick auf Karte A, dann
+  Shift-Klick auf Karte B → alle auswählbaren Karten zwischen A und B (inklusive,
+  in Anzeigereihenfolge) werden markiert; bereits geschriebene/nicht-auswählbare
+  werden übersprungen. Normaler Klick setzt den Anker neu. Logik in `select_range`
+  (tk-frei, 10 Tests).
+- **Datum-Löschen-Button im manuellen Zuordnungs-Dialog:** Kompakter ✕-Button neben
+  dem Datumsfeld; setzt `_date_explicit = False` → kein Datumsfilter mehr aktiv;
+  Trefferliste aktualisiert sich sofort. Für DateEntry-Fallback (Textfeld): Feld leeren.
+- **Echter Fortschrittsbalken beim Durchlauf (Fixes #23):** Statt Endlos-Animation
+  zeigt der Balken jetzt echten Prozentfortschritt (X/N Karten) — Vorbereitungsphase
+  (HTTP-Abfrage) bleibt kurzzeitig indeterminat, beim ersten ProgressEvent mit total > 0
+  schaltet der Balken auf deterministischen Fortschritt um. Statuszeile zeigt „Karte X/N
+  ausgewertet — P %". Schreib-Animation unverändert. Neue Hilfsfunktion
+  `format_progress_text` (tk-frei, getestet, i18n-vorbereitet).
+- **Ruhigere Fortschrittsbalken-Animation:** Pulsintervall von 10 ms auf 40 ms
+  erhöht (`_PROGRESS_PULSE_MS = 40`) — betrifft Vorbereitungsphase beim Durchlauf
+  und Schreiben; determinater Prozentbalken (ab total > 0) unverändert.
+- **Benutzerfreundliche Fehlermeldungen bei erwarteten Lauf-/Schreibfehlern (ADR-0039,
+  Fixes #18):** `DatabaseChangedError` (Optimistic-Locking-Konflikt), `SchemaError`,
+  `DatabaseBusyError`, `QslEntryNotFoundError` sowie Paperless-Verbindungsfehler zeigen
+  jetzt eine verständliche Klartexterklärung mit Handlungshinweis statt eines rohen
+  Tracebacks. Unerwartete Fehler zeigen weiterhin den Traceback. Mapping-Logik in
+  `gui/error_messages.py` tk-frei und vollständig getestet. Schreibsicherheitsmodell
+  (ADR-0008) unverändert.
+- **Autor in allen Fenstertiteln:** Jedes echte Toplevel-Fenster trägt jetzt „— by DF1DS"
+  im Titel (MainWindow, SetupWizard, ManualAssignmentDialog, Zoom-Fenster, Über-Dialog,
+  Neustart-Dialog, Fehler-Dialog, Fehlerbericht-Dialog, Konfigurationsfehler-Dialog).
+  Format bei BETA: „QSL73 v{v} [BETA] — by DF1DS".
+- **Über-Dialog — vollständiger Autor:** Autor-Zeile zeigt jetzt
+  „DF1DS | Stephan Dahmen | DOK: G16" (fett hervorgehoben).
+- **README:** Autor-Eintrag um Klarname und DOK ergänzt; Paperless-Tag als frei
+  wählbar (Standardvorschlag `qsl-card`) formuliert; README-Feature-Doku in
+  Schritt 9 (ROADMAP) vorgemerkt.
+- **Über-Dialog verfeinert:** Luftigeres Layout (mehr Padding, Separator, Mindestbreite 340 px);
+  Titel als klare Überschrift; Autor „DF1DS" fett hervorgehoben; Links „GitHub" und „QRZ.com"
+  als kurze Texte nebeneinander mit Hover-Unterstreichung; nutzersichtbare Texte als
+  Modul-Konstanten (i18n-Vorbereitung).
 - Lizenz von MIT auf **GPLv3** gewechselt (ADR-0018). `LICENSE`-Datei ersetzt;
   README, KONZEPT §15, Quelldatei-Header angepasst. Copyleft sichert, dass
   Weiterentwicklungen offen bleiben.
@@ -590,17 +532,62 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `config.py`: `save_config()` verweigert das Speichern eines Tokens ohne Crypto-Backend
 - `NullBackend` als UNSICHER/nur Test-CI dokumentiert; `CryptoUnavailableError` ergänzt
 
+### Removed
+
+- **Wirkungslose Sprachauswahl (ADR-0038, Issue #25):** Das Feld „Sprache (de/en)" im
+  Einstellungen-Dialog entfernt — es hatte keine Wirkung, da keine i18n-Infrastruktur
+  existiert. `app.language` bleibt im Config-Modell (Default: `de`); bestehende
+  `config.yaml`-Dateien laden weiterhin ohne Fehler. Mehrsprachigkeit → V2 (#25).
+
 ### Fixed
 
+- **Icon-Transparenz (tools/make_icon.py, assets/qsl73.ico):** `qsl73logo.png` hat einen
+  weißen statt transparenten Hintergrund. `make_icon.py` entfernt den Hintergrund jetzt
+  per Flood-Fill von den Ecken (Threshold 235, konservativ — Motivanteile bleiben erhalten)
+  bevor das ICO gespeichert wird. Das erzeugte `assets/qsl73.ico` hat damit transparente
+  Hintergrundbereiche in allen Größen (16/32/48/256 px) — kein weißer Kasten mehr im
+  Installer-/Desktop-Icon.
+- **tk-Feder durch QSL73-Icon ersetzt:** Alle Programmfenster (MainWindow, SetupWizard,
+  Fehlerdialog u. a.) zeigen jetzt das QSL73-Logo statt der Standard-tk-Feder in
+  Titelleiste und Taskleiste. Gelöst über `iconphoto(True, photo)` auf dem jeweiligen
+  tk.Tk-Root-Fenster — propagiert automatisch auf alle Kind-Toplevels (Tk 8.6+). Neues
+  Modul `gui/_icon.py` (`apply_window_icon`). Transparente 256-px-PNG-Ressource wird
+  laufzeitsicher aus dem PyInstaller-Bundle gefunden (datas `qsl73_icon.png` → `_MEIPASS`).
+  Icon-Laden ist try/except-geschützt — Start wird bei Fehler nie blockiert.
+- **Umlaute im Installer/Deinstaller-Dialog (installer/qsl73.iss):** Ersatzschreibungen
+  (ae/oe/ue) durch echte Umlaute ersetzt; `qsl73.iss` als UTF-8 mit BOM gespeichert
+  (Inno Setup 6 rendert Umlaute damit kodierungsunabhängig, unabhängig von der
+  System-Codepage des bauenden Systems). Finale Umlaut-Verifikation durch DF1DS auf
+  deutschem System ausstehend.
+- **Einstellungen-Dialog — Fenstergröße nach Mapping (ADR-0037):** `_adjust_window_size`
+  wird nach dem ersten Mapping via `after(1, ...)` aufgerufen; Höhe aus
+  `inner_frame.winfo_reqheight()` statt `winfo_reqheight()` des Toplevels (welche vor
+  dem Mapping 0 lieferte). Fenster wird jetzt korrekt über dem Parent-Fenster zentriert.
+- **Einstellungen-Dialog — Attention-Handler (ADR-0037):** FocusIn/FocusOut-Ansatz
+  ersetzt durch `<Button-1>`-Bindung am Parent-Fenster mit sauberem Cleanup (Funcid).
+  Im Erstkonfigurationsmodus (Parent nicht sichtbar) wird kein Handler gesetzt.
+- **Einstellungen-Dialog — Fenstergröße und Mausrad-Scrollen:** Dialog öffnet jetzt
+  automatisch in der benötigten Höhe (max. 90 % Bildschirmhöhe); Mausrad-Scrollen
+  funktioniert bei überfüllem Inhalt zuverlässig.
+- **Einstellungen-Dialog — „Verbindung testen" im Bearbeiten-Modus:** Test schlug
+  bisher mit 401 fehl, weil das Token-Feld absichtlich leer bleibt (§4). Lösung:
+  `resolve_effective_token` — leeres Feld + bestehendes Token in `existing_config` →
+  entschlüsseltes Token intern nutzen (nie im Feld anzeigen). Neue, differenzierte
+  Fehlermeldungen: URL leer, Server nicht erreichbar, Auth fehlgeschlagen, sonstiges.
+- **Einstellungen speichern — Neustart-Hinweis:** Statt vagem „greift beim nächsten
+  Durchlauf" erscheint jetzt ein Dialog „Bitte neu starten" mit Buttons „Jetzt beenden"
+  / „Später". „Jetzt beenden" schließt die App sauber (Lock-Freigabe via `finally`
+  in `run_app()`); „Später" zeigt Hinweis in Statuszeile.
+- **Einstellungen-Dialog — Fokus-Feedback:** Klick ins gesperrte Hauptfenster bei
+  offenem Einstellungen-Dialog → Dialog piept (`bell()`) und hebt sich in den Vordergrund
+  (`lift()` + `focus_force()`).
 - **KONZEPT.md: Umlaut-Artefakte korrigiert (Fixes #3):**
   ae/oe/ue-Ersetzungen in §5, §7 und §17 durch korrekte Umlaute (ä/ö/ü) ersetzt —
   rein kosmetisch.
-
 - **Nur tatsächlich geschriebene Karten werden als bestätigt markiert (#21):**
   Übersprungene QSOs (R=Yes, expected_states-Mismatch, unbekannter R-Wert) wurden
   fälschlich als „Bestätigt ✓" angezeigt. `written_doc_ids()` (filter_util.py)
   berechnet die tatsächlich geschriebenen doc_ids aus der selections/skipped-Paarung.
-
 - **Manuell zugeordnete Karten behalten nach dem Schreiben ihre QSO-Werte:** Nach
   „Jetzt schreiben" zeigte die Treeview-Zeile für manuell zugeordnete Karten wieder „–"
   statt Rufzeichen/Datum/Band/Mode des zugeordneten QSO. Ursache: `_manual_pending`
@@ -609,7 +596,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   vor dem Clear. `_refresh_tree` nutzt es im `written`-Zweig zur QSO-Wert-Anzeige.
   `qso_display_values(matched) → (call, date, band, mode)` in `filter_util.py` als
   gemeinsame, testbare Funktion ausgelagert (Duplikat-Logik entfernt).
-
 - **SyntaxError in `setup_wizard.py` behoben:** `nonlocal row` im Hauptkörper von
   `SetupWizard._build_ui` (eingefügt mit dem Trefferlimit-Block in 0bc7832) verursachte
   einen `SyntaxError` beim App-Start. `nonlocal` ist nur in verschachtelten Funktionen
@@ -617,19 +603,16 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **GUI-Import-Smoke-Tests ergänzt** (`tests/gui/test_gui_imports.py`): 9 parametrisierte
   Tests importieren alle zentralen GUI-Module ohne Display (headless, CI-kompatibel).
   Deckt Syntaxfehler und Import-Fehler ab, die tk-Tests mangels Display überspringen.
-
 - **Prozesslücke geschlossen: Push als DoD-Pflichtpunkt** — ADR-0027 und CLAUDE.md um
   Punkt 6 erweitert: Nach dem Commit muss `git push origin dev` ausgeführt und der
   resultierende `origin/dev`-Hash im Abschluss-Bericht genannt werden. Auslöser: 7 lokale
   Commits, die nie gepusht wurden, ließen DF1DS einen veralteten Stand testen
   (Realtest-Runde verloren). „working tree clean" allein gilt nicht mehr als Abschluss.
-
 - **Diagnoseschritt: `_on_double_click`-Bugfix-Vorlauf** — Doppelklick auf UNCERTAIN/NO_MATCH
   öffnete im Realtest keinen Dialog. Lückenlosem DEBUG-Logging in `_on_double_click`
   (`main_window.py`) hinzugefügt (jeder Abbruchpfad mit Grund); bei Early-Return wird
   zusätzlich ein Statuszeilen-Hinweis gesetzt. Kein Logikeingriff — reine Diagnose
   für Realtest mit `QSL73_DEBUG=1`.
-
 - **P1 Installations-Fixes (Issues #9, #10, #11, #12, #13):**
   - **#9 — Build-Backend** (`pyproject.toml`): `setuptools.backends.legacy:build` →
     `setuptools.build_meta`; `pip install -e .` funktioniert jetzt ohne manuelles
@@ -647,7 +630,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **#13 — Fortschrittsbalken endlos** (`gui/main_window.py`): nach `RunDoneEvent`,
     `WriteDoneEvent` und `ErrorEvent` wird `progress.stop()` aufgerufen und der Modus
     auf "determinate" zurückgesetzt — Balken ruht nach Abschluss
-
 - **Schritt 6b Korrektur — nur CERTAIN-Karten sammel-bestätigbar (ADR-0007/ADR-0023):**
   - `_on_tree_click` und `_select_all` ignorieren UNCERTAIN/NO_MATCH-Karten (nicht
     selektierbar); Klick auf unsichere Zeilen ist ein No-op
@@ -667,15 +649,3 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ersetzt). Der Diagnosewert der übrigen Zeile bleibt erhalten. Härtung zu ADR-0035.
 - Kein stiller Fallback auf unsicheres NullBackend bei fehlendem pywin32 auf Windows
 - Token wird nie unverschlüsselt persistiert; bei fehlendem Backend klare Exception
-
-## [0.1.0] - 2026-06-16
-
-### Added
-
-- Initiales Repo-Grundgerüst (Verzeichnisstruktur, Branches `main` und `dev`)
-- `KONZEPT.md` – technische Spezifikation (Datenquellen, Matching-Logik, GUI, Sicherheit)
-- `ROADMAP.md` – Schrittplan mit Review-Punkten
-- `config.example.yaml` – Konfigurationsvorlage ohne echte Werte
-- `LICENSE` (MIT, DF1DS)
-- Zentrale Versions-Stelle: `src/qsl73/__version__.py` (`0.1.0`)
-- `assets/qsl73logo.png` – Logo-Originaldatei

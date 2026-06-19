@@ -178,8 +178,48 @@ setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
 Inkompatibilität. Solange MAJOR=0 (aktuell), können Breaking Changes auch in MINOR
 vorkommen (Pre-1.0-Ausnahme; ab 1.0.0 gilt SemVer strikt).
 
-**Bei jedem Release:** (1) `__version__` setzen, (2) `[Unreleased]` in `[X.Y.Z] — DATUM`
-umbenennen, (3) committen, Tag pushen → Release-Workflow (ADR-0042) prüft Konsistenz.
+### CHANGELOG-Release-Handgriff
+
+`[Unreleased]` ist die laufende Sammelstelle für alle Änderungen zwischen zwei Releases.
+Beim Release wird sie „eingefroren" und neu eröffnet — konsistent mit ADR-0042/0043.
+
+Reihenfolge bei **jedem** Release:
+
+1. **Version setzen:** `src/qsl73/__version__.py` auf `MAJOR.MINOR.PATCH` gemäß Versionsregel.
+2. **`[Unreleased]` umbenennen** in `## [X.Y.Z] - YYYY-MM-DD` (Release-Datum, ISO 8601).
+3. **Neuen `[Unreleased]`-Block anlegen** direkt darüber — leere Sammelstelle für die nächste Runde.
+4. **Kategorien-Konvention prüfen:** Reihenfolge `Added → Changed → Deprecated → Removed → Fixed → Security`
+   (Keep-a-Changelog-Standard); leere Kategorien weglassen; mehrere gleichnamige Blöcke aus der
+   Sammelphase zu je einem Block zusammenführen.
+5. **Committen, Tag pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z` → Release-Workflow
+   (ADR-0042) prüft Tag == `__version__.py` und baut Installer + GitHub-Release.
+
+### Welche Stelle bei gemischten Änderungen? Wer entscheidet?
+
+Bei einem Release mit **gemischten Änderungen** bestimmt die **höchstwertige** betroffene
+Stelle die Versionsnummer — MAJOR schlägt MINOR schlägt PATCH:
+
+| Situation | Stelle |
+|-----------|--------|
+| Inkompatible Änderung dabei (Config-Schema-Bruch, DB-Format-Bruch) | **MAJOR** |
+| Mind. ein neues Feature, kein Bruch | **MINOR** (Fixes fahren mit, kein Extra-PATCH) |
+| Nur Bugfixes/Kosmetik, kein Feature, kein Bruch | **PATCH** |
+
+Alle zwischen zwei Releases gesammelten Änderungen gehen in **ein** Release; nicht erst
+PATCH für Fixes, dann MINOR für Features — der CHANGELOG-`[Unreleased]`-Block wird
+vollständig eingefroren.
+
+**Wer entscheidet:** Der Maintainer (DF1DS) beim Release. Entscheidungsgrundlage ist die
+`[Unreleased]`-Liste im CHANGELOG:
+- Etwas unter `Added` → mindestens MINOR
+- Schema- oder Format-Bruch unter `Changed`/`Removed` → MAJOR
+- Nur `Fixed`/`Security`/Kosmetik → PATCH
+
+**Rolle Claude Desktop:** Schlägt vor dem Release die Versionsnummer anhand der
+`[Unreleased]`-Kategorien vor und begründet die Wahl; DF1DS bestätigt oder korrigiert.
+Desktop erklärt vor jedem Release ausdrücklich die geplanten Schritte (Versionsnummer,
+CHANGELOG-Umbenennung, dev→main-Merge, Tag), **bevor** der Release-Auftrag an Claude Code
+geht — kein stilles Vorgehen über den Kopf des Maintainers hinweg.
 
 ---
 
