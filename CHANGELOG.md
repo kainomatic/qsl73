@@ -7,8 +7,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-06-19
-
 ### Added
 
 - **Self-Update (Schritt 8, ADR-0045):** QSL73 prüft beim Start automatisch auf neue
@@ -497,6 +495,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `assets/qsl73logo.png` — Logo-Originaldatei
 
 ### Changed
+
+- **Beta→Stable-Release-Workflow verbindlich festgelegt (ADR-0046):** `[Unreleased]` wird
+  jetzt ausschließlich beim **Stable-Release** eingefroren. Während einer Beta-Phase bleibt
+  `[Unreleased]` offen; Beta-Tags (`vX.Y.Z-betaN`) werden ohne CHANGELOG-Einfrieren gesetzt.
+  Release-Notes-Extraktion im Workflow (`release.yml`) ist kanalabhängig: Beta → `[Unreleased]`,
+  Stable → `[X.Y.Z]`. CLAUDE.md-Handgriff entsprechend auf zwei Pfade (Beta / Stable) aufgeteilt.
 
 - **CHANGELOG-Prozess und Versionierungsregel präzisiert (Dokumentation):** CLAUDE.md um
   reproduzierbaren Release-Handgriff (5 Schritte: `__version__` setzen, `[Unreleased]`

@@ -1,8 +1,10 @@
 name: Release
 
-# Trigger: Push eines Versions-Tags
-#   vX.Y.Z        → Stable-Release  (z. B. v0.1.0)
-#   vX.Y.Z-betaN  → Beta-Pre-Release (z. B. v0.1.0-beta1)
+# Trigger: Push eines Versions-Tags (ADR-0042, ADR-0046)
+#   vX.Y.Z        → Stable-Release  (aus main; DF1DS manuell nach Review)
+#   vX.Y.Z-betaN  → Beta-Pre-Release (aus dev; darf Claude Code auslösen)
+# __version__.py trägt immer die Ziel-Stable-Basis-Nummer (X.Y.Z), auch bei Beta.
+# Versions-Sync: Tag-Basis (ohne -betaN-Suffix) wird gegen __version__.py geprüft.
 # Kein Tag = kein Lauf. CI für normale Pushes: .github/workflows/ci.yml
 on:
   push:
@@ -147,26 +149,48 @@ jobs:
           Write-Host "Installer: ${{ env.SETUP_FILE }}"
 
       # ------------------------------------------------------------------
-      # 11. Release-Notes aus CHANGELOG.md extrahieren
+      # 11. Release-Notes aus CHANGELOG.md extrahieren (kanalabhängig, ADR-0046)
+      #   Beta  → aus ## [Unreleased]  (CHANGELOG wird bei Beta NICHT eingefroren)
+      #   Stable → aus ## [APP_VERSION] (eingefrorener Abschnitt, z. B. ## [0.2.0])
+      #   Fallback: [Unreleased] → Platzhaltertext; kein Workflow-Abbruch.
       # ------------------------------------------------------------------
       - name: Release-Notes aus CHANGELOG generieren
         shell: pwsh
         run: |
           $changelog = Get-Content CHANGELOG.md -Raw -Encoding utf8
-          # Inhalt zwischen ## [Unreleased] und nächster ## [-Zeile
-          $match = [regex]::Match(
-            $changelog,
-            '## \[Unreleased\]\s*\r?\n(.*?)(?=\r?\n## \[)',
-            [System.Text.RegularExpressions.RegexOptions]::Singleline
-          )
+          $tag = "${{ github.ref_name }}"
+          $isBeta = ($tag -match '-beta')
+          $opts = [System.Text.RegularExpressions.RegexOptions]::Singleline
+
+          if ($isBeta) {
+            # Beta: Notizen aus ## [Unreleased] (CHANGELOG bleibt offen)
+            $pattern = '## \[Unreleased\]\s*\r?\n(.*?)(?=\r?\n## \[)'
+            $source  = "[Unreleased]"
+          } else {
+            # Stable: Notizen aus ## [APP_VERSION] (eingefrorener Abschnitt)
+            $escapedVer = [regex]::Escape("${{ env.APP_VERSION }}")
+            $pattern = "## \[$escapedVer\][^\r\n]*\r?\n(.*?)(?=\r?\n## \[)"
+            $source  = "[${{ env.APP_VERSION }}]"
+          }
+
+          $match = [regex]::Match($changelog, $pattern, $opts)
           if ($match.Success) {
             $notes = $match.Groups[1].Value.Trim()
+            Write-Host "Release-Notes aus CHANGELOG $source extrahiert."
           } else {
-            $notes = "Siehe CHANGELOG.md für Details zu dieser Version."
+            # Fallback 1: [Unreleased]
+            $fb = [regex]::Match($changelog, '## \[Unreleased\]\s*\r?\n(.*?)(?=\r?\n## \[)', $opts)
+            if ($fb.Success) {
+              $notes = $fb.Groups[1].Value.Trim()
+              Write-Warning "Abschnitt $source nicht gefunden; Fallback auf [Unreleased]."
+            } else {
+              # Fallback 2: Platzhalter
+              $notes = "Siehe CHANGELOG.md für Details zu dieser Version."
+              Write-Warning "Kein CHANGELOG-Abschnitt gefunden; Platzhaltertext."
+            }
           }
           $header = "## QSL73 ${{ env.APP_VERSION }}`n"
           ($header + $notes) | Out-File -FilePath release_notes.txt -Encoding utf8
-          Write-Host "Release-Notes erzeugt."
 
       # ------------------------------------------------------------------
       # 12. GitHub-Release erstellen und Setup.exe anhängen

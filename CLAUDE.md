@@ -178,21 +178,31 @@ setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
 Inkompatibilität. Solange MAJOR=0 (aktuell), können Breaking Changes auch in MINOR
 vorkommen (Pre-1.0-Ausnahme; ab 1.0.0 gilt SemVer strikt).
 
-### CHANGELOG-Release-Handgriff
+### CHANGELOG-Release-Handgriff (ADR-0046)
 
-`[Unreleased]` ist die laufende Sammelstelle für alle Änderungen zwischen zwei Releases.
-Beim Release wird sie „eingefroren" und neu eröffnet — konsistent mit ADR-0042/0043.
+`[Unreleased]` ist die laufende Sammelstelle. **Einfrieren NUR beim Stable-Release** —
+nicht bei Beta-Pre-Releases. → vollständiger Workflow: **ADR-0046**
 
-Reihenfolge bei **jedem** Release:
+#### Beta-Release (Pre-Release — Claude Code darf auslösen)
 
-1. **Version setzen:** `src/qsl73/__version__.py` auf `MAJOR.MINOR.PATCH` gemäß Versionsregel.
-2. **`[Unreleased]` umbenennen** in `## [X.Y.Z] - YYYY-MM-DD` (Release-Datum, ISO 8601).
-3. **Neuen `[Unreleased]`-Block anlegen** direkt darüber — leere Sammelstelle für die nächste Runde.
-4. **Kategorien-Konvention prüfen:** Reihenfolge `Added → Changed → Deprecated → Removed → Fixed → Security`
-   (Keep-a-Changelog-Standard); leere Kategorien weglassen; mehrere gleichnamige Blöcke aus der
-   Sammelphase zu je einem Block zusammenführen.
-5. **Committen, Tag pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z` → Release-Workflow
-   (ADR-0042) prüft Tag == `__version__.py` und baut Installer + GitHub-Release.
+1. **Version setzen** (falls noch nicht): `__version__.py` auf `X.Y.Z` (Ziel-Stable-Nummer).
+   `CHANNEL` bleibt `"stable"` — Kanal-Patch erfolgt ephemer im Release-Workflow.
+2. **CHANGELOG NICHT einfrieren.** `[Unreleased]` bleibt bestehen; neue Einträge weiter dort.
+3. **Tag setzen und pushen:** `git tag vX.Y.Z-betaN && git push origin vX.Y.Z-betaN`
+   → Workflow baut Beta-Installer; Release-Notes aus `[Unreleased]`.
+4. Mehrere Runden: `-beta2`, `-beta3`, … bei Bedarf; `[Unreleased]` wächst weiter.
+
+#### Stable-Release (DF1DS manuell nach Desktop-Review)
+
+1. **Version prüfen:** `__version__.py` muss `X.Y.Z` enthalten (aus Beta-Phase bereits gesetzt;
+   bei Direktrelease ohne Beta jetzt setzen).
+2. **`[Unreleased]` einfrieren:** umbenennen in `## [X.Y.Z] - YYYY-MM-DD` (ISO 8601).
+3. **Neuen `[Unreleased]`-Block** direkt darüber anlegen — leere Sammelstelle.
+4. **Kategorien-Konvention prüfen:** `Added → Changed → Deprecated → Removed → Fixed → Security`
+   (Keep-a-Changelog-Standard); leere Kategorien weglassen; mehrere gleichnamige Blöcke zusammenführen.
+5. **`dev → main` mergen:** `git checkout main && git merge dev && git push origin main`
+6. **Tag setzen und pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z`
+   → Workflow baut Stable-Installer; Release-Notes aus `[X.Y.Z]`.
 
 ### Welche Stelle bei gemischten Änderungen? Wer entscheidet?
 
@@ -205,20 +215,20 @@ Stelle die Versionsnummer — MAJOR schlägt MINOR schlägt PATCH:
 | Mind. ein neues Feature, kein Bruch | **MINOR** (Fixes fahren mit, kein Extra-PATCH) |
 | Nur Bugfixes/Kosmetik, kein Feature, kein Bruch | **PATCH** |
 
-Alle zwischen zwei Releases gesammelten Änderungen gehen in **ein** Release; nicht erst
-PATCH für Fixes, dann MINOR für Features — der CHANGELOG-`[Unreleased]`-Block wird
-vollständig eingefroren.
+Alle zwischen zwei Stable-Releases gesammelten Änderungen gehen in **ein** Stable-Release;
+nicht erst PATCH für Fixes, dann MINOR für Features — der `[Unreleased]`-Block wird
+beim Stable-Release vollständig eingefroren.
 
-**Wer entscheidet:** Der Maintainer (DF1DS) beim Release. Entscheidungsgrundlage ist die
+**Wer entscheidet:** Der Maintainer (DF1DS) beim Stable-Release. Entscheidungsgrundlage ist die
 `[Unreleased]`-Liste im CHANGELOG:
 - Etwas unter `Added` → mindestens MINOR
 - Schema- oder Format-Bruch unter `Changed`/`Removed` → MAJOR
 - Nur `Fixed`/`Security`/Kosmetik → PATCH
 
-**Rolle Claude Desktop:** Schlägt vor dem Release die Versionsnummer anhand der
+**Rolle Claude Desktop:** Schlägt vor dem Stable-Release die Versionsnummer anhand der
 `[Unreleased]`-Kategorien vor und begründet die Wahl; DF1DS bestätigt oder korrigiert.
-Desktop erklärt vor jedem Release ausdrücklich die geplanten Schritte (Versionsnummer,
-CHANGELOG-Umbenennung, dev→main-Merge, Tag), **bevor** der Release-Auftrag an Claude Code
+Desktop erklärt vor jedem Stable-Release ausdrücklich die geplanten Schritte (Versionsnummer,
+CHANGELOG-Einfrieren, dev→main-Merge, Tag), **bevor** der Release-Auftrag an Claude Code
 geht — kein stilles Vorgehen über den Kopf des Maintainers hinweg.
 
 ---
