@@ -434,6 +434,13 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   main mergen, Tag `v0.2.3` pushen; danach Rück-Merge hotfix → dev als separater CC-Auftrag).
 - **v0.2.3-Über-Dialog-Höhen-Fix nach dev gemergt (2026-06-19):** Wird über v0.3.0-beta2
   getestet; Stable-Release v0.2.3 folgt separat über main.
+- **Verbesserter Über-Dialog-Fix (Logo-robust, 520er Mindesthöhe, mittiger Parent-Zentrierung)
+  nach dev gemergt (2026-06-19):** Hotfix-Branch `hotfix/v0.2.3-about-dialog-height` →
+  `dev` Rück-Merge (kein manueller Konflikt nötig — auto-aufgelöst). `dev` enthält nun:
+  `_ABOUT_MIN_H=520`, `_ABOUT_MIN_W=360`, `_resolve_dialog_width`, `update_idletasks`,
+  `ismapped`-Fallback (SetupWizard-Muster) + alle `attach_tooltip`-Aufrufe. `__version__=0.3.0`.
+  Wird über v0.3.0-beta3 auf Win10 verifiziert; Stable v0.2.3 folgt separat über main.
+  1172 Tests grün. origin/dev = 6f7f2c1. Hotfix-Branch bleibt erhalten (für Stable v0.2.3).
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
