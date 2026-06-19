@@ -29,10 +29,24 @@ if (-not $Iscc) {
     exit 1
 }
 
+# Version aus __version__.py lesen (ADR-0045 §13: versionierter Dateiname)
+$VersionFile = "src\qsl73\__version__.py"
+if (-not (Test-Path $VersionFile)) {
+    Write-Error "$VersionFile nicht gefunden."
+    exit 1
+}
+$VerContent = Get-Content $VersionFile -Raw
+if ($VerContent -notmatch '__version__\s*=\s*"([^"]+)"') {
+    Write-Error "__version__ in $VersionFile nicht gefunden."
+    exit 1
+}
+$AppVersion = $Matches[1]
+Write-Host "APP_VERSION: $AppVersion"
+
 if ($Beta) {
-    & $Iscc installer\qsl73-beta.iss
-    Write-Host "Installer fertig: installer\Output\QSL73-Beta-Setup.exe"
+    & $Iscc /DAPP_VERSION=$AppVersion installer\qsl73-beta.iss
+    Write-Host "Installer fertig: installer\Output\QSL73-Beta-Setup-v$AppVersion.exe"
 } else {
-    & $Iscc installer\qsl73.iss
-    Write-Host "Installer fertig: installer\Output\QSL73-Setup.exe"
+    & $Iscc /DAPP_VERSION=$AppVersion installer\qsl73.iss
+    Write-Host "Installer fertig: installer\Output\QSL73-Setup-v$AppVersion.exe"
 }

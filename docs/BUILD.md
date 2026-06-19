@@ -174,10 +174,15 @@ muss Schritt 3 manuell ausgeführt werden, sonst fehlen die HTML-Dateien im Inst
 ### Build ausführen
 
 ```
-ISCC.exe installer\qsl73.iss
+ISCC.exe /DAPP_VERSION=0.2.1 installer\qsl73.iss
 ```
 
-Ergebnis: `installer\Output\QSL73-Setup.exe`
+Ergebnis: `installer\Output\QSL73-Setup-v0.2.1.exe`
+
+> **Dateinamens-Schema:** Ab v0.2.1 enthält der Installer-Name die Versionsnummer.
+> `/DAPP_VERSION=X.Y.Z` muss immer übergeben werden; ohne den Parameter greift der
+> Fallback-Wert im `.iss` (aktuell `0.2.0`). `tools/build_installer.ps1` liest die
+> Version automatisch aus `src/qsl73/__version__.py` und übergibt sie.
 
 ### Pfad zu ISCC.exe
 
@@ -202,10 +207,13 @@ Nach der Installation: `C:\Program Files\QSL73\QSL73.exe` starten.
 ### Beta-Installer lokal bauen
 
 ```
-ISCC.exe /DAPP_VERSION=0.1.0 installer\qsl73-beta.iss
+ISCC.exe /DAPP_VERSION=0.3.0 installer\qsl73-beta.iss
 ```
 
-Ergebnis: `installer\Output\QSL73-Beta-Setup.exe`
+Ergebnis: `installer\Output\QSL73-Beta-Setup-v0.3.0.exe`
+
+> **Hinweis:** Beta-Assets tragen die Ziel-Stable-Basis-Nummer (kein `-betaN`-Suffix
+> im Dateinamen), da die `.iss` nur `APP_VERSION` kennt.
 
 Wichtig: Beta-Bundle benötigt `CHANNEL="beta"` in `__version__.py`. Für lokale Tests
 vor dem Bau einmalig anpassen (Datei danach zurücksetzen — nicht committen):

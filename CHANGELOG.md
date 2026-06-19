@@ -9,6 +9,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Installer-Dateiname versioniert (ab v0.2.1):** Installer-Assets enthalten jetzt die
+  Versionsnummer im Dateinamen: `QSL73-Setup-v<VERSION>.exe` (Stable) und
+  `QSL73-Beta-Setup-v<VERSION>.exe` (Beta). Beide `.iss`-Dateien, `release.yml` und
+  `tools/build_installer.ps1` konsistent angepasst. Beta-Assets tragen die Ziel-Stable-Basis-
+  Nummer (kein `-betaN`-Suffix, da die `.iss` nur `APP_VERSION` kennt).
+- **Updater: Asset-Erkennung per Muster** (ADR-0045 §13): `_pick_asset` vergleicht nicht
+  mehr exakt, sondern per Regex — erkennt altes (`QSL73-Setup.exe`) UND neues
+  (`QSL73-Setup-vX.Y.Z.exe`) Schema. Stable-Muster schließt Beta-Assets explizit aus.
+  Rückwärtskompatibel zu bestehenden Releases.
 - **Prozess (CLAUDE.md):** Feature-Ideen, Aufgaben und Bugs müssen als GitHub Issue
   abgelegt werden — kein flüchtiger Chat-Sammeltopf. Claude Desktop legt Issues immer
   per CC-Auftrag an (kein eigener Schreibzugriff). Rollenmodell-Zeile Desktop entsprechend

@@ -3,7 +3,7 @@
 ; Stabile Variante: installer/qsl73.iss (eigene GUID, eigener Pfad -- parallel installierbar)
 
 #ifndef APP_VERSION
-  #define APP_VERSION "0.1.0"
+  #define APP_VERSION "0.2.0"
 #endif
 
 [Setup]
@@ -17,7 +17,7 @@ DefaultDirName={autopf}\QSL73 Beta
 DefaultGroupName=QSL73 Beta
 AllowNoIcons=yes
 OutputDir=Output
-OutputBaseFilename=QSL73-Beta-Setup
+OutputBaseFilename=QSL73-Beta-Setup-v{#APP_VERSION}
 SetupIconFile=..\assets\qsl73.ico
 Compression=lzma2/max
 SolidCompression=yes

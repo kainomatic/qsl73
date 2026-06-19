@@ -144,6 +144,31 @@ Verhalten:
 | `/SILENT` (Sysadmin-Deploy, kein Flag) | nein | nein |
 | `/SILENT /RESTARTQSL73` (Self-Update) | nein | ja |
 
+### 13. Versioniertes Asset-Namensschema + Muster-Erkennung
+
+Ab v0.2.1 tragen Installer-Assets die Versionsnummer im Dateinamen:
+
+| Kanal | Altes Schema (≤ v0.2.0) | Neues Schema (ab v0.2.1) |
+|-------|------------------------|--------------------------|
+| stable | `QSL73-Setup.exe` | `QSL73-Setup-v<VERSION>.exe` |
+| beta | `QSL73-Beta-Setup.exe` | `QSL73-Beta-Setup-v<VERSION>.exe` |
+
+**Beta-Assets tragen die Ziel-Stable-Basis-Nummer** (z. B. `QSL73-Beta-Setup-v0.3.0.exe`),
+nicht das `-betaN`-Suffix — die `.iss` kennt nur `APP_VERSION`.
+
+`_pick_asset` verwendet Regex-Muster statt exaktem Namensvergleich:
+- Stable: `^QSL73-Setup(-v\d+\.\d+\.\d+)?\.exe$` — schließt Beta-Assets explizit aus
+- Beta:   `^QSL73-Beta-Setup(-v\d+\.\d+\.\d+)?\.exe$`
+
+Der optionale `-vX.Y.Z`-Teil deckt alte (unversionierte) UND neue Assets ab.
+
+**Einmaliger manueller Schritt (v0.2.0 → v0.2.1):** v0.2.0 wurde mit dem alten
+Exakt-Vergleich (`asset.name == "QSL73-Setup.exe"`) veröffentlicht. Das erste Release
+mit dem neuen Schema (`QSL73-Setup-v0.2.1.exe`) wird von v0.2.0 **nicht automatisch
+gefunden** (Asset-not-found → `_ERR_NO_ASSET`). Nutzer müssen v0.2.1 einmalig manuell
+herunterladen. Ab v0.2.1 (mit Muster-Erkennung) läuft das Self-Update dauerhaft wieder
+automatisch — auch für spätere versionierte Releases.
+
 ## Konsequenzen
 
 - Nur eine neue Außenverbindung (GitHub-API): CLAUDE.md-Leitplanke gewahrt.

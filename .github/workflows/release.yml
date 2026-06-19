@@ -38,13 +38,13 @@ jobs:
             "CHANNEL=beta"               >> $env:GITHUB_ENV
             "IS_PRERELEASE=true"         >> $env:GITHUB_ENV
             "ISS_FILE=installer\qsl73-beta.iss" >> $env:GITHUB_ENV
-            "SETUP_FILE=installer\Output\QSL73-Beta-Setup.exe" >> $env:GITHUB_ENV
+            # SETUP_FILE wird nach Versions-Sync (Schritt 3) mit APP_VERSION gesetzt
             Write-Host "Kanal: beta (Pre-Release)"
           } else {
             "CHANNEL=stable"             >> $env:GITHUB_ENV
             "IS_PRERELEASE=false"        >> $env:GITHUB_ENV
             "ISS_FILE=installer\qsl73.iss" >> $env:GITHUB_ENV
-            "SETUP_FILE=installer\Output\QSL73-Setup.exe" >> $env:GITHUB_ENV
+            # SETUP_FILE wird nach Versions-Sync (Schritt 3) mit APP_VERSION gesetzt
             Write-Host "Kanal: stable (Release)"
           }
 
@@ -75,6 +75,14 @@ jobs:
             exit 1
           }
           "APP_VERSION=$srcVer" >> $env:GITHUB_ENV
+          # SETUP_FILE: versionierter Dateiname setzt APP_VERSION voraus (ADR-0045 §13)
+          if ($env:CHANNEL -eq "beta") {
+            "SETUP_FILE=installer\Output\QSL73-Beta-Setup-v$srcVer.exe" >> $env:GITHUB_ENV
+            Write-Host "Installer-Datei: installer\Output\QSL73-Beta-Setup-v$srcVer.exe"
+          } else {
+            "SETUP_FILE=installer\Output\QSL73-Setup-v$srcVer.exe" >> $env:GITHUB_ENV
+            Write-Host "Installer-Datei: installer\Output\QSL73-Setup-v$srcVer.exe"
+          }
           Write-Host "OK: Tag $tag stimmt mit __version__.py ($srcVer) überein."
 
       # ------------------------------------------------------------------

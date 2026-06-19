@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import subprocess
 import tempfile
 import urllib.error
@@ -22,8 +23,15 @@ _ALLOWED_ASSET_PREFIXES = (
     "https://objects.githubusercontent.com/",
 )
 
+# Altes Namensschema (≤ v0.2.0, unversioniert) — für Rückwärtskompatibilität erhalten.
 STABLE_ASSET_NAME = "QSL73-Setup.exe"
 BETA_ASSET_NAME = "QSL73-Beta-Setup.exe"
+
+# Muster-Erkennung (ADR-0045 §13): deckt altes UND neues versioniertes Schema ab.
+# Stable: ^QSL73-Setup(-vX.Y.Z)?\.exe$  — schließt Beta-Assets explizit aus.
+# Beta:   ^QSL73-Beta-Setup(-vX.Y.Z)?\.exe$
+_STABLE_ASSET_PATTERN = re.compile(r"^QSL73-Setup(-v\d+\.\d+\.\d+)?\.exe$")
+_BETA_ASSET_PATTERN   = re.compile(r"^QSL73-Beta-Setup(-v\d+\.\d+\.\d+)?\.exe$")
 
 # i18n-Vorbereitung
 _ERR_NETWORK = "Keine Verbindung zur Update-Prüfung (Netzwerkfehler)."
@@ -146,12 +154,17 @@ def _find_best_release(releases: list[dict], channel: str) -> Optional[dict]:
 
 
 def _pick_asset(release: dict, channel: str) -> Optional[AssetInfo]:
-    """Passendes Setup-Asset aus dem Release wählen."""
-    target = STABLE_ASSET_NAME if channel == "stable" else BETA_ASSET_NAME
+    """Passendes Setup-Asset aus dem Release wählen (Muster-Erkennung, ADR-0045 §13).
+
+    Erkennt altes (QSL73-Setup.exe) und neues versioniertes Schema (QSL73-Setup-vX.Y.Z.exe).
+    Stable-Muster schließt Beta-Assets explizit aus.
+    """
+    pattern = _STABLE_ASSET_PATTERN if channel == "stable" else _BETA_ASSET_PATTERN
     for asset in release.get("assets", []):
-        if asset.get("name") == target:
+        name = asset.get("name", "")
+        if pattern.match(name):
             return AssetInfo(
-                name=target,
+                name=name,
                 url=asset.get("browser_download_url", ""),
                 size=int(asset.get("size", 0)),
             )

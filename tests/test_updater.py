@@ -201,6 +201,8 @@ def _make_asset_entry(name: str, size: int = 1000) -> dict:
 
 
 class TestPickAsset:
+    # --- Altes Schema (unversioniert, Rückwärtskompatibilität) ---
+
     def test_stable_picks_correct_asset(self):
         release = _make_release("v0.2.0", False, [
             _make_asset_entry(STABLE_ASSET_NAME, 42_000_000),
@@ -228,6 +230,74 @@ class TestPickAsset:
     def test_no_assets_returns_none(self):
         release = _make_release("v0.2.0", False, [])
         assert _pick_asset(release, "stable") is None
+
+    # --- Neues Schema (versioniert, ab v0.2.1) ---
+
+    def test_stable_picks_versioned_asset(self):
+        """QSL73-Setup-vX.Y.Z.exe wird als Stable-Asset erkannt."""
+        release = _make_release("v0.2.1", False, [
+            _make_asset_entry("QSL73-Setup-v0.2.1.exe", 42_000_000),
+        ])
+        asset = _pick_asset(release, "stable")
+        assert asset is not None
+        assert asset.name == "QSL73-Setup-v0.2.1.exe"
+
+    def test_beta_picks_versioned_asset(self):
+        """QSL73-Beta-Setup-vX.Y.Z.exe wird als Beta-Asset erkannt."""
+        release = _make_release("v0.3.0-beta1", True, [
+            _make_asset_entry("QSL73-Beta-Setup-v0.3.0.exe", 42_000_000),
+        ])
+        asset = _pick_asset(release, "beta")
+        assert asset is not None
+        assert asset.name == "QSL73-Beta-Setup-v0.3.0.exe"
+
+    # --- Stable/Beta-Trennung (kritisch) ---
+
+    def test_stable_does_not_pick_versioned_beta_asset(self):
+        """Stable-Muster fängt KEIN QSL73-Beta-Setup-vX.Y.Z.exe."""
+        release = _make_release("v0.2.1", False, [
+            _make_asset_entry("QSL73-Beta-Setup-v0.2.1.exe", 42_000_000),
+        ])
+        asset = _pick_asset(release, "stable")
+        assert asset is None
+
+    def test_stable_does_not_pick_legacy_beta_asset(self):
+        """Stable-Muster fängt auch altes QSL73-Beta-Setup.exe nicht."""
+        release = _make_release("v0.2.1", False, [
+            _make_asset_entry(BETA_ASSET_NAME, 42_000_000),
+        ])
+        asset = _pick_asset(release, "stable")
+        assert asset is None
+
+    def test_beta_does_not_pick_stable_versioned_asset(self):
+        """Beta-Muster fängt kein QSL73-Setup-vX.Y.Z.exe."""
+        release = _make_release("v0.2.1-beta1", True, [
+            _make_asset_entry("QSL73-Setup-v0.2.1.exe", 42_000_000),
+        ])
+        asset = _pick_asset(release, "beta")
+        assert asset is None
+
+    # --- Gemischte Release-Assets ---
+
+    def test_old_and_new_name_both_present_picks_first(self):
+        """Falls alt und neu vorhanden: ersten Match zurückgeben."""
+        release = _make_release("v0.2.1", False, [
+            _make_asset_entry(STABLE_ASSET_NAME, 40_000_000),
+            _make_asset_entry("QSL73-Setup-v0.2.1.exe", 42_000_000),
+        ])
+        asset = _pick_asset(release, "stable")
+        assert asset is not None
+        assert asset.name in {STABLE_ASSET_NAME, "QSL73-Setup-v0.2.1.exe"}
+
+    def test_unrelated_asset_not_picked(self):
+        """Andere Dateien (z. B. checksums) werden nicht als Asset gewählt."""
+        release = _make_release("v0.2.1", False, [
+            _make_asset_entry("QSL73-Setup-v0.2.1.exe.sha256", 64),
+            _make_asset_entry("QSL73-Setup-v0.2.1.exe", 42_000_000),
+        ])
+        asset = _pick_asset(release, "stable")
+        assert asset is not None
+        assert asset.name == "QSL73-Setup-v0.2.1.exe"
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +399,16 @@ class TestCheckForUpdate:
             result = check_for_update("0.1.0", "stable")
         assert result.release_url is not None
         assert "github.com" in result.release_url
+
+    def test_versioned_asset_name_returned_in_result(self):
+        """check_for_update liefert den echten versionierten Dateinamen zurück."""
+        versioned_asset = _make_asset_entry("QSL73-Setup-v0.2.1.exe", 42_000_000)
+        releases = [_make_release("v0.2.1", False, [versioned_asset])]
+        with _mock_fetch(releases):
+            result = check_for_update("0.1.0", "stable")
+        assert result.status == UpdateStatus.UPDATE_AVAILABLE
+        assert result.asset is not None
+        assert result.asset.name == "QSL73-Setup-v0.2.1.exe"
 
 
 # ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 ; APP_VERSION wird vom Release-Workflow per /DAPP_VERSION=x.y.z injiziert.
 ; Lokaler Build ohne /D-Flag verwendet den hardkodierten Fallback.
 #ifndef APP_VERSION
-  #define APP_VERSION "0.1.0"
+  #define APP_VERSION "0.2.0"
 #endif
 
 [Setup]
@@ -19,7 +19,7 @@ DefaultDirName={autopf}\QSL73
 DefaultGroupName=QSL73
 AllowNoIcons=yes
 OutputDir=Output
-OutputBaseFilename=QSL73-Setup
+OutputBaseFilename=QSL73-Setup-v{#APP_VERSION}
 SetupIconFile=..\assets\qsl73.ico
 Compression=lzma2/max
 SolidCompression=yes
