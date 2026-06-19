@@ -110,6 +110,26 @@ _MD_EXTENSIONS = [
 ]
 
 
+def _strip_unreleased_section(md_text: str) -> str:
+    """Entfernt den ## [Unreleased]-Abschnitt aus CHANGELOG-Markdown.
+
+    Für die Nutzer-HTML vollständig auslassen (leer oder gefüllt) — Endnutzer
+    sehen nur veröffentlichte Versionen. CHANGELOG.md selbst bleibt unverändert.
+    Robust gegenüber LF und CRLF.
+    """
+    out: list[str] = []
+    skip = False
+    for line in md_text.splitlines(keepends=True):
+        if line.startswith("## [Unreleased]"):
+            skip = True
+            continue
+        if skip and line.startswith("## ["):
+            skip = False
+        if not skip:
+            out.append(line)
+    return "".join(out)
+
+
 def _md_to_html(md_text: str, title: str) -> str:
     body = markdown.markdown(
         md_text,
@@ -119,8 +139,10 @@ def _md_to_html(md_text: str, title: str) -> str:
     return _HTML_TEMPLATE.format(title=title, body=body)
 
 
-def _convert(src: Path, dst: Path, title: str) -> None:
+def _convert(src: Path, dst: Path, title: str, preprocess=None) -> None:
     text = src.read_text(encoding="utf-8")
+    if preprocess is not None:
+        text = preprocess(text)
     html = _md_to_html(text, title)
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(html, encoding="utf-8")
@@ -138,6 +160,7 @@ def main() -> None:
         REPO_ROOT / "CHANGELOG.md",
         OUT_DIR / "AENDERUNGEN.html",
         "QSL73 – Änderungshistorie",
+        preprocess=_strip_unreleased_section,
     )
     print("Fertig.")
 

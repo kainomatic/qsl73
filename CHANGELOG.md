@@ -13,6 +13,9 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   abgelegt werden — kein flüchtiger Chat-Sammeltopf. Claude Desktop legt Issues immer
   per CC-Auftrag an (kein eigener Schreibzugriff). Rollenmodell-Zeile Desktop entsprechend
   geschärft.
+- **AENDERUNGEN.html:** `[Unreleased]`-Abschnitt wird beim Erzeugen der Nutzer-HTML
+  vollständig ausgelassen (leer oder gefüllt); Änderungshistorie beginnt jetzt mit der
+  neuesten veröffentlichten Version.
 
 ### Fixed
 
