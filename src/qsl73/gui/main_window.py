@@ -106,6 +106,16 @@ def _reset_progress(progress: ttk.Progressbar) -> None:
     progress.configure(mode="determinate", value=0)
 
 
+def _compute_dialog_geometry(dw: int, dh: int, px: int, py: int, pw: int, ph: int) -> str:
+    """Gibt eine tk-Geometrie-Zeichenkette zurück, die den Dialog über dem Parent zentriert.
+
+    Alle Parameter sind ganze Pixel-Werte; kein tk-Zugriff — vollständig testbar ohne Display.
+    """
+    x = max(0, px + (pw - dw) // 2)
+    y = max(0, py + (ph - dh) // 2)
+    return f"{dw}x{dh}+{x}+{y}"
+
+
 _RESULT_LABELS = {
     MatchResult.CERTAIN: "Sicher",
     MatchResult.UNCERTAIN: "Unsicher",
@@ -985,17 +995,21 @@ class MainWindow(tk.Tk):
         dlg.bind("<Escape>", lambda _e: dlg.destroy())
         dlg.minsize(340, 1)
 
-        dlg.update_idletasks()
-        dw = max(340, dlg.winfo_reqwidth())
-        dh = dlg.winfo_reqheight()
-        px = self.winfo_rootx()
-        py = self.winfo_rooty()
-        pw = self.winfo_width()
-        ph = self.winfo_height()
-        x = max(0, px + (pw - dw) // 2)
-        y = max(0, py + (ph - dh) // 2)
-        dlg.geometry(f"{dw}x{dh}+{x}+{y}")
+        # Größe/Position NACH erstem Mapping berechnen, damit winfo_req* reale Maße liefert.
+        # Analoges Muster wie SetupWizard._adjust_window_size (ADR-0037 TEIL A1).
+        def _do_center() -> None:
+            if not dlg.winfo_exists():
+                return
+            dlg.update_idletasks()
+            dw = max(340, dlg.winfo_reqwidth())
+            dh = dlg.winfo_reqheight()
+            dlg.geometry(_compute_dialog_geometry(
+                dw, dh,
+                self.winfo_rootx(), self.winfo_rooty(),
+                self.winfo_width(), self.winfo_height(),
+            ))
 
+        dlg.after(1, _do_center)
         dlg.wait_window()
 
     # ------------------------------------------------------------------
