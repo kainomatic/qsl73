@@ -9,6 +9,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Self-Update (Schritt 8, ADR-0045):** QSL73 prüft beim Start automatisch auf neue
+  Versionen (wenn `app.update_check = true`). Stable-Kanal prüft gegen normale
+  GitHub-Releases, Beta-Kanal gegen Pre-Releases. Bei verfügbarem Update erscheint ein
+  modaler Dialog mit aktueller und neuer Versionsnummer sowie Link zu den Release-Notes.
+  „Herunterladen und installieren" lädt das passende Setup-Asset nach `%TEMP%`, verifiziert
+  die Dateigröße, startet den Installer im `/SILENT`-Modus (Fortschritts­fenster sichtbar,
+  kein Klick-durch) und beendet QSL73 sauber. Der Installer startet QSL73 nach dem Update
+  automatisch neu. „Später" schließt den Dialog; ein Hinweis-Eintrag im Menü Hilfe bleibt
+  sichtbar. „Nicht mehr erinnern" setzt `update_check = false` dauerhaft. Hilfe →
+  „Nach Updates suchen" stößt die Prüfung jederzeit manuell an (unabhängig von
+  `update_check`). Modul `updater.py` tk-frei + umfassend getestet (GitHub-API gemockt).
+  Inno-Setup: `CloseApplications=yes` + `runascurrentuser` ohne `skipifsilent` sichern
+  Neustart auch bei `/SILENT`-Install.
+
 - **Installer zeigt Liesmich und Änderungshistorie:** `README.md` und `CHANGELOG.md`
   werden beim Build automatisch in offline-fähige HTML-Dateien (`LIESMICH.html`,
   `AENDERUNGEN.html`) konvertiert (`tools/make_docs_html.py`, Build-Abhängigkeit `markdown`

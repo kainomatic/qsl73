@@ -328,12 +328,18 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   entfernt; `app.language` im Config-Modell erhalten (Abwärtskompatibilität). Issue #25
   vorgemerkt für V2-i18n. 958 Tests grün.
 
-## Schritt 8 — Update-Lifecycle + Installer/Deinstaller
+## 🔧 IN ARBEIT Schritt 8 — Update-Lifecycle + Installer
 
-- GitHub-Releases-Check, Updater, Inno-Installer (still, aufräumend), Deinstaller mit
-  Nutzerdaten-Abfrage, Config-Migration scharf schalten.
-- **Beta-Kanal:** kanalabhängige Update-Prüfung — Stable prüft gegen main-Releases;
-  Beta prüft nur gegen explizit getaggte GitHub-Pre-Releases (→ ADR-0021).
+- `src/qsl73/updater.py`: GitHub-Releases-API, SemVer-Vergleich (inkl. beta < stable),
+  Asset-Auswahl (Stable/Beta-Kanal), Download nach %TEMP%, Größenprüfung, /SILENT-Start.
+- `src/qsl73/gui/update_dialog.py`: modaler Dialog, Download-Fortschritt, „Später",
+  „Nicht mehr erinnern" → update_check=False.
+- `main_window.py`: Hintergrundprüfung beim Start, Menü „Nach Updates suchen",
+  Update-Hinweis-Eintrag bei „Später", manuelle Prüfung immer aktiv.
+- `app.py`: `schedule_update_check()` nach Fenstererstellung.
+- Beide `.iss`: `CloseApplications=yes`, `runascurrentuser` ohne `skipifsilent` → Neustart
+  auch im /SILENT-Modus (ADR-0045).
+- ADR-0045 angelegt.
 - **Review:** Akzeptanzkriterien §12/§13; pytest grün, CI grün.
 
 ## Schritt 9 — Build, Test, erstes Release

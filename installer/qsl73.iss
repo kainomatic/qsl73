@@ -25,6 +25,7 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
+CloseApplications=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
 UninstallDisplayIcon={app}\QSL73.exe
@@ -53,7 +54,9 @@ Name: "{commondesktop}\QSL73";        Filename: "{app}\QSL73.exe"; Tasks: deskto
 Name: "{group}\QSL73 deinstallieren"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\QSL73.exe";           Description: "{cm:LaunchProgram,QSL73}"; Flags: nowait postinstall skipifsilent
+; runascurrentuser: QSL73 startet als normaler Nutzer, nicht mit Admin-Rechten des Installers.
+; Kein skipifsilent: beim Self-Update (/SILENT) wird QSL73 automatisch neugestartet.
+Filename: "{app}\QSL73.exe";           Description: "{cm:LaunchProgram,QSL73}"; Flags: nowait postinstall runascurrentuser
 Filename: "{app}\LIESMICH.html";       Description: "Liesmich anzeigen";    Flags: postinstall unchecked skipifsilent shellexec
 Filename: "{app}\AENDERUNGEN.html";    Description: "Änderungen anzeigen";  Flags: postinstall unchecked skipifsilent shellexec
 

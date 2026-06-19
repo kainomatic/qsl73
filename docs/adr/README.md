@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0045.
+Nächste freie Nummer: ADR-0046.
 
 ## Index
 
@@ -34,6 +34,7 @@ Nächste freie Nummer: ADR-0045.
 | ADR-0042 | Release-Automatisierung via GitHub Actions + Beta-Installer-Variante |
 | ADR-0043 | Versionierung nach Semantic Versioning (MAJOR.MINOR.PATCH) |
 | ADR-0044 | Kein Code-Signing — SmartScreen-Warnung dokumentiert statt Zertifikat |
+| ADR-0045 | Self-Update-Lifecycle (Kanal-Prüfung, Download-Verifikation, /SILENT-Installer, Opt-out) |
 
 ## Abgrenzung
 

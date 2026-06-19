@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import queue
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -43,6 +44,15 @@ from qsl73.gui.filter_util import (
 _log = logging.getLogger("qsl73")
 
 # i18n-Vorbereitung: nutzersichtbare Texte als Konstanten
+# Update-Meldungen (i18n-Vorbereitung)
+_UPDATE_CHECKING = "Prüfe auf Updates …"
+_UPDATE_AVAILABLE_STATUS = "Update auf v{version} verfügbar — Hilfe → Update-Hinweis"
+_UPDATE_HINT_LABEL = "⬆ Update auf v{version} verfügbar"
+_UPDATE_NONE_MSG = "Sie verwenden die neueste Version (v{version})."
+_UPDATE_NONE_TITLE = "Auf dem neuesten Stand — by DF1DS"
+_UPDATE_ERROR_TITLE = "Update-Prüfung — by DF1DS"
+_UPDATE_CHECK_LABEL = "Nach Updates suchen"
+
 _MSG_RESTART_TITLE = "Einstellungen gespeichert — by DF1DS"
 _MSG_RESTART_BODY = (
     "Einstellungen wurden gespeichert.\n\n"
@@ -121,6 +131,8 @@ class MainWindow(tk.Tk):
         self._written: set[int] = set()       # doc_ids die in diesem Lauf bereits geschrieben wurden
         self._written_qso: dict[int, str] = {}  # doc_id → qsoid (manuell zugeordnet + geschrieben)
         self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
+        self._pending_update_result = None    # UpdateCheckResult wenn Nutzer „Später" gewählt
+        self._help_menu: Optional[tk.Menu] = None
 
         title = f"QSL73 v{__version__}"
         if CHANNEL == "beta":
@@ -813,14 +825,32 @@ class MainWindow(tk.Tk):
         edit_menu.add_command(label="Einstellungen…", command=self._on_settings)
         menubar.add_cascade(label="Bearbeiten", menu=edit_menu)
 
-        help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label="Log-Ordner öffnen", command=self._on_open_log_folder)
-        help_menu.add_command(label="Fehler melden…", command=self._on_report_error)
-        help_menu.add_separator()
-        help_menu.add_command(label="Über QSL73", command=self._on_about)
-        menubar.add_cascade(label="Hilfe", menu=help_menu)
+        self._help_menu = tk.Menu(menubar, tearoff=0)
+        self._rebuild_help_menu()
+        menubar.add_cascade(label="Hilfe", menu=self._help_menu)
 
         self.config(menu=menubar)
+
+    def _rebuild_help_menu(self) -> None:
+        """Baut den Hilfe-Menü-Inhalt neu auf (mit/ohne Update-Hinweis)."""
+        m = self._help_menu
+        if m is None:
+            return
+        m.delete(0, "end")
+        # Update-Hinweis oben, wenn Nutzer zuvor „Später" gewählt hat
+        if self._pending_update_result is not None:
+            nv = self._pending_update_result.new_version or "?"
+            m.add_command(
+                label=_UPDATE_HINT_LABEL.format(version=nv),
+                command=self._on_update_hint_click,
+            )
+            m.add_separator()
+        m.add_command(label=_UPDATE_CHECK_LABEL, command=self._on_check_updates_manual)
+        m.add_separator()
+        m.add_command(label="Log-Ordner öffnen", command=self._on_open_log_folder)
+        m.add_command(label="Fehler melden…", command=self._on_report_error)
+        m.add_separator()
+        m.add_command(label="Über QSL73", command=self._on_about)
 
     def _on_settings(self) -> None:
         from qsl73.gui.setup_wizard import SetupWizard
@@ -955,6 +985,128 @@ class MainWindow(tk.Tk):
         dlg.geometry(f"{dw}x{dh}+{x}+{y}")
 
         dlg.wait_window()
+
+    # ------------------------------------------------------------------
+    # Update-Prüfung (ADR-0045)
+    # ------------------------------------------------------------------
+
+    def schedule_update_check(self) -> None:
+        """Startet die automatische Update-Prüfung nach einem kurzen Delay.
+
+        Wird von run_app() aufgerufen, nachdem das Hauptfenster sichtbar ist.
+        Nicht-blockierend: die Prüfung läuft in einem Hintergrund-Thread.
+        """
+        self.after(1500, self._start_update_check)
+
+    def _start_update_check(self, manual: bool = False) -> None:
+        """Startet Update-Prüfung im Hintergrund-Thread."""
+        from qsl73.__version__ import CHANNEL, __version__
+
+        if manual:
+            self._status_var.set(_UPDATE_CHECKING)
+
+        def _check() -> None:
+            from qsl73.updater import check_for_update
+            result = check_for_update(__version__, CHANNEL)
+            self.after(0, lambda: self._handle_update_result(result, manual=manual))
+
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _handle_update_result(self, result, *, manual: bool) -> None:
+        """Verarbeitet das Update-Prüfungsergebnis im UI-Thread."""
+        from qsl73.updater import UpdateStatus
+
+        if result.status == UpdateStatus.UPDATE_AVAILABLE:
+            if not manual:
+                self._status_var.set(
+                    _UPDATE_AVAILABLE_STATUS.format(version=result.new_version)
+                )
+            self._show_update_dialog(result)
+        elif result.status == UpdateStatus.UP_TO_DATE:
+            if manual:
+                from qsl73.__version__ import __version__
+                self._status_var.set("Bereit.")
+                dlg = tk.Toplevel(self)
+                dlg.title(_UPDATE_NONE_TITLE)
+                dlg.resizable(False, False)
+                dlg.transient(self)
+                dlg.grab_set()
+                from qsl73.gui._icon import apply_window_icon
+                apply_window_icon(dlg)
+                ttk.Label(
+                    dlg,
+                    text=_UPDATE_NONE_MSG.format(version=__version__),
+                    padding=20,
+                ).pack()
+                ttk.Button(dlg, text="OK", command=dlg.destroy).pack(pady=(0, 14))
+                dlg.bind("<Return>", lambda _e: dlg.destroy())
+                dlg.bind("<Escape>", lambda _e: dlg.destroy())
+                dlg.update_idletasks()
+                dw = max(300, dlg.winfo_reqwidth())
+                dh = dlg.winfo_reqheight()
+                x = max(0, self.winfo_rootx() + (self.winfo_width() - dw) // 2)
+                y = max(0, self.winfo_rooty() + (self.winfo_height() - dh) // 2)
+                dlg.geometry(f"{dw}x{dh}+{x}+{y}")
+        else:
+            # Error: nur im manuellen Modus dem Nutzer zeigen
+            if manual:
+                self._status_var.set("Bereit.")
+                from qsl73.gui.error_dialog import show_error
+                show_error(
+                    self,
+                    _UPDATE_ERROR_TITLE,
+                    result.error_message or "Unbekannter Fehler bei der Update-Prüfung.",
+                )
+            else:
+                _log.debug("Automatische Update-Prüfung: %s", result.error_message)
+
+    def _show_update_dialog(self, result) -> None:
+        """Zeigt den Update-Hinweis-Dialog."""
+        from qsl73.__version__ import __version__
+        from qsl73.updater import launch_installer_and_exit
+        from qsl73.gui.update_dialog import UpdateDialog
+
+        def _on_install(installer_path) -> None:
+            launch_installer_and_exit(installer_path, self.destroy)
+
+        def _on_opt_out() -> None:
+            from qsl73.config import get_config_path, save_config
+            self._config.app.update_check = False
+            try:
+                save_config(self._config, get_config_path(), self._crypto)
+                _log.info("update_check auf False gesetzt (Nutzer-Opt-out).")
+            except Exception as exc:
+                _log.warning("Konnte update_check nicht speichern: %s", exc)
+            # Hinweis aus dem Menü entfernen
+            self._pending_update_result = None
+            self._rebuild_help_menu()
+
+        dlg = UpdateDialog(
+            parent=self,
+            current_version=__version__,
+            new_version=result.new_version or "?",
+            asset=result.asset,
+            release_url=result.release_url,
+            on_install=_on_install,
+            on_opt_out=_on_opt_out,
+        )
+        dlg.wait_window()
+
+        # Nach Schließen des Dialogs: wenn Nutzer „Später" (ohne Opt-out) → Hint im Menü
+        if self._config.app.update_check and result.new_version is not None:
+            self._pending_update_result = result
+        else:
+            self._pending_update_result = None
+        self._rebuild_help_menu()
+
+    def _on_check_updates_manual(self) -> None:
+        """Menü-Handler: „Nach Updates suchen" — auch wenn update_check aus."""
+        self._start_update_check(manual=True)
+
+    def _on_update_hint_click(self) -> None:
+        """Menü-Handler: Update-Hint-Eintrag — öffnet Dialog erneut."""
+        if self._pending_update_result is not None:
+            self._show_update_dialog(self._pending_update_result)
 
     # ------------------------------------------------------------------
     # Log-Ordner + Fehlermelden

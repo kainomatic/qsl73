@@ -128,6 +128,8 @@ def run_app() -> None:
         if CHANNEL == "beta":
             from qsl73.gui.beta_notice import show_beta_notice
             app.after(0, lambda: show_beta_notice(app))
+        if config.app.update_check:
+            app.schedule_update_check()
         app.mainloop()
     finally:
         lock.release()
