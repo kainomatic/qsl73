@@ -412,6 +412,10 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   neuer leerer `[Unreleased]`-Block angelegt. dev→main-Merge + Tag `v0.2.0` durch DF1DS.
 - **Beta→Stable-Workflow (ADR-0046):** Workflow verbindlich festgelegt; `release.yml`
   zieht Notes kanalabhängig; CLAUDE.md präzisiert Beta- und Stable-Handgriff getrennt.
+- **Regex-Fix release.yml (Bugfix):** Lookahead `(?=\r?\n## \[)` → `(?=\r?\n## \[|\z)`
+  in allen drei Extraktionsmustern; `\s*\r?\n` → `[^\r\n]*\r?\n` in `[Unreleased]`-Mustern.
+  Ursache des leeren GitHub-Release-Notes-Texts bei v0.2.0. Unit-Tests in
+  `tests/test_changelog_extraction.py`.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 

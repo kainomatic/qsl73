@@ -7,6 +7,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release-Notes-Extraktion (release.yml):** Regex-Lookahead `(?=\r?\n## \[)` schlug fehl
+  wenn der extrahierte CHANGELOG-Abschnitt der letzte in der Datei war (kein nachfolgendes
+  `## [`-Heading). Alle drei Muster (Stable, Beta, Fallback) auf
+  `(?=\r?\n## \[|\z)` erweitert; zusätzlich `\s*\r?\n` → `[^\r\n]*\r?\n` korrigiert
+  (verhinderte korrektes Match-Positioning bei leerem `[Unreleased]`). Ursache des leeren
+  GitHub-Release-Notes-Texts bei v0.2.0.
+
 ## [0.2.0] - 2026-06-19
 
 ### Added

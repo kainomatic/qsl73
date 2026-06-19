@@ -163,13 +163,15 @@ jobs:
           $opts = [System.Text.RegularExpressions.RegexOptions]::Singleline
 
           if ($isBeta) {
-            # Beta: Notizen aus ## [Unreleased] (CHANGELOG bleibt offen)
-            $pattern = '## \[Unreleased\]\s*\r?\n(.*?)(?=\r?\n## \[)'
+            # Beta: Notizen aus ## [Unreleased] (CHANGELOG bleibt offen, ADR-0046)
+            # [^\r\n]*\r?\n konsumiert genau die Header-Zeile; |\z erfasst auch letzten Abschnitt
+            $pattern = '## \[Unreleased\][^\r\n]*\r?\n(.*?)(?=\r?\n## \[|\z)'
             $source  = "[Unreleased]"
           } else {
-            # Stable: Notizen aus ## [APP_VERSION] (eingefrorener Abschnitt)
+            # Stable: Notizen aus ## [APP_VERSION] (eingefrorener Abschnitt, ADR-0046)
+            # |\z notwendig wenn [APP_VERSION] der letzte Abschnitt in der Datei ist
             $escapedVer = [regex]::Escape("${{ env.APP_VERSION }}")
-            $pattern = "## \[$escapedVer\][^\r\n]*\r?\n(.*?)(?=\r?\n## \[)"
+            $pattern = "## \[$escapedVer\][^\r\n]*\r?\n(.*?)(?=\r?\n## \[|\z)"
             $source  = "[${{ env.APP_VERSION }}]"
           }
 
@@ -178,15 +180,15 @@ jobs:
             $notes = $match.Groups[1].Value.Trim()
             Write-Host "Release-Notes aus CHANGELOG $source extrahiert."
           } else {
-            # Fallback 1: [Unreleased]
-            $fb = [regex]::Match($changelog, '## \[Unreleased\]\s*\r?\n(.*?)(?=\r?\n## \[)', $opts)
-            if ($fb.Success) {
+            # Fallback 1: [Unreleased] (gleiche Robustheit: [^\r\n]* + |\z)
+            $fb = [regex]::Match($changelog, '## \[Unreleased\][^\r\n]*\r?\n(.*?)(?=\r?\n## \[|\z)', $opts)
+            if ($fb.Success -and $fb.Groups[1].Value.Trim() -ne '') {
               $notes = $fb.Groups[1].Value.Trim()
               Write-Warning "Abschnitt $source nicht gefunden; Fallback auf [Unreleased]."
             } else {
               # Fallback 2: Platzhalter
               $notes = "Siehe CHANGELOG.md für Details zu dieser Version."
-              Write-Warning "Kein CHANGELOG-Abschnitt gefunden; Platzhaltertext."
+              Write-Warning "Kein CHANGELOG-Abschnitt mit Inhalt gefunden; Platzhaltertext."
             }
           }
           $header = "## QSL73 ${{ env.APP_VERSION }}`n"
