@@ -11,16 +11,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- **Über-Dialog zuverlässig in korrekter Größe und zentriert (Hotfix):** Der Dialog öffnete
-  auf Win10 dauerhaft winzig und in der linken oberen Ecke — auch nach dem v0.2.2-Fix
-  (`after(1, ...)`-Timing). Ursache laut Laufzeit-Diagnose: fehlende Parent-Sichtbarkeitsprüfung
-  (`winfo_ismapped`) und kein Fallback auf Bildschirmmitte, zu kleiner Chrome-Aufschlag (40 px
-  statt 90 px) sowie Mindesthöhe 300 px statt 400 px. Fix: Über-Dialog vollständig dem bewährten
-  `SetupWizard._adjust_window_size`-Muster angeglichen — `update_idletasks()` vor `after(1, ...)`
-  zur Layout-Erzwingung, harte Mindestmaße (Breite 360 px / Höhe 400 px), Parent-Sichtbarkeits-
-  prüfung mit Bildschirmmitte-Fallback, `minsize(360, 400)`. Neue tk-freie Hilfsfunktion
-  `_resolve_dialog_width` ergänzt (analog zu `_resolve_dialog_height`); Regressionstests
-  decken 1px-Artefakt für Höhe und Breite ab; zusätzlicher tk-Test prüft reale Mindestmaße.
+- **Über-Dialog öffnet in korrekter Größe und mittig über dem Hauptfenster (Hotfix):**
+  Der Dialog öffnete auf Win10 weiterhin zu klein und nahe der linken oberen Ecke — auch nach
+  dem v0.2.2-Fix. Laufzeit-Diagnose (CC-Maschine): `frame.winfo_reqheight()` liefert vor
+  `update_idletasks()` den Wert 1 (nicht gemessen); nach `update_idletasks()` korrekt 411 px
+  (inkl. Logo 116 px). Auf Win10 schlägt diese Ausbreitung offenbar fehl → Messwert bleibt 1 →
+  `min_h=400` greift, Dialog nur 400 px hoch statt der benötigten ≥ 491 px (Logo+Inhalt+Chrome).
+  Fix: Mindesthöhe auf `_ABOUT_MIN_H = 520 px` erhöht (deckt Logo 112 px + alle Inhalte +
+  Chrome 90 px sicher ab); Bildschirm-Deckel 90 % wie `SetupWizard._adjust_window_size`
+  hinzugefügt; Breite via `dlg.winfo_reqwidth()` statt `frame.winfo_reqwidth()` (robuster);
+  `dlg.minsize` auf die neuen Konstanten angehoben. Über-Dialog öffnet damit korrekt groß
+  (Logo vollständig sichtbar) und mittig über dem Hauptfenster, unabhängig davon, ob/wann
+  das PhotoImage in die Frame-Messung eingeht. Neue Regressionstests decken: 1px-Messwert
+  → `_ABOUT_MIN_H` greift; frame-Höhe ohne Logo → Minimum hält; Zentrierung wenn Dialog
+  höher als Parent; tk-Test mit und ohne Logo prüft Mindestmaße und positive Koordinaten.
 
 ## [0.2.2] - 2026-06-19
 

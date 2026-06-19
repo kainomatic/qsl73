@@ -135,6 +135,12 @@ def _resolve_dialog_width(inner_w: int, min_w: int = 360) -> int:
     return max(inner_w, min_w)
 
 
+# Über-Dialog — harte Mindestmaße (Logo-inklusive Summe: Logo 112px + pady 10 +
+# Titel + Beschreibung + Separator + Lizenz + Autor + Links + Button + Frame-Padding 48
+# + Chrome 90 ≈ 491 px; 520 px lässt sicheren Puffer für DPI-Varianz und Fontgrößen)
+_ABOUT_MIN_H: int = 520
+_ABOUT_MIN_W: int = 360
+
 _RESULT_LABELS = {
     MatchResult.CERTAIN: "Sicher",
     MatchResult.UNCERTAIN: "Unsicher",
@@ -1012,41 +1018,39 @@ class MainWindow(tk.Tk):
         ttk.Button(frame, text=_ABOUT_BTN_CLOSE, command=dlg.destroy).pack()
 
         dlg.bind("<Escape>", lambda _e: dlg.destroy())
-        dlg.minsize(360, 400)
+        dlg.minsize(_ABOUT_MIN_W, _ABOUT_MIN_H)
 
-        # Layout erzwingen bevor after(1,...) scheduliert wird —
-        # analoges Muster wie SetupWizard._build_ui (self.update_idletasks() vor after).
+        # Layout erzwingen bevor after(1,...) scheduliert wird (wie SetupWizard._build_ui).
         dlg.update_idletasks()
 
-        # Größe/Position NACH erstem Mapping berechnen, damit winfo_req* reale Maße liefert.
-        # Vollständig dem SetupWizard._adjust_window_size-Muster angeglichen (ADR-0037 TEIL A1):
-        # - Breite/Höhe aus innerem Frame + harte Mindestmaße
-        # - Parent-Sichtbarkeitsprüfung (winfo_ismapped) + Fallback auf Bildschirmmitte
+        # Größe/Position exakt nach SetupWizard._adjust_window_size-Muster:
+        # Bildschirm-Deckel (90 %) + hartes Logo-inklusives Minimum + Parent-Zentrierung.
         def _do_center() -> None:
             if not dlg.winfo_exists():
                 return
             dlg.update_idletasks()
-            dw = _resolve_dialog_width(frame.winfo_reqwidth())
-            dh = _resolve_dialog_height(frame.winfo_reqheight(), chrome=90, min_h=400)
+            screen_h = dlg.winfo_screenheight()
+            needed_h = frame.winfo_reqheight() + 90
+            target_h = min(needed_h, int(screen_h * 0.9))
+            target_h = max(target_h, _ABOUT_MIN_H)
+            target_w = max(_ABOUT_MIN_W, dlg.winfo_reqwidth())
             try:
                 if self.winfo_ismapped():
                     geom = _compute_dialog_geometry(
-                        dw, dh,
+                        target_w, target_h,
                         self.winfo_rootx(), self.winfo_rooty(),
                         self.winfo_width(), self.winfo_height(),
                     )
                 else:
                     sw = dlg.winfo_screenwidth()
-                    sh = dlg.winfo_screenheight()
-                    x = max(0, (sw - dw) // 2)
-                    y = max(0, (sh - dh) // 2)
-                    geom = f"{dw}x{dh}+{x}+{y}"
+                    x = max(0, (sw - target_w) // 2)
+                    y = max(0, (screen_h - target_h) // 2)
+                    geom = f"{target_w}x{target_h}+{x}+{y}"
             except Exception:
                 sw = dlg.winfo_screenwidth()
-                sh = dlg.winfo_screenheight()
-                x = max(0, (sw - dw) // 2)
-                y = max(0, (sh - dh) // 2)
-                geom = f"{dw}x{dh}+{x}+{y}"
+                x = max(0, (sw - target_w) // 2)
+                y = max(0, (screen_h - target_h) // 2)
+                geom = f"{target_w}x{target_h}+{x}+{y}"
             dlg.geometry(geom)
 
         dlg.after(1, _do_center)
