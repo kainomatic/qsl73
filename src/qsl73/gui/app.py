@@ -53,7 +53,7 @@ def run_app() -> None:
     import logging
 
     from qsl73.logging_setup import setup_logging
-    from qsl73.__version__ import __version__
+    from qsl73.__version__ import CHANNEL, __version__
 
     setup_logging()
     _log = logging.getLogger("qsl73")
@@ -123,6 +123,9 @@ def run_app() -> None:
 
         # Hauptfenster
         app = MainWindow(config, crypto=crypto)
+        if CHANNEL == "beta":
+            from qsl73.gui.beta_notice import show_beta_notice
+            app.after(0, lambda: show_beta_notice(app))
         app.mainloop()
     finally:
         lock.release()

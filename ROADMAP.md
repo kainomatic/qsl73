@@ -376,6 +376,8 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Versions-Sync-Prüfung (Tag == `__version__.py`); AppVersion-Injektion per `/DAPP_VERSION`.
 - **README-Finalisierung:** ✅ Nutzer-Installationsweg, Funktionen/Bedienung, Daten &
   Verzeichnisse, Beta-Hinweis — abgeschlossen; kein „in Entwicklung"-Status mehr.
+- **Beta-Start-Hinweis:** ✅ Modaler Dialog bei CHANNEL=beta (gui/beta_notice.py);
+  kein Ton, kein Eingriff in Stable-Pfad.
 - **Erstes echtes Release (v0.1.0):** AUSSTEHEND — durch DF1DS auszulösen (Anleitung unten);
   vollständiger Realtest vor dem Release durch DF1DS.
 - **Review:** Workflow-Logik + Beta-Installer von Desktop zu reviewen; dann echtes Release.

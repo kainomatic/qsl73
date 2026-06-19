@@ -9,6 +9,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Beta-Start-Hinweis-Dialog (ADR-0021):** Beim Start mit `CHANNEL="beta"` erscheint
+  ein modaler, tonloser Hinweis-Dialog (eigenes Toplevel, kein Systemton) mit Vorabversions-
+  Warnung, Empfehlung zur Log4OM-DB-Kopie, Verweis auf „Hilfe → Fehler melden" und
+  Bestätigung, dass das Sicherheitsnetz (Backup/Vorschau) aktiv bleibt. Mit `CHANNEL="stable"`
+  kein Hinweis; Stable-Start unverändert. Dialog zeigt sich bei jedem Beta-Start (kein
+  „Nicht mehr anzeigen"-Flag — bewusst schlicht gehalten). Modul `gui/beta_notice.py`.
 - **SmartScreen-Hinweis in README (ADR-0044):** Knapper, sachlicher Hinweis im
   Nutzer-Installationsteil erklärt, dass Windows beim nicht-signierten Installer eine
   „Unbekannter Herausgeber"-Warnung zeigt, und beschreibt den Weg durch: „Weitere
