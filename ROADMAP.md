@@ -407,9 +407,9 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Erstes echtes Release (v0.1.0):** AUSSTEHEND — durch DF1DS auszulösen (Anleitung unten);
   vollständiger Realtest vor dem Release durch DF1DS.
 - **Review:** Workflow-Logik + Beta-Installer von Desktop zu reviewen; dann echtes Release.
-- **Release v0.2.0 vorbereitet (2026-06-19):** `__version__ = "0.2.0"`. CHANGELOG bleibt
-  unter `[Unreleased]` (Einfrieren erst beim Stable-Release, ADR-0046). Bereit für
-  Beta (`v0.2.0-beta1`) oder direktes Stable — DF1DS entscheidet.
+- **v0.2.0 Stable-Release vorbereitet (CHANGELOG eingefroren, 2026-06-19):**
+  `__version__ = "0.2.0"`, CHANGELOG `[Unreleased]` → `[0.2.0] - 2026-06-19` eingefroren,
+  neuer leerer `[Unreleased]`-Block angelegt. dev→main-Merge + Tag `v0.2.0` durch DF1DS.
 - **Beta→Stable-Workflow (ADR-0046):** Workflow verbindlich festgelegt; `release.yml`
   zieht Notes kanalabhängig; CLAUDE.md präzisiert Beta- und Stable-Handgriff getrennt.
 
