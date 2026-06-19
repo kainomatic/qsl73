@@ -92,6 +92,58 @@ Der App-Start wird durch die Update-Prüfung nie blockiert:
 - Netzwerkfehler → stilles Logging, kein Dialog beim Auto-Check.
 - Timeout 8 s für die API-Abfrage.
 
+### 11. AppMutex (Windows-Mutex zur Installer-Erkennung)
+
+QSL73 setzt beim Start einen benannten Windows-Mutex für Inno-Setup's `CloseApplications`.
+
+| Kanal | Mutex-Name |
+|-------|-----------|
+| stable | `QSL73-Stable` |
+| beta | `QSL73-Beta` |
+
+- Implementierung via `win32event.CreateMutex(None, False, name)` in `gui/app.py`.
+- Koexistiert mit dem PID-Lockfile (Single-Instance): unterschiedliche Aufgaben.
+- Wird früh in `run_app()` gesetzt — nach erfolgreichem Lock-Acquire, vor GUI-Start.
+- **Non-fatal**: Fehlt pywin32 oder schlägt der Mutex-Aufruf fehl → nur Debug-Log, kein Crash.
+- Handle bis Prozessende referenziert; Windows gibt ihn bei Prozessende frei.
+- **Kanalspezifisch**: Stable und Beta sehen sich gegenseitig nicht als laufend.
+- `AppMutex=QSL73-Stable` / `AppMutex=QSL73-Beta` in den `.iss`-Dateien.
+- `RestartApplications=no` in `[Setup]`: Windows Restart Manager startet QSL73 nach dem
+  Install nicht automatisch neu — das übernimmt der explizite `[Run]`-Eintrag.
+
+### 12. Explizite Silent-Neustart-Mechanik via /RESTARTQSL73
+
+Custom-Flag `/RESTARTQSL73` trennt Self-Update-Neustart von lautlosem Sysadmin-Deploy.
+
+`updater.py` ruft auf:
+```
+subprocess.Popen([str(installer_path), "/SILENT", "/RESTARTQSL73"])
+```
+
+Pascal-Hilfsfunktion in `[Code]` beider `.iss`:
+```pascal
+function ShouldRestartApp: Boolean;
+begin
+  Result := WizardSilent() and (Pos('/RESTARTQSL73', UpperCase(GetCmdTail)) > 0);
+end;
+```
+
+`[Run]`-Einträge:
+```
+; Interaktive Installation: Abschluss-Checkbox (skipifsilent → bei /SILENT übersprungen)
+Filename: "{app}\QSL73.exe"; Flags: nowait postinstall runascurrentuser skipifsilent
+; Self-Update (/SILENT /RESTARTQSL73): automatischer Neustart
+Filename: "{app}\QSL73.exe"; Flags: nowait runascurrentuser; Check: ShouldRestartApp
+```
+
+Verhalten:
+
+| Installationsart | Checkbox sichtbar | Auto-Neustart |
+|-----------------|-------------------|---------------|
+| Interaktiv | ja, default aktiviert | — |
+| `/SILENT` (Sysadmin-Deploy, kein Flag) | nein | nein |
+| `/SILENT /RESTARTQSL73` (Self-Update) | nein | ja |
+
 ## Konsequenzen
 
 - Nur eine neue Außenverbindung (GitHub-API): CLAUDE.md-Leitplanke gewahrt.
@@ -99,3 +151,4 @@ Der App-Start wird durch die Update-Prüfung nie blockiert:
 - SHA256-Verifikation gegen Referenzwert nicht möglich ohne GitHub-seitige Hash-API.
 - Bei `CloseApplications=yes` kann Inno bei einem normalen (nicht-Self-Update-)Install
   eine laufende QSL73-Instanz schließen (Hinweis-Dialog von Inno, falls nötig).
+- AppMutex beschleunigt Installer-Erkennung: Inno muss nicht alle Prozesse scannen.

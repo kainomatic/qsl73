@@ -48,6 +48,34 @@ def _lock_path() -> Path:
     return Path(appdata) / "QSL73" / "qsl73.lock"
 
 
+def _create_app_mutex(channel: str):
+    """Setzt einen benannten Windows-Mutex für Inno-CloseApplications-Erkennung.
+
+    Non-fatal: Bei fehlender pywin32 oder Windows-Fehler nur Debug-Log.
+    Gibt das Handle zurück (muss bis Prozessende referenziert bleiben) oder None.
+    Kanalspezifisch: Stable und Beta sehen sich nicht gegenseitig als laufend.
+
+    Mutex-Namen:
+      stable → "QSL73-Stable"
+      beta   → "QSL73-Beta"
+    """
+    mutex_name = f"QSL73-{channel.capitalize()}"
+    try:
+        import win32event
+        handle = win32event.CreateMutex(None, False, mutex_name)
+        import logging
+        logging.getLogger("qsl73").debug("AppMutex gesetzt: %s", mutex_name)
+        return handle
+    except ImportError:
+        import logging
+        logging.getLogger("qsl73").debug("pywin32 nicht verfügbar — AppMutex nicht gesetzt")
+        return None
+    except Exception as exc:
+        import logging
+        logging.getLogger("qsl73").debug("AppMutex konnte nicht gesetzt werden: %s", exc)
+        return None
+
+
 def run_app() -> None:
     """Startet die QSL73-Anwendung mit Single-Instance-Lock, Setup-Assistent und Hauptfenster."""
     import logging
@@ -74,6 +102,9 @@ def run_app() -> None:
         sys.exit(0)
 
     _log.info("QSL73 %s gestartet", __version__)
+
+    # AppMutex für Inno-CloseApplications (non-fatal; Referenz bis Prozessende halten)
+    _app_mutex = _create_app_mutex(CHANNEL)  # noqa: F841
 
     from qsl73.qr import qr_backend_status
     qr_status = qr_backend_status()

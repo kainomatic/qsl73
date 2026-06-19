@@ -337,9 +337,13 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - `main_window.py`: Hintergrundprüfung beim Start, Menü „Nach Updates suchen",
   Update-Hinweis-Eintrag bei „Später", manuelle Prüfung immer aktiv.
 - `app.py`: `schedule_update_check()` nach Fenstererstellung.
-- Beide `.iss`: `CloseApplications=yes`, `runascurrentuser` ohne `skipifsilent` → Neustart
-  auch im /SILENT-Modus (ADR-0045).
-- ADR-0045 angelegt.
+- Beide `.iss`: `CloseApplications=yes`, `AppMutex` (kanalspezifisch: `QSL73-Stable`/
+  `QSL73-Beta`), `RestartApplications=no`. Self-Update-Neustart via `/RESTARTQSL73`-Flag
+  aus `updater.py`; `.iss`-Pascal-Funktion `ShouldRestartApp` wertet ihn aus; `postinstall`
+  mit `skipifsilent` (interaktiv) und separater `[Run]`-Eintrag (Self-Update) trennen sauber.
+- `gui/app.py`: Windows-AppMutex via pywin32 (non-fatal, kanalspezifisch), koexistiert mit
+  PID-Lockfile.
+- ADR-0045 um Entscheidungen 11 (AppMutex) und 12 (/RESTARTQSL73-Mechanik) ergänzt.
 - **Review:** Akzeptanzkriterien §12/§13; pytest grün, CI grün.
 
 ## Schritt 9 — Build, Test, erstes Release

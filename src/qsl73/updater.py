@@ -284,13 +284,17 @@ def download_update(
 
 
 def launch_installer_and_exit(installer_path: Path, exit_fn: Callable[[], None]) -> None:
-    """Startet den Installer (/SILENT) und beendet danach die App.
+    """Startet den Installer (/SILENT /RESTARTQSL73) und beendet danach die App.
 
     Reihenfolge: Installer zuerst starten, dann App beenden.
     Der Installer kann QSL73.exe ersetzen, sobald sie nicht mehr läuft.
+
     /SILENT: zeigt Fortschrittsfenster, überspringt Assistent-Seiten.
+    /RESTARTQSL73: Custom-Flag, das die .iss auswertet — löst den automatischen
+    QSL73-Neustart nach dem Install aus (nur Self-Update-Pfad; interaktive
+    Erstinstallation bekommt diesen Flag nicht und zeigt stattdessen eine Checkbox).
     UAC-Abfrage durch Windows ist unvermeidbar und akzeptiert.
     """
-    _log.info("Starte Installer /SILENT: %s", installer_path)
-    subprocess.Popen([str(installer_path), "/SILENT"])
+    _log.info("Starte Installer /SILENT /RESTARTQSL73: %s", installer_path)
+    subprocess.Popen([str(installer_path), "/SILENT", "/RESTARTQSL73"])
     exit_fn()

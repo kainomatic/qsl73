@@ -20,8 +20,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   sichtbar. „Nicht mehr erinnern" setzt `update_check = false` dauerhaft. Hilfe →
   „Nach Updates suchen" stößt die Prüfung jederzeit manuell an (unabhängig von
   `update_check`). Modul `updater.py` tk-frei + umfassend getestet (GitHub-API gemockt).
-  Inno-Setup: `CloseApplications=yes` + `runascurrentuser` ohne `skipifsilent` sichern
-  Neustart auch bei `/SILENT`-Install.
+  Inno-Setup: `CloseApplications=yes` + `AppMutex` (kanalspezifisch: `QSL73-Stable` /
+  `QSL73-Beta`) + `RestartApplications=no`. Self-Update-Neustart via Custom-Flag
+  `/RESTARTQSL73` in der Installer-Kommandozeile: `postinstall`-Checkbox mit `skipifsilent`
+  (interaktiv) und separater `[Run]`-Eintrag mit `Check: ShouldRestartApp` (Self-Update)
+  trennen beide Pfade sauber. Windows-AppMutex in `gui/app.py` via pywin32 (non-fatal),
+  koexistiert mit PID-Lockfile.
 
 - **Liesmich und Änderungshistorie über Hilfe-Menü:** `README.md` und `CHANGELOG.md`
   werden beim Build in offline-fähige HTML-Dateien (`LIESMICH.html`, `AENDERUNGEN.html`)

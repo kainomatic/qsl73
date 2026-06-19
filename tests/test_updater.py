@@ -23,6 +23,7 @@ from qsl73.updater import (
     _verify_asset_url,
     check_for_update,
     download_update,
+    launch_installer_and_exit,
     semver_gt,
 )
 
@@ -411,3 +412,27 @@ class TestDownloadUpdate:
              patch("tempfile.gettempdir", return_value=str(tmp_path)):
             path = download_update(asset)
         assert path.exists()
+
+
+class TestLaunchInstallerAndExit:
+    """launch_installer_and_exit übergibt /SILENT und /RESTARTQSL73."""
+
+    def test_starts_installer_with_silent_and_restartqsl73(self, tmp_path):
+        installer = tmp_path / "QSL73-Setup.exe"
+        installer.write_bytes(b"")
+        exit_calls = []
+        with patch("subprocess.Popen") as mock_popen:
+            launch_installer_and_exit(installer, lambda: exit_calls.append(True))
+        assert mock_popen.call_count == 1
+        args = mock_popen.call_args[0][0]
+        assert str(installer) == args[0]
+        assert "/SILENT" in args
+        assert "/RESTARTQSL73" in args
+
+    def test_calls_exit_fn_after_popen(self, tmp_path):
+        installer = tmp_path / "QSL73-Setup.exe"
+        installer.write_bytes(b"")
+        order = []
+        with patch("subprocess.Popen", side_effect=lambda *a, **kw: order.append("popen")):
+            launch_installer_and_exit(installer, lambda: order.append("exit"))
+        assert order == ["popen", "exit"]
