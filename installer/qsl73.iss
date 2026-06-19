@@ -1,12 +1,12 @@
-; QSL73 Inno-Setup-Skript (Stable-Variante) -- Copyright (C) 2026 DF1DS
-; AppId-GUID: {4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B} -- NIEMALS AENDERN (Update/Deinstall)
-; Fuer die Beta-Variante: AppId, AppName, DefaultDirName, AppDataPath-Pfad anpassen
+﻿; QSL73 Inno-Setup-Skript (Stable-Variante) -- Copyright (C) 2026 DF1DS
+; AppId-GUID: {4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B} -- NIEMALS ÄNDERN (Update/Deinstall)
+; Für die Beta-Variante: AppId, AppName, DefaultDirName, AppDataPath-Pfad anpassen
 
 [Setup]
 AppId={{4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B}
 AppName=QSL73
 AppVersion=0.1.0
-AppPublisher=DF1DS -- Stephan Dahmen
+AppPublisher=DF1DS – Stephan Dahmen
 AppPublisherURL=https://github.com/DF1DS/qsl73
 AppSupportURL=https://github.com/DF1DS/qsl73/issues
 DefaultDirName={autopf}\QSL73
@@ -56,9 +56,9 @@ begin
     if DirExists(AppDataPath) then
     begin
       Antwort := MsgBox(
-        'Moechten Sie auch die persoenlichen Daten und Einstellungen von QSL73 entfernen?' + #13#10 +
+        'Möchten Sie auch die persönlichen Daten und Einstellungen von QSL73 entfernen?' + #13#10 +
         '(Konfiguration, Logs, Sicherungen in ' + AppDataPath + ')' + #13#10 + #13#10 +
-        'Empfehlung: NEIN -- Einstellungen bleiben fuer eine spaetere Neuinstallation erhalten.',
+        'Empfehlung: NEIN – Einstellungen bleiben für eine spätere Neuinstallation erhalten.',
         mbConfirmation,
         MB_YESNO or MB_DEFBUTTON2
       );

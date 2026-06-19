@@ -7,6 +7,14 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Umlaute im Installer/Deinstaller-Dialog (installer/qsl73.iss):** Ersatzschreibungen
+  (ae/oe/ue) durch echte Umlaute ersetzt; `qsl73.iss` als UTF-8 mit BOM gespeichert
+  (Inno Setup 6 rendert Umlaute damit kodierungsunabhängig, unabhängig von der
+  System-Codepage des bauenden Systems). Finale Umlaut-Verifikation durch DF1DS auf
+  deutschem System ausstehend.
+
 ### Changed
 
 - **Shift-Klick-Bereichsauswahl für CERTAIN-Karten:** Klick auf Karte A, dann
