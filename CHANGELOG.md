@@ -7,6 +7,13 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Prozess (CLAUDE.md):** Feature-Ideen, Aufgaben und Bugs müssen als GitHub Issue
+  abgelegt werden — kein flüchtiger Chat-Sammeltopf. Claude Desktop legt Issues immer
+  per CC-Auftrag an (kein eigener Schreibzugriff). Rollenmodell-Zeile Desktop entsprechend
+  geschärft.
+
 ### Fixed
 
 - **Release-Notes-Extraktion (release.yml):** Regex-Lookahead `(?=\r?\n## \[)` schlug fehl

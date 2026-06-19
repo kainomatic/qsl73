@@ -33,7 +33,7 @@ Claude Desktop wird über seine Projekt-Anweisungen hierher verwiesen.
 
 | Rolle | Wer | Aufgabe |
 |-------|-----|---------|
-| **Architekt & Reviewer** | Claude Desktop | Liest Repo **read-only** (Filesystem-Tool); schreibt KONZEPT.md und Auftrags-Prompts; reviewt jeden Schritt gegen Akzeptanzkriterien. Commitet **nie** direkt. |
+| **Architekt & Reviewer** | Claude Desktop | Liest Repo **read-only** (Filesystem-Tool); schreibt KONZEPT.md und Auftrags-Prompts; reviewt jeden Schritt gegen Akzeptanzkriterien. Commitet **nie** direkt; legt **keine** Issues, Labels oder sonstigen Repo-Inhalte selbst an (kein Schreibzugriff) — alles Schreibende läuft als CC-Auftrag. |
 | **Vermittler** | DF1DS | Überbringt Prompts und Repo-Stände zwischen Desktop und Claude Code; führt manuelle Schritte in Log4OM und Paperless aus. |
 | **Ausführender Maintainer** | Claude Code | Alleiniger Entwickler: Code, Commits, Tests, GitHub, Versionierung, Releases, Doku. |
 
@@ -143,8 +143,20 @@ setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
 | Was | Wo | Wann |
 |-----|----|------|
 | Design-/Grundentscheidung | ADR in `docs/adr/` | Standardmäßig bei jeder Entscheidung |
-| Offene Aufgabe / Bug | GitHub Issue (sinnvoll labeln) | Sofort bei Entdeckung |
+| Offene Aufgabe, Bug oder Feature-Idee | GitHub Issue (sinnvoll labeln) | Sofort bei Entdeckung |
 | Aufgabe erledigt | Issue schließen | Per `Fixes #N` im Commit |
+
+**Grundsatz — Chatverlauf ist flüchtig, das Repo ist dauerhaft.**
+Weder Claude Desktop noch DF1DS führen Aufgaben- oder Ideenlisten im Chat. Alles Dauerhafte
+gehört ins Repo: Design-/Grundentscheidung → ADR; Aufgabe/Bug/Feature-Idee → GitHub Issue;
+Schritt/Projektstand → ROADMAP.md.
+
+**Auslöser für Desktop (analog zur ADR-Pflicht):** Taucht im Planungsgespräch eine Aufgabe,
+ein Bug oder eine Feature-Idee auf, die nicht sofort umgesetzt wird, legt Desktop **keinen**
+chat-internen Sammeltopf an. Stattdessen schneidet Desktop einen Auftrag an Claude Code,
+der das GitHub Issue anlegt (Titel, Beschreibung, Label). Desktop hat **keinen Schreibzugriff**
+und kann Issues nicht selbst anlegen — der Weg führt immer über einen CC-Auftrag oder DF1DS
+legt es direkt auf GitHub an.
 
 ---
 
