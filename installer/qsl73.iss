@@ -48,8 +48,6 @@ Source: "docs\AENDERUNGEN.html"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\QSL73";                Filename: "{app}\QSL73.exe"; IconFilename: "{app}\QSL73.exe"
-Name: "{group}\QSL73 – Liesmich";    Filename: "{app}\LIESMICH.html"
-Name: "{group}\QSL73 – Änderungen";  Filename: "{app}\AENDERUNGEN.html"
 Name: "{commondesktop}\QSL73";        Filename: "{app}\QSL73.exe"; Tasks: desktopicon; IconFilename: "{app}\QSL73.exe"
 Name: "{group}\QSL73 deinstallieren"; Filename: "{uninstallexe}"
 

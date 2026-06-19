@@ -23,14 +23,14 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Inno-Setup: `CloseApplications=yes` + `runascurrentuser` ohne `skipifsilent` sichern
   Neustart auch bei `/SILENT`-Install.
 
-- **Installer zeigt Liesmich und Änderungshistorie:** `README.md` und `CHANGELOG.md`
-  werden beim Build automatisch in offline-fähige HTML-Dateien (`LIESMICH.html`,
-  `AENDERUNGEN.html`) konvertiert (`tools/make_docs_html.py`, Build-Abhängigkeit `markdown`
-  in `requirements-dev.txt`). Beide Dateien werden mit dem Installer nach `{app}` kopiert
-  und im Startmenü als „QSL73 – Liesmich" und „QSL73 – Änderungen" verlinkt. Am
-  Setup-Abschluss-Bildschirm stehen zwei optionale, standardmäßig **nicht** angehakte
-  Checkboxen „Liesmich anzeigen" / „Änderungen anzeigen" (öffnen die HTML im Standard-
-  browser via `shellexec`). Gilt für Stable- und Beta-Installer.
+- **Liesmich und Änderungshistorie über Hilfe-Menü:** `README.md` und `CHANGELOG.md`
+  werden beim Build in offline-fähige HTML-Dateien (`LIESMICH.html`, `AENDERUNGEN.html`)
+  konvertiert (`tools/make_docs_html.py`) und mit dem Installer nach `{app}` kopiert. In
+  der installierten App sind sie über **Hilfe → Liesmich anzeigen** bzw. **Hilfe → Was ist
+  neu (Änderungen)…** direkt im Standardbrowser aufrufbar. Im Dev-Lauf (ohne Build) öffnet
+  sich stattdessen die jeweilige GitHub-Seite als Fallback. Am Setup-Abschluss-Bildschirm
+  stehen wie bisher zwei optionale, standardmäßig nicht angehakte Checkboxen. Die HTML-
+  Dateien erscheinen **nicht** mehr als separate Startmenü-Einträge.
 
 - **Beta-Start-Hinweis-Dialog (ADR-0021):** Beim Start mit `CHANNEL="beta"` erscheint
   ein modaler, tonloser Hinweis-Dialog (eigenes Toplevel, kein Systemton) mit Vorabversions-

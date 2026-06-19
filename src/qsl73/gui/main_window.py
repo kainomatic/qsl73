@@ -53,6 +53,15 @@ _UPDATE_NONE_TITLE = "Auf dem neuesten Stand — by DF1DS"
 _UPDATE_ERROR_TITLE = "Update-Prüfung — by DF1DS"
 _UPDATE_CHECK_LABEL = "Nach Updates suchen"
 
+# Hilfe-Menü Infodateien
+_MENU_README = "Liesmich anzeigen"
+_MENU_CHANGELOG = "Was ist neu (Änderungen)…"
+_MSG_DOC_UNAVAILABLE_TITLE = "Information nicht verfügbar — by DF1DS"
+_MSG_DOC_UNAVAILABLE_BODY = (
+    "Diese Information ist nur in der installierten Version verfügbar.\n\n"
+    "Die Seite wird stattdessen im Browser geöffnet."
+)
+
 _MSG_RESTART_TITLE = "Einstellungen gespeichert — by DF1DS"
 _MSG_RESTART_BODY = (
     "Einstellungen wurden gespeichert.\n\n"
@@ -850,6 +859,9 @@ class MainWindow(tk.Tk):
         m.add_command(label="Log-Ordner öffnen", command=self._on_open_log_folder)
         m.add_command(label="Fehler melden…", command=self._on_report_error)
         m.add_separator()
+        m.add_command(label=_MENU_README, command=self._on_show_readme)
+        m.add_command(label=_MENU_CHANGELOG, command=self._on_show_changelog)
+        m.add_separator()
         m.add_command(label="Über QSL73", command=self._on_about)
 
     def _on_settings(self) -> None:
@@ -1107,6 +1119,39 @@ class MainWindow(tk.Tk):
         """Menü-Handler: Update-Hint-Eintrag — öffnet Dialog erneut."""
         if self._pending_update_result is not None:
             self._show_update_dialog(self._pending_update_result)
+
+    # ------------------------------------------------------------------
+    # Infodateien (Liesmich / Änderungen)
+    # ------------------------------------------------------------------
+
+    def _open_doc_html(self, filename: str) -> None:
+        """Öffnet HTML-Infodatei im Standardbrowser; Fallback auf GitHub-URL."""
+        import webbrowser
+
+        try:
+            from qsl73.gui.doc_paths import get_fallback_url, resolve_doc_html
+
+            path = resolve_doc_html(filename)
+            if path is not None:
+                webbrowser.open(path.as_uri())
+            else:
+                url = get_fallback_url(filename)
+                if url:
+                    webbrowser.open(url)
+                else:
+                    messagebox.showinfo(
+                        _MSG_DOC_UNAVAILABLE_TITLE,
+                        _MSG_DOC_UNAVAILABLE_BODY,
+                        parent=self,
+                    )
+        except Exception:
+            _log.debug("Infodatei konnte nicht geöffnet werden: %s", filename, exc_info=True)
+
+    def _on_show_readme(self) -> None:
+        self._open_doc_html("LIESMICH.html")
+
+    def _on_show_changelog(self) -> None:
+        self._open_doc_html("AENDERUNGEN.html")
 
     # ------------------------------------------------------------------
     # Log-Ordner + Fehlermelden
