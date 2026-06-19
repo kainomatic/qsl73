@@ -465,6 +465,13 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Pre-Release `v0.3.0-beta1` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und
   gefüllten Release-Notes veröffentlicht. `v0.2.1` bleibt weiterhin Stable/Latest.
 
+### Beta-Release v0.3.0-beta2 (Über-Dialog-Höhen-Fix + erster Self-Update-Test)
+
+- Enthält zusätzlich `_resolve_dialog_height` (Über-Dialog-Höhe aus innerem Frame +
+  Mindesthöhe — Hotfix v0.2.3 bereits auf dev gemergt). Erster automatischer
+  Self-Update-Test: laufende beta1 erkennt beta2 und bietet Update an.
+- Tag `v0.3.0-beta2` gepusht (origin 5dad938) → Workflow-Ergebnis ausstehend.
+
 ### ✅ Tooltips (Issue #15) — geplant für v0.3.0
 
 - Flächendeckende Hover-Tooltips über alle Fenster (Haupt, Setup, manuelle Zuordnung,
