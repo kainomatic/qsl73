@@ -49,6 +49,21 @@ Claude Desktop wird über seine Projekt-Anweisungen hierher verwiesen.
 
 ---
 
+## Git-Branch-Operationen — Zuständigkeit
+
+**Alle Git-Branch-Operationen sind ausschließlich Aufgabe von Claude Code:**
+Merges, Rück-Merges, Konfliktauflösung, Tagging, Branch-Pflege (Löschen lokal/remote).
+
+**DF1DS (Vermittler/Tester) führt keine Merges oder Konfliktauflösungen von Hand aus.**
+Wenn ein Schritt einen Merge mit möglichen Konflikten erfordert, schneidet Desktop dafür
+einen CC-Auftrag — kein manuelles Mergen durch DF1DS.
+
+**Ausnahme:** Die *Entscheidung*, ein Stable-Release auszulösen, bleibt DF1DS (gemäß
+ADR-0046 §5). Die technische Durchführung (Merge dev→main, Tag setzen, pushen) übernimmt
+Claude Code im Release-Auftrag. → ADR-0049
+
+---
+
 ## Pflicht-Pfad
 
 Das Repo **muss** unter `C:\Entwicklung\qsl73` liegen.

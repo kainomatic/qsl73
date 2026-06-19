@@ -422,6 +422,10 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Hotfix v0.2.2 vorbereitet (2026-06-19, ADR-0048):** Bugfix Über-Dialog-Größe/Position
   (`_on_about` via `after(1,...)`). Branch `hotfix/v0.2.2-about-dialog` von `main` (v0.2.1).
   Release durch DF1DS (Hotfix → main mergen, Tag `v0.2.2` pushen, danach Hotfix → dev mergen).
+- **Hotfix v0.2.2 zurück nach dev gemergt (2026-06-19):** Über-Dialog-Fix in dev; Tooltips
+  unverändert; `__version__=0.3.0`. Konflikte in `__version__`, ADR-Index, CHANGELOG
+  korrekt aufgelöst. Hotfix-Branch gelöscht (lokal + remote). ADR-0049 angelegt
+  (Git-Branch-Operationen sind CC-Aufgabe).
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
