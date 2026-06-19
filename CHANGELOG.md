@@ -16,6 +16,18 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Alle Tooltip-Texte als `_TT_*`-Modulkonstanten (i18n-Vorbereitung). Keine Fragezeichen-
   Icons. Konvention für künftige Fenster in CLAUDE.md und ADR-0047 verankert.
 
+## [0.2.2] - 2026-06-19
+
+### Fixed
+
+- **Über-Dialog öffnet korrekt zentriert und in richtiger Größe:** Die Größen- und
+  Positionsberechnung wurde zuvor synchron direkt nach dem Widget-Aufbau ausgeführt —
+  vor dem ersten Mapping des Fensters. `winfo_reqwidth()`/`winfo_reqheight()` liefern
+  in diesem Moment Mini-Werte (0 oder 1), was zu einem winzig kleinen, oben links
+  positionierten Dialog führte. Fix: Geometrie-Berechnung via `dlg.after(1, ...)` auf
+  nach das erste Mapping verschoben (analoges Muster wie `SetupWizard._adjust_window_size`).
+  Neue tk-freie Hilfsfunktion `_compute_dialog_geometry` ausgelagert (testbar ohne Display).
+
 ## [0.2.1] - 2026-06-19
 
 ### Changed
