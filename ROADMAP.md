@@ -470,7 +470,9 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Enthält zusätzlich `_resolve_dialog_height` (Über-Dialog-Höhe aus innerem Frame +
   Mindesthöhe — Hotfix v0.2.3 bereits auf dev gemergt). Erster automatischer
   Self-Update-Test: laufende beta1 erkennt beta2 und bietet Update an.
-- Tag `v0.3.0-beta2` gepusht (origin 5dad938) → Workflow-Ergebnis ausstehend.
+- Tag `v0.3.0-beta2` gepusht → GitHub Actions Workflow grün (1m56s) →
+  Pre-Release `v0.3.0-beta2` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und gefüllten
+  Release-Notes (aus [Unreleased]) veröffentlicht. `v0.2.2` bleibt weiterhin Stable/Latest.
 
 ### ✅ Tooltips (Issue #15) — geplant für v0.3.0
 
