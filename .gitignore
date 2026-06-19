@@ -18,6 +18,9 @@ ENV/
 # Projektspezifische Spec-Datei wird versioniert
 !qsl73.spec
 
+# Inno Setup — Installer-Output nie ins Repo
+installer/Output/
+
 # Secrets / Config – niemals ins Repo
 config.yaml
 *.token

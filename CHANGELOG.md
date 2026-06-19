@@ -56,6 +56,10 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Inno-Setup-Installer Stable (Schritt 9b, ADR-0041):** `QSL73-Setup.exe`; installiert nach
+  `C:\Program Files\QSL73` (64-Bit); GPLv3-Lizenzseite; Startmenü + optionale Desktop-
+  Verknüpfung; Deinstaller fragt nach `%APPDATA%\QSL73` (Default NEIN).
+
 - **PyInstaller-Build (Schritt 9a, ADR-0040):** onedir Windows-.exe; alle Abhängigkeiten
   gebündelt (zxingcpp als Einzel-.pyd manuell, pymupdf+fitz via collect_all, tkcalendar+
   babel via collect_all, pywin32 via collect_all+hiddenimports). Verifikation auf

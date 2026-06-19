@@ -120,3 +120,40 @@ Installation notwendig).
 
 Das `dist/`-Verzeichnis ist in `.gitignore` eingetragen und wird nicht ins Repo
 committet. Das fertige Bundle wird als GitHub-Release bereitgestellt (Schritt 9b).
+
+---
+
+## Installer bauen (Inno Setup)
+
+### Voraussetzungen
+
+- Inno Setup 6 installiert (https://jrsoftware.org/isdl.php)
+- `dist\QSL73\` muss vorhanden sein (zuerst PyInstaller-Build ausführen, siehe oben)
+
+### Build ausführen
+
+```
+ISCC.exe installer\qsl73.iss
+```
+
+Ergebnis: `installer\Output\QSL73-Setup.exe`
+
+### Pfad zu ISCC.exe
+
+```
+Windows: C:\Program Files (x86)\Inno Setup 6\ISCC.exe   (System-Installation)
+Oder:    %LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe   (per-User-Installation via winget)
+```
+
+### Installer testen
+
+`QSL73-Setup.exe` starten, Wizard durchlaufen.
+Nach der Installation: `C:\Program Files\QSL73\QSL73.exe` starten.
+
+### Bekannte Fallstricke
+
+- `dist\QSL73\` muss vor dem Installer-Build existieren (Inno packt den Ordner zur Build-Zeit)
+- `installer\Output\` ist in `.gitignore` — Setup.exe nicht ins Repo committen
+- AppId-GUID (`{4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B}`) **NIEMALS** ändern — sonst erkennt
+  Windows den Installer nicht als Update zum bestehenden Eintrag in „Apps & Features"
+- UAC-Elevation: Der Installer benötigt Admin-Rechte (`PrivilegesRequired=admin`)

@@ -354,10 +354,15 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Build-Doku:** `docs/BUILD.md` + `tools/build.ps1`.
 - **Finaler Realtest durch DF1DS** auf frischem System: ausstehend.
 
-### Schritt 9b — Inno-Setup-Paket
+### ✅ Schritt 9b — Inno-Setup-Installer (Stable) — ABGESCHLOSSEN
 
-- Inno-Setup-Skript für Stable + Beta-Installer, stille Installation, Deinstaller mit
-  Nutzerdaten-Abfrage. Grundlage: `dist\QSL73\` aus Schritt 9a.
+- `installer\qsl73.iss`: installiert `dist\QSL73\` nach `C:\Program Files\QSL73` (64-Bit);
+  GPLv3-Lizenzseite; Startmenü + optionale Desktop-Verknüpfung; Deinstaller fragt nach
+  `%APPDATA%\QSL73` (Default NEIN). AppId-GUID `{4FB91B69-CF4A-4DC9-B59D-2EA92B857D0B}`.
+- `QSL73-Setup.exe`: 41,8 MB; Build und Verifikation B1–B4 grün.
+- `tools/build_installer.ps1`: PyInstaller + Inno Setup in einem Schritt.
+- `installer\Output\` in `.gitignore`; `docs/BUILD.md` um Installer-Abschnitt ergänzt.
+- ADR-0041 angelegt. Finaler Wizard-Test (Sprache, Lizenz, MsgBox) durch DF1DS ausstehend.
 
 ### Schritt 9c — Erstes Release
 
