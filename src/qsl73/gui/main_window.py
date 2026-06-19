@@ -952,7 +952,7 @@ class MainWindow(tk.Tk):
 
         dlg = tk.Toplevel(self)
         dlg.title(_ABOUT_TITLE)
-        dlg.resizable(False, False)
+        dlg.resizable(True, True)  # False,False lässt WM die geometry()-Größe ignorieren
         dlg.transient(self)
         dlg.grab_set()
 
