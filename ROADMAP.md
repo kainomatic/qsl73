@@ -328,7 +328,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   entfernt; `app.language` im Config-Modell erhalten (Abwärtskompatibilität). Issue #25
   vorgemerkt für V2-i18n. 958 Tests grün.
 
-## 🔧 IN ARBEIT Schritt 8 — Update-Lifecycle + Installer
+## ✅ Schritt 8 — Update-Lifecycle + Installer
 
 - `src/qsl73/updater.py`: GitHub-Releases-API, SemVer-Vergleich (inkl. beta < stable),
   Asset-Auswahl (Stable/Beta-Kanal), Download nach %TEMP%, Größenprüfung, /SILENT-Start.
