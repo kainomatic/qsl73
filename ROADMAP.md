@@ -441,6 +441,15 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   `ismapped`-Fallback (SetupWizard-Muster) + alle `attach_tooltip`-Aufrufe. `__version__=0.3.0`.
   Wird über v0.3.0-beta3 auf Win10 verifiziert; Stable v0.2.3 folgt separat über main.
   1172 Tests grün. origin/dev = 6f7f2c1. Hotfix-Branch bleibt erhalten (für Stable v0.2.3).
+- **resizable(True,True)-Fix (echte Über-Dialog-Wurzel) nach dev gemergt (2026-06-20):**
+  Rück-Merge `hotfix/v0.2.3-about-dialog-height` → `dev`. Echte Ursache des winzigen Dialogs:
+  `dlg.resizable(False,False)` ließ den Windows-WM `geometry()`-Aufrufe ignorieren — unabhängig
+  von `minsize`, Timing und `_ABOUT_MIN_H`. Fix: `dlg.resizable(True,True)` wie SetupWizard;
+  die gesamte `_do_center`-Logik (`_ABOUT_MIN_H=520`, `ismapped`-Zentrierung, Tooltips) bleibt
+  erhalten und greift nun wirklich. Neuer Diagnosetest `test_resizable_false_vs_true_geometry`
+  belegt die Wurzelursache. `__version__=0.3.0`. Wird über v0.3.0-beta4 auf Win10 verifiziert;
+  Stable v0.2.3 folgt separat über main. 1178 Tests grün. origin/dev = 6810013.
+  Hotfix-Branch bleibt erhalten (für Stable v0.2.3).
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
