@@ -453,6 +453,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **v0.3.0-beta4 veröffentlicht (2026-06-20):** resizable(True,True)-Fix (echte Über-Dialog-
   Wurzel). Pre-Release; Asset `QSL73-Beta-Setup-v0.3.0.exe`; v0.2.2 bleibt Latest-Stable.
   Win10-Verifikation durch DF1DS ausstehend.
+- **Über-Dialog-Fix vollständig nach dev gemergt; v0.2.3 Stable released + auf Win10 verifiziert (2026-06-20):**
+  Rück-Merge `hotfix/v0.2.3-about-dialog-height` (660c3f1) → `dev` abgeschlossen. Enthält
+  den vollständigen Über-Dialog-Fix (echte Wurzel: ttk/bg-cget `TclError` auf Win10/Tk 8.6
+  bei `ttk.Frame` + `tk.Label bg=cget`; Fix: `ttk.Label` ohne `bg`-Argument, defensive
+  Logo-Kapselung via try/except) sowie den Größen-Feinschliff (`_ABOUT_MIN_H` 520→480,
+  damit der berechnete Wert 501 px bei Win10-scaling 1.33 greift). `resizable(True,True)` +
+  `_do_center`-Logik + Tooltips (`attach_tooltip`) vollständig erhalten. `__version__=0.3.0`.
+  v0.2.3 Stable auf DF1DS' Win10 verifiziert (Dialog vollständig korrekt). 1180 Tests grün.
+  Hotfix-Branch `hotfix/v0.2.3-about-dialog-height` gelöscht (lokal + remote), da v0.2.3
+  released und vollständig zurückgeführt.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
