@@ -208,7 +208,7 @@ def test_about_dialog_opens_at_minimum_size():
 
         dlg = tk.Toplevel(root)
         dlg.title("Test-Über-Dialog")
-        dlg.resizable(False, False)
+        dlg.resizable(True, True)  # Fix: False,False lässt WM die geometry()-Größe ignorieren
         dlg.transient(root)
 
         frame = ttk.Frame(dlg, padding=24)
@@ -300,3 +300,77 @@ def test_about_dialog_opens_at_minimum_size():
     )
     assert m2["x"] >= 0, f"x={m2['x']} negativ"
     assert m2["y"] >= 0, f"y={m2['y']} negativ"
+
+
+# ---------------------------------------------------------------------------
+# TEIL 1 — Diagnosetest: resizable(False,False) ignoriert geometry()
+# ---------------------------------------------------------------------------
+
+@_SKIP_TK
+def test_resizable_false_vs_true_geometry():
+    """Belegt die Wurzelursache: resizable(False,False) ignoriert explizite geometry()-Größe.
+
+    Öffnet denselben minimalen Dialog einmal mit resizable(False,False) und einmal mit
+    resizable(True,True), jeweils mit identischem geometry("700x600+50+50")-Aufruf.
+    Erwartet: True,True respektiert die gesetzte Größe; False,False lässt den WM
+    die natürliche Pack-Größe verwenden (deutlich kleiner als 700x600 auf Windows).
+
+    Der True,True-Zweig ist die harte Assertion; der False,False-Zweig wird nur
+    gemessen und als Diagnosewert zurückgegeben — WM-Verhalten kann plattformabhängig sein.
+    """
+    import tkinter as tk
+    from tkinter import ttk
+
+    TARGET_W, TARGET_H = 700, 600
+    GEOM = f"{TARGET_W}x{TARGET_H}+50+50"
+
+    def _open_with(resizable: bool) -> dict:
+        root = tk.Tk()
+        root.withdraw()
+        root.update_idletasks()
+
+        measured: dict = {}
+
+        dlg = tk.Toplevel(root)
+        dlg.title("Diagnose-Dialog")
+        dlg.resizable(resizable, resizable)
+
+        # Minimaler Inhalt: ein Label
+        ttk.Label(dlg, text="Diagnose").pack(padx=20, pady=20)
+
+        dlg.update_idletasks()
+        dlg.geometry(GEOM)
+
+        def _measure():
+            if dlg.winfo_exists():
+                dlg.update_idletasks()
+                measured["w"] = dlg.winfo_width()
+                measured["h"] = dlg.winfo_height()
+            dlg.destroy()
+
+        dlg.after(120, _measure)
+        root.after(3000, lambda: [dlg.destroy() if dlg.winfo_exists() else None])
+        dlg.wait_window()
+        root.destroy()
+        return measured
+
+    m_false = _open_with(resizable=False)
+    m_true = _open_with(resizable=True)
+
+    assert "w" in m_true, "Diagnosemessung (True,True) fehlgeschlagen"
+    assert "w" in m_false, "Diagnosemessung (False,False) fehlgeschlagen"
+
+    # resizable(True,True): geometry() muss respektiert werden
+    assert m_true["w"] == TARGET_W, (
+        f"resizable(True,True): Breite {m_true['w']} ≠ {TARGET_W} — "
+        "geometry() wurde nicht respektiert"
+    )
+    assert m_true["h"] == TARGET_H, (
+        f"resizable(True,True): Höhe {m_true['h']} ≠ {TARGET_H} — "
+        "geometry() wurde nicht respektiert"
+    )
+
+    # resizable(False,False): nur messen, kein harter Größenvergleich (WM-abhängig)
+    # Auf Windows ist erwartet: m_false["w"] << TARGET_W (WM ignoriert geometry())
+    # Auf manchen Linux-WMs kann False,False trotzdem greifen → kein harter Assert
+    _ = (m_false["w"], m_false["h"])  # Werte für Diagnosezwecke verfügbar

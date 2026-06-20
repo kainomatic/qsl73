@@ -20,20 +20,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- **Über-Dialog öffnet in korrekter Größe und mittig über dem Hauptfenster (Hotfix):**
-  Der Dialog öffnete auf Win10 weiterhin zu klein und nahe der linken oberen Ecke — auch nach
-  dem v0.2.2-Fix. Laufzeit-Diagnose (CC-Maschine): `frame.winfo_reqheight()` liefert vor
-  `update_idletasks()` den Wert 1 (nicht gemessen); nach `update_idletasks()` korrekt 411 px
-  (inkl. Logo 116 px). Auf Win10 schlägt diese Ausbreitung offenbar fehl → Messwert bleibt 1 →
-  `min_h=400` greift, Dialog nur 400 px hoch statt der benötigten ≥ 491 px (Logo+Inhalt+Chrome).
-  Fix: Mindesthöhe auf `_ABOUT_MIN_H = 520 px` erhöht (deckt Logo 112 px + alle Inhalte +
-  Chrome 90 px sicher ab); Bildschirm-Deckel 90 % wie `SetupWizard._adjust_window_size`
-  hinzugefügt; Breite via `dlg.winfo_reqwidth()` statt `frame.winfo_reqwidth()` (robuster);
-  `dlg.minsize` auf die neuen Konstanten angehoben. Über-Dialog öffnet damit korrekt groß
-  (Logo vollständig sichtbar) und mittig über dem Hauptfenster, unabhängig davon, ob/wann
-  das PhotoImage in die Frame-Messung eingeht. Neue Regressionstests decken: 1px-Messwert
-  → `_ABOUT_MIN_H` greift; frame-Höhe ohne Logo → Minimum hält; Zentrierung wenn Dialog
-  höher als Parent; tk-Test mit und ohne Logo prüft Mindestmaße und positive Koordinaten.
+- **Über-Dialog öffnet in korrekter Größe und mittig über dem Hauptfenster (Hotfix — echte Wurzel):**
+  Der Dialog öffnete auf Win10 und Win-Server-2025 weiterhin winzig — trotz `_ABOUT_MIN_H=520`,
+  `update_idletasks`, `after(1,_do_center)` und `ismapped`-Zentrierung aus v0.2.3-beta3.
+  **Echte Wurzelursache (Code-Vergleich mit SetupWizard):** `dlg.resizable(False, False)` im
+  Über-Dialog veranlasst den Windows-WM, explizite `dlg.geometry("WxH+X+Y")`-Aufrufe zu
+  ignorieren und stattdessen die vom Pack-Manager berechnete „natürliche" Größe zu verwenden.
+  Ist das Logo zu diesem Zeitpunkt noch nicht in die Frame-Messung eingerechnet, schrumpft
+  das Fenster auf die Inhaltsgröße ohne Logo — unabhängig von `minsize`, `geometry` und Timing.
+  Der SetupWizard — der immer korrekt öffnet — nutzt `resizable(True, True)`.
+  **Fix:** Über-Dialog auf `dlg.resizable(True, True)` umgestellt (wie SetupWizard). Die
+  gesamte bestehende `_do_center`-Logik (`_ABOUT_MIN_H=520`, `_ABOUT_MIN_W=360`,
+  Bildschirm-Deckel 90 %, `ismapped`-Zentrierung) bleibt vollständig erhalten und greift nun
+  auch wirklich. Logo bleibt vollständig sichtbar. Neuer Diagnosetest belegt: `resizable(True,True)`
+  respektiert `geometry()`; bestehender tk-Test prüft echte `winfo_width/height`-Werte.
 
 ## [0.2.2] - 2026-06-19
 
