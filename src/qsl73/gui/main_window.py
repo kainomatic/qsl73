@@ -959,13 +959,18 @@ class MainWindow(tk.Tk):
         frame = ttk.Frame(dlg, padding=24)
         frame.pack(fill="both", expand=True)
 
-        # Logo oben (transparent, 112 px)
-        from qsl73.gui._icon import load_about_logo
-        logo_photo = load_about_logo(size=112)
-        if logo_photo is not None:
-            logo_lbl = tk.Label(frame, image=logo_photo, bg=frame.cget("background"))
-            logo_lbl.image = logo_photo  # GC-Schutz
-            logo_lbl.pack(pady=(0, 10))
+        # Logo oben (transparent, 112 px) — defensiv gekapselt: Logo-Fehler lässt
+        # Restdialog vollständig aufbauen. ttk.Label übernimmt Theme-Hintergrund
+        # automatisch; kein frame.cget("background") nötig (ttk.Frame kennt -background nicht).
+        try:
+            from qsl73.gui._icon import load_about_logo
+            logo_photo = load_about_logo(size=112)
+            if logo_photo is not None:
+                logo_lbl = ttk.Label(frame, image=logo_photo)
+                logo_lbl.image = logo_photo  # GC-Schutz
+                logo_lbl.pack(pady=(0, 10))
+        except Exception as _logo_exc:
+            _log.warning("Über-Dialog: Logo konnte nicht angezeigt werden: %s", _logo_exc)
 
         # App-Titel und Version (klar als Überschrift)
         ttk.Label(
