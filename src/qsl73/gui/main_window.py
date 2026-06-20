@@ -146,10 +146,11 @@ def _resolve_dialog_width(inner_w: int, min_w: int = 360) -> int:
     return max(inner_w, min_w)
 
 
-# Über-Dialog — harte Mindestmaße (Logo-inklusive Summe: Logo 112px + pady 10 +
-# Titel + Beschreibung + Separator + Lizenz + Autor + Links + Button + Frame-Padding 48
-# + Chrome 90 ≈ 491 px; 520 px lässt sicheren Puffer für DPI-Varianz und Fontgrößen)
-_ABOUT_MIN_H: int = 520
+# Über-Dialog — harte Mindestmaße (Sicherheitsnetz; bei zuverlässiger reqH-Messung gewinnt
+# der berechnete Wert frame.winfo_reqheight()+90. Auf DF1DS' Win10 (tk-scaling 1.33):
+# reqH≈411 → needed_h=501 > 480 → berechneter Wert bestimmt die Höhe; 480 greift nur
+# bei Timing-Artefakten (reqH≈1) oder Logo-loser Messung (reqH≈285 → 375 < 480).)
+_ABOUT_MIN_H: int = 480
 _ABOUT_MIN_W: int = 360
 
 _RESULT_LABELS = {
@@ -973,13 +974,18 @@ class MainWindow(tk.Tk):
         frame = ttk.Frame(dlg, padding=24)
         frame.pack(fill="both", expand=True)
 
-        # Logo oben (transparent, 112 px)
-        from qsl73.gui._icon import load_about_logo
-        logo_photo = load_about_logo(size=112)
-        if logo_photo is not None:
-            logo_lbl = tk.Label(frame, image=logo_photo, bg=frame.cget("background"))
-            logo_lbl.image = logo_photo  # GC-Schutz
-            logo_lbl.pack(pady=(0, 10))
+        # Logo oben (transparent, 112 px) — defensiv gekapselt: Logo-Fehler lässt
+        # Restdialog vollständig aufbauen. ttk.Label übernimmt Theme-Hintergrund
+        # automatisch; kein frame.cget("background") nötig (ttk.Frame kennt -background nicht).
+        try:
+            from qsl73.gui._icon import load_about_logo
+            logo_photo = load_about_logo(size=112)
+            if logo_photo is not None:
+                logo_lbl = ttk.Label(frame, image=logo_photo)
+                logo_lbl.image = logo_photo  # GC-Schutz
+                logo_lbl.pack(pady=(0, 10))
+        except Exception as _logo_exc:
+            _log.warning("Über-Dialog: Logo konnte nicht angezeigt werden: %s", _logo_exc)
 
         # App-Titel und Version (klar als Überschrift)
         ttk.Label(

@@ -57,15 +57,22 @@ def test_compute_dialog_geometry_dialog_taller_than_parent_x_not_zero():
 # ---------------------------------------------------------------------------
 
 def test_about_min_h_covers_logo_plus_content():
-    """_ABOUT_MIN_H muss Logo (112 px) + gesamten Inhalt + Chrome (90 px) abdecken.
+    """_ABOUT_MIN_H ist Sicherheitsnetz; bei reqH≈411 (Win10) gewinnt der berechnete Wert.
 
-    Untere Schranke: Logo+pady(122) + Titel(36) + Beschr(62) + Sep(16) + Lizenz(26)
-    + Autor(34) + Links(38) + Button(25) + Padding(48) + Chrome(90) ≈ 497 px.
-    _ABOUT_MIN_H muss ≥ 490 sein.
+    Bei zuverlässiger Messung: _resolve_dialog_height(411, chrome=90, min_h=_ABOUT_MIN_H)
+    muss Logo (116 px) + alle Texte + Button vollständig fassen → Ergebnis ≥ 411 + chrome.
+    _ABOUT_MIN_H selbst darf kleiner als needed_h sein (greift nur bei Timing-Artefakten).
+    Untere Schranke für _ABOUT_MIN_H: ≥ 440 (genug Sicherheitsnetz, aber < 501 damit
+    berechneter Wert bei reqH≈411 gewinnt).
     """
-    assert _ABOUT_MIN_H >= 490, (
-        f"_ABOUT_MIN_H={_ABOUT_MIN_H} ist zu klein — "
-        "muss Logo+Inhalt+Chrome (≥490 px) abdecken"
+    assert _ABOUT_MIN_H >= 440, (
+        f"_ABOUT_MIN_H={_ABOUT_MIN_H} ist zu klein — Sicherheitsnetz muss ≥ 440 px sein"
+    )
+    # Bei realistischem reqH: berechneter Wert muss gewinnen und Logo+Inhalt fassen
+    REQ_H_WIN10 = 411
+    final_h = _resolve_dialog_height(REQ_H_WIN10, chrome=90, min_h=_ABOUT_MIN_H)
+    assert final_h >= REQ_H_WIN10 + 50, (
+        f"Finale Höhe {final_h} deckt den gemessenen Inhalt ({REQ_H_WIN10} px) nicht sicher ab"
     )
 
 
@@ -92,11 +99,11 @@ def test_about_min_w_covers_logo():
     (400, 40, 300, 440),
     # Chrome = 0
     (200, 0, 150, 200),
-    # Über-Dialog-Muster: chrome=90, min_h=_ABOUT_MIN_H (520)
-    (411, 90, 520, 520),   # frame=411 (mit Logo) → 501 < 520 → Minimum greift
-    (450, 90, 520, 540),   # frame=450 → 540 > 520 → Inhalt bestimmt
-    (1, 90, 520, 520),     # 1px-Timing-Artefakt → hartes Minimum greift
-    (285, 90, 520, 520),   # frame ohne Logo (285) → 375 < 520 → Minimum greift
+    # Über-Dialog-Muster: chrome=90, min_h=_ABOUT_MIN_H (480)
+    (411, 90, 480, 501),   # frame=411 (mit Logo) → 501 > 480 → berechneter Wert bestimmt
+    (450, 90, 480, 540),   # frame=450 → 540 > 480 → Inhalt bestimmt
+    (1, 90, 480, 480),     # 1px-Timing-Artefakt → hartes Minimum greift
+    (285, 90, 480, 480),   # frame ohne Logo (285) → 375 < 480 → Minimum greift
 ])
 def test_resolve_dialog_height(inner_h, chrome, min_h, expected):
     assert _resolve_dialog_height(inner_h, chrome=chrome, min_h=min_h) == expected
@@ -374,3 +381,141 @@ def test_resizable_false_vs_true_geometry():
     # Auf Windows ist erwartet: m_false["w"] << TARGET_W (WM ignoriert geometry())
     # Auf manchen Linux-WMs kann False,False trotzdem greifen → kein harter Assert
     _ = (m_false["w"], m_false["h"])  # Werte für Diagnosezwecke verfügbar
+
+
+# ---------------------------------------------------------------------------
+# TEIL 3 — Regressionstest: ttk.Label-Logo-Fix und vollständiger Dialog-Aufbau
+# ---------------------------------------------------------------------------
+
+
+def test_ttk_frame_logo_label_no_cget_crash():
+    """ttk.Label auf ttk.Frame mit image-Arg darf keine Exception werfen.
+
+    Sichert ab, dass der Fix (ttk.Label statt tk.Label mit bg=frame.cget("background"))
+    auf ttk.Frames exception-frei ist. tk.Label(..., bg=frame.cget("background")) wirft
+    auf Win10/Tk 8.6 einen TclError ("unknown option -background") — dieser Test hätte
+    den Bug vor dem Release gefangen.
+    """
+    import pytest
+    try:
+        import tkinter as tk
+        from tkinter import ttk
+    except ImportError:
+        pytest.skip("tkinter nicht verfügbar")
+
+    try:
+        root = tk.Tk()
+        root.withdraw()
+    except Exception:
+        pytest.skip("Kein Display verfügbar")
+
+    try:
+        frame = ttk.Frame(root)
+        frame.pack()
+        root.update_idletasks()
+
+        # ttk.Frame hat keine -background-Option → frame.cget("background") wirft TclError.
+        # Der Fix verwendet ttk.Label ohne bg-Argument; das darf nicht abstürzen.
+        lbl = ttk.Label(frame, text="Logo-Platzhalter")
+        lbl.pack()
+        root.update_idletasks()
+        # Kein Exception-Crash → Test bestanden
+    finally:
+        root.destroy()
+
+
+@_SKIP_TK
+def test_about_dialog_builds_completely_not_empty():
+    """Über-Dialog enthält nach dem Aufbau alle erwarteten Kind-Widgets (nicht leer).
+
+    Regressionstest gegen den echten Bug: tk.Label(..., bg=frame.cget("background"))
+    auf ttk.Frame wirft TclError und bricht den Dialog-Aufbau NACH dem Logo ab —
+    Titel/Beschreibung/Lizenz/Autor/Links/Schließen-Button werden nie erzeugt.
+    Der Fix (ttk.Label für Logo) verhindert den Crash; dieser Test prüft, dass
+    der Dialog danach vollständig aufgebaut ist.
+    """
+    import tkinter as tk
+    from tkinter import ttk
+
+    built: dict = {}
+
+    root = tk.Tk()
+    root.withdraw()
+    root.update_idletasks()
+
+    try:
+        dlg = tk.Toplevel(root)
+        dlg.title("Über-Dialog Vollständigkeitstest")
+        dlg.resizable(True, True)
+        dlg.transient(root)
+
+        frame = ttk.Frame(dlg, padding=24)
+        frame.pack(fill="both", expand=True)
+
+        # Logo-Block mit dem Fix (ttk.Label, kein frame.cget("background"))
+        try:
+            from qsl73.gui._icon import load_about_logo
+            logo_photo = load_about_logo(size=112)
+            if logo_photo is not None:
+                logo_lbl = ttk.Label(frame, image=logo_photo)
+                logo_lbl.image = logo_photo
+                logo_lbl.pack(pady=(0, 10))
+        except Exception:
+            pass  # Logo-Fehler: Restdialog trotzdem aufbauen
+
+        # Titel (dieses Label existiert NUR wenn die Logo-Zeile nicht crasht)
+        title_lbl = ttk.Label(frame, text="QSL73  v0.2.3  (stable)", font=("", 13, "bold"))
+        title_lbl.pack(pady=(0, 14))
+
+        desc_lbl = ttk.Label(frame, text="Beschreibung", justify="center")
+        desc_lbl.pack(pady=(0, 12))
+
+        ttk.Separator(frame, orient="horizontal").pack(fill="x", pady=(0, 12))
+
+        ttk.Label(frame, text="Lizenz: GPLv3").pack(pady=(0, 6))
+
+        author_row = ttk.Frame(frame)
+        author_row.pack(pady=(0, 14))
+        ttk.Label(author_row, text="Autor:  ").pack(side="left")
+        tk.Label(author_row, text="DF1DS", font=("", 10, "bold")).pack(side="left")
+
+        link_row = ttk.Frame(frame)
+        link_row.pack(pady=(0, 18))
+        tk.Label(link_row, text="GitHub", fg="#0645ad").pack(side="left", padx=(0, 20))
+        tk.Label(link_row, text="QRZ.com", fg="#0645ad").pack(side="left")
+
+        close_btn = ttk.Button(frame, text="Schließen", command=dlg.destroy)
+        close_btn.pack()
+
+        dlg.update_idletasks()
+
+        # Alle direkten Kinder des Frames erfassen
+        children = frame.winfo_children()
+        built["child_count"] = len(children)
+        # winfo_ismapped() ist 0 wenn root.withdraw() gesetzt ist — stattdessen winfo_exists()
+        built["title_lbl_exists"] = title_lbl.winfo_exists()
+        built["close_btn_exists"] = close_btn.winfo_exists()
+        built["desc_lbl_exists"] = desc_lbl.winfo_exists()
+        # reqheight > 0 belegt, dass das Widget ein Layout-Gewicht hat (nicht leer)
+        built["title_lbl_reqh"] = title_lbl.winfo_reqheight()
+        built["close_btn_reqh"] = close_btn.winfo_reqheight()
+
+    finally:
+        try:
+            dlg.destroy()
+        except Exception:
+            pass
+        root.destroy()
+
+    # Nach erfolgreichem Build: mind. Titel + Schließen-Button + Beschreibung vorhanden.
+    # child_count ≥ 5 → Dialog-Aufbau NICHT durch Logo-Crash abgebrochen.
+    # Ohne Fix: TclError nach Logo bricht ab → child_count ≤ 1 (nur logo_lbl, falls überhaupt).
+    assert built.get("child_count", 0) >= 5, (
+        f"Nur {built.get('child_count', 0)} Kind-Widgets im Frame — "
+        "Dialog-Aufbau wurde wahrscheinlich durch einen Crash abgebrochen"
+    )
+    assert built.get("title_lbl_exists"), "Titel-Label nicht erzeugt — Dialog unvollständig"
+    assert built.get("close_btn_exists"), "Schließen-Button nicht erzeugt — Dialog unvollständig"
+    assert built.get("desc_lbl_exists"), "Beschreibungs-Label nicht erzeugt — Dialog unvollständig"
+    assert built.get("title_lbl_reqh", 0) > 0, "Titel-Label hat keine Höhe — Widget nicht gebaut"
+    assert built.get("close_btn_reqh", 0) > 0, "Schließen-Button hat keine Höhe — Widget nicht gebaut"

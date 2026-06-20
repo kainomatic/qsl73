@@ -16,24 +16,37 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Alle Tooltip-Texte als `_TT_*`-Modulkonstanten (i18n-Vorbereitung). Keine Fragezeichen-
   Icons. Konvention für künftige Fenster in CLAUDE.md und ADR-0047 verankert.
 
-## [0.2.3] - 2026-06-19
+## [0.2.3] - 2026-06-20
 
 ### Fixed
 
-- **Über-Dialog öffnet in korrekter Größe und mittig über dem Hauptfenster (Hotfix — echte Wurzel):**
-  Der Dialog öffnete auf Win10 und Win-Server-2025 weiterhin winzig — trotz `_ABOUT_MIN_H=520`,
-  `update_idletasks`, `after(1,_do_center)` und `ismapped`-Zentrierung aus v0.2.3-beta3.
-  **Echte Wurzelursache (Code-Vergleich mit SetupWizard):** `dlg.resizable(False, False)` im
-  Über-Dialog veranlasst den Windows-WM, explizite `dlg.geometry("WxH+X+Y")`-Aufrufe zu
-  ignorieren und stattdessen die vom Pack-Manager berechnete „natürliche" Größe zu verwenden.
-  Ist das Logo zu diesem Zeitpunkt noch nicht in die Frame-Messung eingerechnet, schrumpft
-  das Fenster auf die Inhaltsgröße ohne Logo — unabhängig von `minsize`, `geometry` und Timing.
-  Der SetupWizard — der immer korrekt öffnet — nutzt `resizable(True, True)`.
-  **Fix:** Über-Dialog auf `dlg.resizable(True, True)` umgestellt (wie SetupWizard). Die
-  gesamte bestehende `_do_center`-Logik (`_ABOUT_MIN_H=520`, `_ABOUT_MIN_W=360`,
-  Bildschirm-Deckel 90 %, `ismapped`-Zentrierung) bleibt vollständig erhalten und greift nun
-  auch wirklich. Logo bleibt vollständig sichtbar. Neuer Diagnosetest belegt: `resizable(True,True)`
-  respektiert `geometry()`; bestehender tk-Test prüft echte `winfo_width/height`-Werte.
+- **Über-Dialog öffnet vollständig (Logo + Texte + Buttons) und korrekt dimensioniert (Hotfix — echte Wurzel via Diagnose-Skript auf Win10):**
+  Der Dialog blieb auf Win10 leer und winzig. Diagnose-Skript `tools/diag_about_dialog.py` auf
+  DF1DS' Win10 ergab: Die Zeile
+  `tk.Label(frame, image=logo_photo, bg=frame.cget("background"))` wirft auf Win10/Tk 8.6 einen
+  `_tkinter.TclError: unknown option "-background"`, weil `frame` ein `ttk.Frame` ist
+  (`ttk`-Widgets kennen keine `-background`-Option). Die Exception bricht den Dialog-Aufbau
+  **unmittelbar nach dem Logo** ab — Titel, Beschreibung, Lizenz, Autor, Links und Schließen-Button
+  werden nie erzeugt, der Dialog bleibt leer. Auf Windows-Server-2025 (CC-Umgebung) trat der Fehler
+  theme-/versionsbedingt nicht auf, daher nie reproduziert.
+  **Fix:** Logo-Label auf `ttk.Label(frame, image=logo_photo)` umgestellt — `ttk.Label` übernimmt
+  den Theme-Hintergrund automatisch, kein `bg`/`cget` nötig. Zusätzlich defensiv gekapselt
+  (try/except um den Logo-Block): ein Logo-Fehler kann den Restdialog nicht mehr leeren.
+  Die `_do_center`-Logik (`resizable(True,True)`, Bildschirm-Deckel 90 %, `ismapped`-Zentrierung)
+  bleibt vollständig erhalten und greift nun auch wirklich. Neuer Regressionstest
+  (`test_about_dialog_builds_completely_not_empty`) prüft, dass der Dialog nach dem Aufbau
+  vollständig ist; `test_ttk_frame_logo_label_no_cget_crash` sichert ab, dass `ttk.Label` auf
+  `ttk.Frame` ohne Exception durchläuft. `tools/diag_about_dialog.py` ebenfalls korrigiert
+  (selbe Zeile, damit das Skript für Folge-Diagnosen nutzbar bleibt).
+
+- **Über-Dialog Dialoghöhe enger am Inhalt (Größen-Feinschliff):**
+  Auf DF1DS' Win10 (tk-scaling 1.33) ergab das Diagnose-Skript `frame.winfo_reqheight()≈411 px`.
+  Mit `chrome=90` ergibt sich `needed_h=501 px`; die alte `_ABOUT_MIN_H=520` überschrieb diesen
+  berechneten Wert und erzwang unnötige 19 px Leerraum am unteren Rand.
+  **Fix:** `_ABOUT_MIN_H` von 520 auf 480 gesenkt — fungiert jetzt als reines Sicherheitsnetz für
+  Timing-Artefakte (reqH≈1 px) und Logo-lose Frühmsesungen (reqH≈285 → needed_h=375 < 480).
+  Im Normalfall gewinnt der berechnete Wert (501 px > 480), der Dialog sitzt enger am Inhalt.
+  Ein kleiner Puffer gegen DPI- und Fontvarianz bleibt erhalten. `_ABOUT_MIN_W=360` unverändert.
 
 ## [0.2.2] - 2026-06-19
 

@@ -262,7 +262,7 @@ def run_diag() -> None:
     log("  frame = ttk.Frame(dlg, padding=24); frame.pack(fill='both', expand=True)")
 
     if logo_photo is not None:
-        logo_lbl = tk.Label(frame, image=logo_photo, bg=frame.cget("background"))
+        logo_lbl = ttk.Label(frame, image=logo_photo)  # Fix: ttk.Label, kein bg=frame.cget()
         logo_lbl.image = logo_photo   # GC-Schutz
         logo_lbl.pack(pady=(0, 10))
         children.append(("logo_lbl", logo_lbl))
