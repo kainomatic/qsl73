@@ -450,6 +450,9 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   belegt die Wurzelursache. `__version__=0.3.0`. Wird über v0.3.0-beta4 auf Win10 verifiziert;
   Stable v0.2.3 folgt separat über main. 1178 Tests grün. origin/dev = 6810013.
   Hotfix-Branch bleibt erhalten (für Stable v0.2.3).
+- **v0.3.0-beta4 veröffentlicht (2026-06-20):** resizable(True,True)-Fix (echte Über-Dialog-
+  Wurzel). Pre-Release; Asset `QSL73-Beta-Setup-v0.3.0.exe`; v0.2.2 bleibt Latest-Stable.
+  Win10-Verifikation durch DF1DS ausstehend.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
