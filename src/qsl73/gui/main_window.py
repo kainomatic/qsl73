@@ -135,10 +135,11 @@ def _resolve_dialog_width(inner_w: int, min_w: int = 360) -> int:
     return max(inner_w, min_w)
 
 
-# Über-Dialog — harte Mindestmaße (Logo-inklusive Summe: Logo 112px + pady 10 +
-# Titel + Beschreibung + Separator + Lizenz + Autor + Links + Button + Frame-Padding 48
-# + Chrome 90 ≈ 491 px; 520 px lässt sicheren Puffer für DPI-Varianz und Fontgrößen)
-_ABOUT_MIN_H: int = 520
+# Über-Dialog — harte Mindestmaße (Sicherheitsnetz; bei zuverlässiger reqH-Messung gewinnt
+# der berechnete Wert frame.winfo_reqheight()+90. Auf DF1DS' Win10 (tk-scaling 1.33):
+# reqH≈411 → needed_h=501 > 480 → berechneter Wert bestimmt die Höhe; 480 greift nur
+# bei Timing-Artefakten (reqH≈1) oder Logo-loser Messung (reqH≈285 → 375 < 480).)
+_ABOUT_MIN_H: int = 480
 _ABOUT_MIN_W: int = 360
 
 _RESULT_LABELS = {

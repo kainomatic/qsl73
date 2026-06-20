@@ -7,7 +7,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.2.3] - 2026-06-19
+## [0.2.3] - 2026-06-20
 
 ### Fixed
 
@@ -23,12 +23,21 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   **Fix:** Logo-Label auf `ttk.Label(frame, image=logo_photo)` umgestellt — `ttk.Label` übernimmt
   den Theme-Hintergrund automatisch, kein `bg`/`cget` nötig. Zusätzlich defensiv gekapselt
   (try/except um den Logo-Block): ein Logo-Fehler kann den Restdialog nicht mehr leeren.
-  Die bestehende `_do_center`-Logik (`_ABOUT_MIN_H=520`, `_ABOUT_MIN_W=360`, `resizable(True,True)`,
-  Bildschirm-Deckel 90 %, `ismapped`-Zentrierung) bleibt vollständig erhalten und greift nun auch
-  wirklich. Neuer Regressionstest (`test_about_dialog_builds_completely_not_empty`) prüft, dass
-  der Dialog nach dem Aufbau vollständig ist; `test_ttk_frame_logo_label_no_cget_crash` sichert
-  ab, dass `ttk.Label` auf `ttk.Frame` ohne Exception durchläuft. `tools/diag_about_dialog.py`
-  ebenfalls korrigiert (selbe Zeile, damit das Skript für Folge-Diagnosen nutzbar bleibt).
+  Die `_do_center`-Logik (`resizable(True,True)`, Bildschirm-Deckel 90 %, `ismapped`-Zentrierung)
+  bleibt vollständig erhalten und greift nun auch wirklich. Neuer Regressionstest
+  (`test_about_dialog_builds_completely_not_empty`) prüft, dass der Dialog nach dem Aufbau
+  vollständig ist; `test_ttk_frame_logo_label_no_cget_crash` sichert ab, dass `ttk.Label` auf
+  `ttk.Frame` ohne Exception durchläuft. `tools/diag_about_dialog.py` ebenfalls korrigiert
+  (selbe Zeile, damit das Skript für Folge-Diagnosen nutzbar bleibt).
+
+- **Über-Dialog Dialoghöhe enger am Inhalt (Größen-Feinschliff):**
+  Auf DF1DS' Win10 (tk-scaling 1.33) ergab das Diagnose-Skript `frame.winfo_reqheight()≈411 px`.
+  Mit `chrome=90` ergibt sich `needed_h=501 px`; die alte `_ABOUT_MIN_H=520` überschrieb diesen
+  berechneten Wert und erzwang unnötige 19 px Leerraum am unteren Rand.
+  **Fix:** `_ABOUT_MIN_H` von 520 auf 480 gesenkt — fungiert jetzt als reines Sicherheitsnetz für
+  Timing-Artefakte (reqH≈1 px) und Logo-lose Frühmsesungen (reqH≈285 → needed_h=375 < 480).
+  Im Normalfall gewinnt der berechnete Wert (501 px > 480), der Dialog sitzt enger am Inhalt.
+  Ein kleiner Puffer gegen DPI- und Fontvarianz bleibt erhalten. `_ABOUT_MIN_W=360` unverändert.
 
 ## [0.2.2] - 2026-06-19
 
