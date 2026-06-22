@@ -29,7 +29,7 @@ pytestmark = [pytest.mark.acceptance, pytest.mark.slow]
 
 # qsoid des Anker-QSO, das im Test verwendet wird (eingefügt via Fixture)
 WRITE_TEST_QSOID = "20250402194200099"
-WRITE_TEST_CALLSIGN = "DK8NE"
+WRITE_TEST_CALLSIGN = "DK8XX"
 
 # Erwartet-JSON nach bureau-Bestätigung gemäß discovery.md §3 (Hand-Test-Ergebnis)
 EXPECTED_QSL_AFTER_BUREAU = {
@@ -96,7 +96,7 @@ def db_copy_write(tmp_path) -> Generator[tuple[sqlite3.Connection, Path, str], N
         " (qsoid, callsign, qsodate, band, mode, stationcallsign, qsoconfirmations)"
         " VALUES (?, ?, ?, ?, ?, ?, ?)",
         (WRITE_TEST_QSOID, WRITE_TEST_CALLSIGN,
-         "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR",
+         "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA",
          _make_qso_json()),
     )
     conn.commit()

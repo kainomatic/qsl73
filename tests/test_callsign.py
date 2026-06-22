@@ -6,19 +6,19 @@ DEFAULT_SUFFIXES = ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
 
 @pytest.mark.parametrize("call,expected", [
     # Kein Schrägstrich
-    ("DK8NE", "DK8NE"),
-    ("DH3KR", "DH3KR"),
+    ("DK8XX", "DK8XX"),
+    ("DL0AAA", "DL0AAA"),
     # Fall a: bekanntes Suffix
-    ("DL1EJD/P", "DL1EJD"),
-    ("DH3KR/QRP", "DH3KR"),
+    ("DL1XXX/P", "DL1XXX"),
+    ("DL0AAA/QRP", "DL0AAA"),
     ("K1ABC/M", "K1ABC"),
-    ("UA4WHX/P", "UA4WHX"),
-    ("DH3KR/R", "DH3KR"),
+    ("UA4XXX/P", "UA4XXX"),
+    ("DL0AAA/R", "DL0AAA"),
     # Fall b: bekannter ITU-Präfix
-    ("5Z4/UA4WHX", "UA4WHX"),
-    ("SV9/DH3KR", "DH3KR"),
+    ("5Z4/UA4XXX", "UA4XXX"),
+    ("SV9/DL0AAA", "DL0AAA"),
     ("DL/DK1ABC", "DK1ABC"),
-    ("UA9/DL1EJD", "DL1EJD"),
+    ("UA9/DL1XXX", "DL1XXX"),
     # Fall c: mehrdeutig
     ("DL1ABC/IF9", None),
     ("G3ABC/W5XYZ", None),
@@ -28,23 +28,23 @@ def test_decompose_callsign(call, expected):
 
 
 @pytest.mark.parametrize("call,expected", [
-    ("DL1EJD/p", "DL1EJD"),
-    ("dl1ejd/P", "DL1EJD"),
-    ("5z4/UA4WHX", "UA4WHX"),
+    ("DL1XXX/p", "DL1XXX"),
+    ("dl1xxx/P", "DL1XXX"),
+    ("5z4/UA4XXX", "UA4XXX"),
 ])
 def test_decompose_callsign_case_insensitive(call, expected):
     assert decompose_callsign(call, DEFAULT_SUFFIXES) == expected
 
 
 @pytest.mark.parametrize("call,own,stations,expected", [
-    ("DH3KR", "DH3KR", set(), True),
-    ("SV9/DH3KR", "DH3KR", set(), True),
-    ("DH3KR/P", "DH3KR", set(), True),
-    ("DO6KBO", "DH3KR", {"DO6KBO"}, True),
-    ("DO6KBO/P", "DH3KR", {"DO6KBO"}, True),
-    ("DK8NE", "DH3KR", {"DO6KBO"}, False),
-    ("DK8NE", "DH3KR", set(), False),
-    ("DF1DS/P", "DH3KR", {"DF1DS"}, True),
+    ("DL0AAA", "DL0AAA", set(), True),
+    ("SV9/DL0AAA", "DL0AAA", set(), True),
+    ("DL0AAA/P", "DL0AAA", set(), True),
+    ("DO6XXX", "DL0AAA", {"DO6XXX"}, True),
+    ("DO6XXX/P", "DL0AAA", {"DO6XXX"}, True),
+    ("DK8XX", "DL0AAA", {"DO6XXX"}, False),
+    ("DK8XX", "DL0AAA", set(), False),
+    ("DF1DS/P", "DL0AAA", {"DF1DS"}, True),
 ])
 def test_is_own_call(call, own, stations, expected):
     assert is_own_call(call, own, stations, DEFAULT_SUFFIXES) == expected
@@ -52,7 +52,7 @@ def test_is_own_call(call, own, stations, expected):
 
 def test_is_own_call_ambiguous_returns_false():
     # IF9 → Fall c → decompose gibt None → False (vorsichtiges Verhalten)
-    assert is_own_call("DH3KR/IF9", "DH3KR", set(), DEFAULT_SUFFIXES) is False
+    assert is_own_call("DL0AAA/IF9", "DL0AAA", set(), DEFAULT_SUFFIXES) is False
 
 
 # ===========================================================================
@@ -60,13 +60,13 @@ def test_is_own_call_ambiguous_returns_false():
 # ===========================================================================
 
 @pytest.mark.parametrize("call,expected", [
-    ("VK2/DH3KR",  "DH3KR"),   # VK: Australien
-    ("JA1/DH3KR",  "DH3KR"),   # JA: Japan (JA + Bezirksziffer)
+    ("VK2/DL0AAA",  "DL0AAA"),   # VK: Australien
+    ("JA1/DL0AAA",  "DL0AAA"),   # JA: Japan (JA + Bezirksziffer)
     ("ON4/DK1ABC", "DK1ABC"),   # ON: Belgien
-    ("ZL2/DH3KR",  "DH3KR"),   # ZL: Neuseeland
-    ("VE3/DH3KR",  "DH3KR"),   # VE: Kanada
-    ("LU5/DH3KR",  "DH3KR"),   # LU: Argentinien
-    ("HS0/DH3KR",  "DH3KR"),   # HS: Thailand (HS + Bezirksziffer)
+    ("ZL2/DL0AAA",  "DL0AAA"),   # ZL: Neuseeland
+    ("VE3/DL0AAA",  "DL0AAA"),   # VE: Kanada
+    ("LU5/DL0AAA",  "DL0AAA"),   # LU: Argentinien
+    ("HS0/DL0AAA",  "DL0AAA"),   # HS: Thailand (HS + Bezirksziffer)
 ])
 def test_decompose_additional_itu_prefixes(call, expected):
     assert decompose_callsign(call, DEFAULT_SUFFIXES) == expected
@@ -77,20 +77,20 @@ def test_decompose_additional_itu_prefixes(call, expected):
 # ===========================================================================
 
 def test_decompose_double_modifier_prefix_then_suffix():
-    # "SV9/DH3KR/P": split am ersten "/" → left="SV9" (ITU-Präfix) → right="DH3KR/P"
+    # "SV9/DL0AAA/P": split am ersten "/" → left="SV9" (ITU-Präfix) → right="DL0AAA/P"
     # right enthält noch "/" → wird direkt zurückgegeben, kein rekursiver Aufruf
-    # Dokumentiert aktuelles Verhalten: "DH3KR/P" (nicht None)
-    # Sicherheits-Eigenschaft: führt in matching.py NIE zu CERTAIN (Dist 2 zu "DH3KR")
-    result = decompose_callsign("SV9/DH3KR/P", DEFAULT_SUFFIXES)
-    assert result == "DH3KR/P"
+    # Dokumentiert aktuelles Verhalten: "DL0AAA/P" (nicht None)
+    # Sicherheits-Eigenschaft: führt in matching.py NIE zu CERTAIN (Dist 2 zu "DL0AAA")
+    result = decompose_callsign("SV9/DL0AAA/P", DEFAULT_SUFFIXES)
+    assert result == "DL0AAA/P"
 
 
 def test_decompose_double_modifier_suffix_then_suffix():
-    # "DH3KR/P/MM": split am ersten "/" → left="DH3KR", right="P/MM"
+    # "DL0AAA/P/MM": split am ersten "/" → left="DL0AAA", right="P/MM"
     # Fall a: "P/MM" ist kein bekanntes Portabel-Suffix → schlägt fehl
-    # Fall b: "DH3KR" ist kein ITU-Präfix → schlägt fehl
+    # Fall b: "DL0AAA" ist kein ITU-Präfix → schlägt fehl
     # → Fall c: None (mehrdeutig, sicheres Verhalten)
-    result = decompose_callsign("DH3KR/P/MM", DEFAULT_SUFFIXES)
+    result = decompose_callsign("DL0AAA/P/MM", DEFAULT_SUFFIXES)
     assert result is None
 
 
@@ -99,11 +99,11 @@ def test_decompose_double_modifier_suffix_then_suffix():
 # ===========================================================================
 
 @pytest.mark.parametrize("call,own,stations,expected", [
-    ("DH3KR/P",    "DH3KR", set(),         True),   # Portabel-Suffix beim Hauptcall
-    ("DL1XYZ/P",   "DH3KR", set(),         False),  # Portabel, aber fremder Call
-    ("VK2/DO6KBO", "DH3KR", {"DO6KBO"},    True),   # Auslands-portabel, in stationcallsign
-    ("ZL2/DH3KR",  "DH3KR", set(),         True),   # Eigener Call mit ITU-Präfix
-    ("VK2/DK8NE",  "DH3KR", {"DO6KBO"},   False),  # Fremder Call portabel im Ausland
+    ("DL0AAA/P",    "DL0AAA", set(),         True),   # Portabel-Suffix beim Hauptcall
+    ("DL1XYZ/P",   "DL0AAA", set(),         False),  # Portabel, aber fremder Call
+    ("VK2/DO6XXX", "DL0AAA", {"DO6XXX"},    True),   # Auslands-portabel, in stationcallsign
+    ("ZL2/DL0AAA",  "DL0AAA", set(),         True),   # Eigener Call mit ITU-Präfix
+    ("VK2/DK8XX",  "DL0AAA", {"DO6XXX"},   False),  # Fremder Call portabel im Ausland
 ])
 def test_is_own_call_portable_variants(call, own, stations, expected):
     assert is_own_call(call, own, stations, DEFAULT_SUFFIXES) == expected

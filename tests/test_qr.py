@@ -22,20 +22,20 @@ try:
 except ImportError:
     pass
 
-# Bekanntes DK8NE-Format (empirisch an echter Karte verifiziert, docs/discovery.md §5.2)
-DK8NE_QR_TEXT = (
-    "From: DK8NE  To: DH3KR\n"
+# Bekanntes DK8XX-Format (empirisch an echter Karte verifiziert, docs/discovery.md §5.2)
+DK8XX_QR_TEXT = (
+    "From: DK8XX  To: DL0AAA\n"
     "Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  "
     "Prop_Mode: TR  RST: -24  QSL: TNX"
 )
 
 
 class TestParseQrText:
-    def test_dk8ne_known_format(self):
-        card = parse_qr_text(DK8NE_QR_TEXT)
+    def test_dk8xx_known_format(self):
+        card = parse_qr_text(DK8XX_QR_TEXT)
         assert card is not None
-        assert card.call_from == "DK8NE"
-        assert card.call_to == "DH3KR"
+        assert card.call_from == "DK8XX"
+        assert card.call_to == "DL0AAA"
         assert card.date == "2025-04-02"
         assert card.band == "6m"
         assert card.mode == "FT8"
@@ -45,50 +45,50 @@ class TestParseQrText:
         assert parse_qr_text("https://www.zazzle.com/s/abc123") is None
 
     def test_partial_qr_missing_from(self):
-        assert parse_qr_text("To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8") is None
+        assert parse_qr_text("To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8") is None
 
     def test_partial_qr_missing_band(self):
-        assert parse_qr_text("From: DK8NE To: DH3KR Date: 02.04.25 Mode: FT8") is None
+        assert parse_qr_text("From: DK8XX To: DL0AAA Date: 02.04.25 Mode: FT8") is None
 
     def test_partial_qr_missing_mode(self):
-        assert parse_qr_text("From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m") is None
+        assert parse_qr_text("From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m") is None
 
     def test_field_order_reversed(self):
         """Feldreihenfolge umgekehrt → trotzdem korrekt geparst."""
-        text = "Mode: FT8 Band: 6m Date: 02.04.25 To: DH3KR From: DK8NE"
+        text = "Mode: FT8 Band: 6m Date: 02.04.25 To: DL0AAA From: DK8XX"
         card = parse_qr_text(text)
         assert card is not None
-        assert card.call_from == "DK8NE"
-        assert card.call_to == "DH3KR"
+        assert card.call_from == "DK8XX"
+        assert card.call_to == "DL0AAA"
         assert card.band == "6m"
         assert card.mode == "FT8"
 
     def test_extra_whitespace_between_fields(self):
-        text = "From:   DK8NE   To:   DH3KR   Date:  02.04.25  Band:  6m  Mode:  FT8"
+        text = "From:   DK8XX   To:   DL0AAA   Date:  02.04.25  Band:  6m  Mode:  FT8"
         card = parse_qr_text(text)
         assert card is not None
-        assert card.call_from == "DK8NE"
+        assert card.call_from == "DK8XX"
         assert card.band == "6m"
 
     def test_newlines_between_fields(self):
-        text = "From: DK8NE\nTo: DH3KR\nDate: 02.04.25\nBand: 6m\nMode: FT8"
+        text = "From: DK8XX\nTo: DL0AAA\nDate: 02.04.25\nBand: 6m\nMode: FT8"
         card = parse_qr_text(text)
         assert card is not None
-        assert card.call_from == "DK8NE"
+        assert card.call_from == "DK8XX"
 
     def test_unknown_extra_fields_ignored(self):
         text = (
-            "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8 "
+            "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8 "
             "RST: -24 QSL: TNX Foo: Bar Unknown: ignored"
         )
         card = parse_qr_text(text)
         assert card is not None
-        assert card.call_from == "DK8NE"
+        assert card.call_from == "DK8XX"
         assert card.date == "2025-04-02"
 
     def test_band_rx_does_not_shadow_band(self):
         """Band_RX vor Band → band-Feld liefert trotzdem den Wert von Band:."""
-        text = "From: DK8NE To: DH3KR Date: 02.04.25 Band_RX: 6m Band: 40m Mode: CW"
+        text = "From: DK8XX To: DL0AAA Date: 02.04.25 Band_RX: 6m Band: 40m Mode: CW"
         card = parse_qr_text(text)
         assert card is not None
         assert card.band == "40m"
@@ -100,40 +100,40 @@ class TestParseQrText:
         assert parse_qr_text("   \n\t  ") is None
 
     def test_no_time_field_gives_none_time_utc(self):
-        text = "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"
+        text = "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"
         card = parse_qr_text(text)
         assert card is not None
         assert card.time_utc is None
 
     def test_time_field_extracted(self):
-        text = "From: DK8NE To: DH3KR Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
+        text = "From: DK8XX To: DL0AAA Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
         card = parse_qr_text(text)
         assert card is not None
         assert card.time_utc == "19:42"
 
     def test_unknown_band_returns_none_band(self):
         """Unbekanntes Band → band=None (neutral, kein Match-Ausschluss)."""
-        text = "From: DK8NE To: DH3KR Date: 02.04.25 Band: tToemvem Mode: FT8"
+        text = "From: DK8XX To: DL0AAA Date: 02.04.25 Band: tToemvem Mode: FT8"
         card = parse_qr_text(text)
         assert card is not None
         assert card.band is None
 
     def test_unknown_mode_returns_none_mode(self):
-        text = "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: GARBAGE"
+        text = "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: GARBAGE"
         card = parse_qr_text(text)
         assert card is not None
         assert card.mode is None
 
     def test_date_normalization(self):
         """Datum TT.MM.JJ → ISO YYYY-MM-DD."""
-        text = "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"
+        text = "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"
         card = parse_qr_text(text)
         assert card is not None
         assert card.date == "2025-04-02"
 
     def test_sixty_meter_band(self):
         """60m-Band wird korrekt normalisiert."""
-        text = "From: DG5MLA To: DH3KR Date: 26.04.25 Band: 60m Mode: FT8"
+        text = "From: DG5XXX To: DL0AAA Date: 26.04.25 Band: 60m Mode: FT8"
         card = parse_qr_text(text)
         assert card is not None
         assert card.band == "60m"
@@ -157,11 +157,11 @@ class TestDecodeQrFromPdf:
         return pdf_bytes
 
     def test_valid_qso_qr_in_pdf(self):
-        pdf_bytes = self._make_pdf_with_qr(DK8NE_QR_TEXT)
+        pdf_bytes = self._make_pdf_with_qr(DK8XX_QR_TEXT)
         card = decode_qr_from_pdf(pdf_bytes)
         assert card is not None
-        assert card.call_from == "DK8NE"
-        assert card.call_to == "DH3KR"
+        assert card.call_from == "DK8XX"
+        assert card.call_to == "DL0AAA"
         assert card.date == "2025-04-02"
         assert card.band == "6m"
         assert card.mode == "FT8"
@@ -188,7 +188,7 @@ class TestDecodeQrFromPdf:
     def test_advertising_qr_and_qso_qr_on_separate_pages(self):
         """Werbung auf Seite 1, QSO-QR auf Seite 2 → QSO-Karte wird gefunden."""
         adv_pdf = self._make_pdf_with_qr("https://www.zazzle.com/s/abc123")
-        qso_pdf = self._make_pdf_with_qr(DK8NE_QR_TEXT)
+        qso_pdf = self._make_pdf_with_qr(DK8XX_QR_TEXT)
 
         doc_adv = fitz.open(stream=adv_pdf, filetype="pdf")
         doc_qso = fitz.open(stream=qso_pdf, filetype="pdf")
@@ -202,12 +202,12 @@ class TestDecodeQrFromPdf:
 
         card = decode_qr_from_pdf(combined_bytes)
         assert card is not None
-        assert card.call_from == "DK8NE"
+        assert card.call_from == "DK8XX"
 
     def test_two_qr_codes_one_valid_one_advertising(self):
         """Zwei QR-Codes auf einer Seite: Werbung + QSO → QSO-Karte gewinnt."""
         adv_qr = qrcode.make("https://www.zazzle.com/s/abc123")
-        qso_qr = qrcode.make(DK8NE_QR_TEXT)
+        qso_qr = qrcode.make(DK8XX_QR_TEXT)
 
         adv_buf = io.BytesIO()
         adv_qr.save(adv_buf, format="PNG")
@@ -223,4 +223,4 @@ class TestDecodeQrFromPdf:
 
         card = decode_qr_from_pdf(pdf_bytes)
         assert card is not None
-        assert card.call_from == "DK8NE"
+        assert card.call_from == "DK8XX"

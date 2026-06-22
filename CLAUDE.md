@@ -184,6 +184,9 @@ legt es direkt auf GitHub an.
   GitHub (nur für Update-Prüfung). Keine Telemetrie, kein „nach Hause telefonieren".
 - **Schreibzugriffe auf Log4OM-DB** ausschließlich gemäß KONZEPT.md §3.3 + §7:
   Schema-Check → WAL → Vor-Backup → eine Transaktion → erst nach Nutzerbestätigung.
+- **Rufzeichen in versionierten Dateien:** Nur `DF1DS` (Autor) oder klar fiktive Calls
+  (`DL1XXX`, `DL0AAA`, `DK8XX`, `OE6XXX` u. ä. mit XXX/AAA/BB-Suffix) verwenden.
+  Echte fremde Amateurfunk-Calls niemals committen (Datenschutz).
 
 ---
 

@@ -32,8 +32,8 @@ Die ITU-Länderpräfix-Liste wird als Code-interne Datendatei geführt (zu umfan
 
 ### 2. Suffix-Unterschied-Regel
 
-Stimmt das Stammrufzeichen überein, aber der Zusatz unterscheidet sich (z. B. Log `DL1EJD/P`,
-Karte `DL1EJD`):
+Stimmt das Stammrufzeichen überein, aber der Zusatz unterscheidet sich (z. B. Log `DL1XXX/P`,
+Karte `DL1XXX`):
 - Datum + Band + Mode eindeutig → **sicher**.
 - Irgendeine Unschärfe bei diesen Feldern → **unsicher**. Nie raten.
 

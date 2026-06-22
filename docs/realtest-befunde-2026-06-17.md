@@ -2,7 +2,7 @@
 
 Erster Start von QSL73 auf echtem Windows 10 (Log4OM-Rechner) aus dem Quellcode
 (`py -m qsl73`, dev-Branch). Paperless-Testinstanz über VPN (192.168.44.9:8000),
-Log4OM-DB als Kopie, 7 Muster-QSL-Karten (an DH3KR) in Paperless.
+Log4OM-DB als Kopie, 7 Muster-QSL-Karten (an DL0AAA) in Paperless.
 Zweck: Verifikation der Schreib-/Nebenläufigkeitslogik gegen echtes Log4OM (Issue #8).
 
 ## Status
@@ -28,7 +28,7 @@ Das QR-Decoder-Paket heißt auf PyPI **`zxing-cpp`** (mit Bindestrich), das Impo
 aber `zxingcpp` (ohne). In requirements.txt/Doku stand der Importname als Installationsname
 (zudem auskommentiert) → `pip install zxingcpp` schlägt fehl (`No matching distribution found`).
 Folge: zxing-cpp wird nie installiert, `_ZXING_OK = False`, `decode_qr_from_pdf` gibt für JEDE
-Karte still `None` zurück → alle Karten fallen auf OCR, auch die DK8NE-QR-Karte; kein Hinweis
+Karte still `None` zurück → alle Karten fallen auf OCR, auch die DK8XX-QR-Karte; kein Hinweis
 an den Nutzer (Import-Fehler in try/except still abgefangen; QR-Fehler nur `_log.debug`).
 Im Realtest: alle 7 Karten "ocr" mit leeren Feldern → alle "unsicher".
 Fix: in requirements.txt `zxing-cpp` (mit Bindestrich) als feste Windows-Abhängigkeit aufnehmen
@@ -52,15 +52,15 @@ QR-Funktion (zxing-cpp/pymupdf) nicht verfügbar ist, statt still auf OCR zu deg
 (Verwandt mit Schritt 7 Logging/Reporting — relevanten Teil vorziehen.)
 
 ## Erwartetes Verhalten (kein Bug, zur Klarstellung)
-Die handschriftlichen Karten (TM2CIN, WB1CLT) liefern aus Paperless OCR-Text mit zerstörten
+Die handschriftlichen Karten (TM2XXX, WB1XXX) liefern aus Paperless OCR-Text mit zerstörten
 Rufzeichen (Leerzeichen im Call bzw. OCR-Buchstabenverwechslung). Die token-basierte
 Extraktion (ADR-0025, nachgeführt nach diesem Realtest) erkennt keinen eindeutigen Absender
 → `call_from = None` → UNCERTAIN → manueller Zuordnungs-Bildschirm. Das ist korrekt.
 
-**Nachgeführte Verbesserung (ADR-0025):** Gedruckte Karten im Tabellenlayout (OE6DRG, DG5MLA)
+**Nachgeführte Verbesserung (ADR-0025):** Gedruckte Karten im Tabellenlayout (OE6XXX, DG5XXX)
 sind durch die token-basierte OCR-Extraktion jetzt vollständig automatisch auswertbar. Die
 sieben realen OCR-Texte dieses Realtests sind als Test-Fixtures in `tests/test_run.py`
-aufgenommen. Handschriftliche und stark zerstörte Karten (G7JVJ teils, TM2CIN, WB1CLT)
+aufgenommen. Handschriftliche und stark zerstörte Karten (G7XXX teils, TM2XXX, WB1XXX)
 verbleiben korrekt im manuellen Pfad.
 
 ## UX-Verbesserungen Setup-Assistent
@@ -91,7 +91,7 @@ Wheel-Verfügbarkeit (zxing-cpp/pywin32) prüfen. Bis dahin nicht ändern.
 ## Schreibtest Szenario B verifiziert (2026-06-18) ✓ ABGESCHLOSSEN
 
 Erster vollständiger End-to-End-Schreibtest des Schreib-Pfades (Issue #8, Szenario B).
-Basis: `TESTDB_DH3KR_schreibtest.sqlite` (Kopie der DF1DS-Test-DB + 4 künstliche DH3KR-QSOs).
+Basis: `TESTDB_DL0AAA_schreibtest.sqlite` (Kopie der DF1DS-Test-DB + 4 künstliche DL0AAA-QSOs).
 Vergleich: Vor-Schreib-Backup vs. geschriebene DB, byte-genau durch Claude Desktop verifiziert
 (467 QSOs gesamt). **Kompletter Kreislauf verifiziert:** Paperless → QR/OCR → Match → sicher →
 schreiben → Anzeige in Log4OM einwandfrei.
@@ -99,20 +99,20 @@ schreiben → Anzeige in Log4OM einwandfrei.
 ### Byte-genau bestätigte Schreib-Befunde
 
 **Korrektheit der JSON-Transformation:**
-- `R` wechselt `No` → `Yes` bei exakt den 3 Treffern (OE6DRG, DG5MLA 60m, DK8NE 6m).
+- `R` wechselt `No` → `Yes` bei exakt den 3 Treffern (OE6XXX, DG5XXX 60m, DK8XX 6m).
 - `RV`-Feld bei `route=undefined` vollständig entfernt — kein Restwert, kein `"Undefined"`
   (discovery §3 / ADR-0005 real bestätigt).
 - `S`, `CT`, `SV` unverändert bei allen geschriebenen QSOs.
-- EQSL-Bestätigung bei DG5MLA byte-genau erhalten — die isolierte JSON-Manipulation aus
+- EQSL-Bestätigung bei DG5XXX byte-genau erhalten — die isolierte JSON-Manipulation aus
   ADR-0019 / `log4om_write.apply_paper_qsl` greift ausschließlich auf den CT='QSL'-Eintrag
   und lässt alle anderen Einträge unberührt (real bestätigt).
 - **Schreibformat byte-identisch zu Log4OM:** Direktvergleich des von QSL73 geschriebenen
-  `qsoconfirmations` (OE6DRG-QSO) mit einem von Log4OM manuell bestätigten QSO (DN9MF) —
+  `qsoconfirmations` (OE6XXX-QSO) mit einem von Log4OM manuell bestätigten QSO (DN9XX) —
   Ergebnis: die JSON-Struktur ist exakt gleich. QSL73 schreibt formatgleich zu Log4OM selbst.
 
 **Kollateral-Integrität:**
 - Exakt 3 von 467 QSOs verändert; alle übrigen QSOs byte-genau unberührt.
-- DK8NE 20m-QSO (Grenzfall) **nicht** bestätigt — Band-Disambiguierung wirkt auch beim
+- DK8XX 20m-QSO (Grenzfall) **nicht** bestätigt — Band-Disambiguierung wirkt auch beim
   tatsächlichen Schreiben (6m-QSO trifft, 20m widerspricht und wird ausgeschlossen).
 
 **Sicherheitsschicht:**
@@ -122,7 +122,7 @@ schreiben → Anzeige in Log4OM einwandfrei.
   Fingerabdruck geändert — zweiter Versuch schlägt fehl wie erwartet).
 
 **ADR-0013 (stationcallsign-Abgleich) real bestätigt:**
-- DH3KR-Karten wurden als eigenes Log erkannt, obwohl `own_callsign = DF1DS` in der Config.
+- DL0AAA-Karten wurden als eigenes Log erkannt, obwohl `own_callsign = DF1DS` in der Config.
   Zugehörigkeitsprüfung über alle `stationcallsign`-Werte der DB funktioniert wie spezifiziert.
   Kein Config-Eingriff nötig.
 
@@ -146,7 +146,7 @@ Schreibvorgangs geschlossen halten.
 
 ### Test-Artefakt-Befund: Skript-QSOs für Log4OM-Anzeige unvollständig
 
-`tools/create_dh3kr_test_db.py` erzeugt QSOs mit nur den match-relevanten Minimalfeldern
+`tools/create_dl0aaa_test_db.py` erzeugt QSOs mit nur den match-relevanten Minimalfeldern
 (`dxcc=0`, `contactreferences=None`, `programid` leer, `qsocomplete` leer). Log4OM zeigt die
 QSL-Bestätigung solcher **unvollständiger** QSOs **nicht** in der Bearbeitungsmaske und Liste an —
 obwohl das `qsoconfirmations`-Feld korrekt geschrieben wurde.
@@ -156,7 +156,7 @@ vollständige (in Log4OM real geloggte) QSOs werden einwandfrei angezeigt. Nur d
 ist für **visuelle Log4OM-Anzeige-Tests** ungeeignet. Für reine DB-Schreib-Verifikation
 (Schema-Check, `load_qso_candidates`, Byte-Vergleich) ist es weiterhin geeignet.
 
-→ Hinweis in `tools/create_dh3kr_test_db.py` ergänzt.
+→ Hinweis in `tools/create_dl0aaa_test_db.py` ergänzt.
 
 ### Kleine UX-Befunde aus dem Schreibtest (Issues #17, #18)
 
@@ -181,5 +181,5 @@ Zwei kleinere Punkte, die beim Schreibtest aufgefallen sind und als Issues festg
 - **Saubere venv-Installation** (`pip install -r requirements.txt` + `pip install -e .`) läuft
   ohne manuelle Eingriffe durch — kein manuelles Nachinstallieren, kein PYTHONPATH-Setzen.
 - **zxing-cpp automatisch installiert** (via PEP-508-Marker) → QR-Pfad wieder aktiv.
-  DK8NE-Karte wird über QR erkannt und als CERTAIN eingestuft (zuvor: still auf OCR gefallen).
+  DK8XX-Karte wird über QR erkannt und als CERTAIN eingestuft (zuvor: still auf OCR gefallen).
 - **Fortschrittsbalken stoppt** nach "Fertig" korrekt (BUG-5 / Issue #13 behoben).
