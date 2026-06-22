@@ -209,8 +209,8 @@ def test_tiebreaker_candidates_without_time_excluded():
     ("DK3XX", "DK8XX", False, MatchResult.NO_MATCH),   # fuzzy aus
     ("DK0XX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔0
     ("DKBXX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔B
-    ("DK8IX", "DK8XX", True, MatchResult.CERTAIN),     # N↔I
-    ("DK8LX", "DK8XX", True, MatchResult.CERTAIN),     # N↔L
+    ("DK8IX", "DK8XX", True, MatchResult.CERTAIN),     # X↔I
+    ("DK8LX", "DK8XX", True, MatchResult.CERTAIN),     # X↔L
     ("DK5XX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔5
     ("DK6XX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔6
     ("DK00X", "DK8XX", True, MatchResult.NO_MATCH),    # Distanz 2
@@ -389,9 +389,9 @@ def test_spec_two_qsos_same_day_no_tiebreaker():
 # Leitregel (ADR-0007): NIE CERTAIN bei Distanz ≥ 2, egal ob fuzzy=an
 
 @pytest.mark.parametrize("card_call,cand_call", [
-    ("DKBX3", "DK8XX"),  # 8→B und E→3 = Dist 2
-    ("DL8XO", "DK8XX"),  # K→L und E→O = Dist 2
-    ("DK0X3", "DK8XX"),  # 8→0 und E→3 = Dist 2
+    ("DKBX3", "DK8XX"),  # 8→B und X→3 = Dist 2
+    ("DL8XO", "DK8XX"),  # K→L und X→O = Dist 2
+    ("DK0X3", "DK8XX"),  # 8→0 und X→3 = Dist 2
     ("DL0XX", "DK8XX"),  # K→L und 8→0 = Dist 2
     ("D00XX", "DK8XX"),  # K→0 (O/0-Verwechslung) und 8→0 = Dist 2
 ])
@@ -484,7 +484,7 @@ class TestDbCollisions:
         assert result.result == MatchResult.UNCERTAIN  # konservatives Verhalten
 
     def test_single_ocr_error_matches_two_similar_db_entries_is_uncertain(self):
-        # "DK8X0" (E→0 oder F→0, Dist 1) matcht via Fuzzy: DK8XX (Dist 1) UND DK8XY (Dist 1)
+        # "DK8X0" (X→0, Dist 1) matcht via Fuzzy: DK8XX (Dist 1) UND DK8XY (Dist 1)
         # → zwei Kandidaten → UNCERTAIN: der kritische Falsch-Positiv-Schutztest (ADR-0007)
         card = _card(call_from="DK8X0")
         cand_ne = _candidate(callsign="DK8XX", qsoid="ne")
