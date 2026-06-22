@@ -230,8 +230,10 @@ nicht bei Beta-Pre-Releases. → vollständiger Workflow: **ADR-0046**
 3. **Neuen `[Unreleased]`-Block** direkt darüber anlegen — leere Sammelstelle.
 4. **Kategorien-Konvention prüfen:** `Added → Changed → Deprecated → Removed → Fixed → Security`
    (Keep-a-Changelog-Standard); leere Kategorien weglassen; mehrere gleichnamige Blöcke zusammenführen.
-5. **`dev → main` mergen:** `git checkout main && git merge dev && git push origin main`
-6. **Tag setzen und pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z`
+5. **Datenschutz-Check:** Sicherstellen, dass README und die generierte Doku (AENDERUNGEN/LIESMICH)
+   den aktuellen Stand widerspiegeln und nur `DF1DS` / fiktive Calls enthalten (→ ADR-0050).
+6. **`dev → main` mergen:** `git checkout main && git merge dev && git push origin main`
+7. **Tag setzen und pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z`
    → Workflow baut Stable-Installer; Release-Notes aus `[X.Y.Z]`.
 
 ### Welche Stelle bei gemischten Änderungen? Wer entscheidet?
