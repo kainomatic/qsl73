@@ -6,7 +6,7 @@
 
 Der Realtest 2026-06-17 zeigte: `_parse_ocr_text` wertet OCR-Text nur aus, wenn er im
 „Key: Value"-Format beschriftet ist (z. B. DARC-QSL-Service). Gedruckte ausländische
-Karten (OE6DRG, DG5MLA) benutzen aber ein **Tabellenlayout** (Spaltenkopf + Wertzeile)
+Karten (OE6XXX, DG5XXX) benutzen aber ein **Tabellenlayout** (Spaltenkopf + Wertzeile)
 oder Fließtext — die alte Regex-Schicht lieferte dort leere Felder, obwohl alle vier
 Pflichtfelder (Rufzeichen, Datum, Band, Mode) im Text standen.
 
@@ -14,12 +14,12 @@ Sieben reale OCR-Texte aus dem Realtest wurden analysiert:
 
 | Karte    | OCR-Qualität       | Besonderheit                                  |
 |----------|--------------------|-----------------------------------------------|
-| OE6DRG   | Tabellenlayout     | Wertzeile: „23Apr2025 12:23 20m FT8 599"      |
-| DG5MLA   | Tabellenlayout     | Frequenz „5,3570" statt Bandname; Pipe-Trenner|
-| DK8NE    | zerstört (OCR)     | DARC-QR hat Vorrang; OCR-Pfad irrelevant      |
-| G7JVJ    | teils zerstört     | Call erkennbar, Datenzeile unleserlich        |
-| TM2CIN   | handschriftlich    | Call „TM 2 CIN" mit Leerzeichen zerstört      |
-| WB1CLT   | handschriftlich    | Call „WBLCLT" (1→L OCR-Fehler)                |
+| OE6XXX   | Tabellenlayout     | Wertzeile: „23Apr2025 12:23 20m FT8 599"      |
+| DG5XXX   | Tabellenlayout     | Frequenz „5,3570" statt Bandname; Pipe-Trenner|
+| DK8XX    | zerstört (OCR)     | DARC-QR hat Vorrang; OCR-Pfad irrelevant      |
+| G7XXX    | teils zerstört     | Call erkennbar, Datenzeile unleserlich        |
+| TM2XXX   | handschriftlich    | Call „TM 2 CIN" mit Leerzeichen zerstört      |
+| WB1XXX   | handschriftlich    | Call „WBLCLT" (1→L OCR-Fehler)                |
 
 ## Entscheidung
 

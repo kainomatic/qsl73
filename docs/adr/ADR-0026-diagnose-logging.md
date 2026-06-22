@@ -8,7 +8,7 @@ Der Realtest 2026-06-17 zeigte zwei Probleme:
 
 1. **Kein sichtbares Log:** `logging.getLogger("qsl73")` schreibt ins Leere — es war kein
    Handler konfiguriert. Der Token-Scan in `run.py` (ADR-0025) nutzt bereits `_log.debug(…)`,
-   aber diese Ausgaben verschwanden spurlos. Probleme wie „OCR liefert call_from=OE6DRG,
+   aber diese Ausgaben verschwanden spurlos. Probleme wie „OCR liefert call_from=OE6XXX,
    GUI zeigt kein Rufzeichen" ließen sich ohne Logdatei nicht nachvollziehen.
 
 2. **Fehlende QR-Bibliothek still verschluckt:** `decode_qr_from_pdf` gibt `None` zurück

@@ -78,7 +78,7 @@ def test_load_candidates_r_no_included(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", _qsl_json("No")),
+        ("QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA", _qsl_json("No")),
     )
     conn.commit(); conn.close()
 
@@ -94,7 +94,7 @@ def test_load_candidates_r_requested_included(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO2", "DL5XYZ", "2024-06-21 14:00:00Z", "40m", "SSB", "DH3KR", _qsl_json("Requested")),
+        ("QSO2", "DL5XYZ", "2024-06-21 14:00:00Z", "40m", "SSB", "DL0AAA", _qsl_json("Requested")),
     )
     conn.commit(); conn.close()
 
@@ -110,7 +110,7 @@ def test_load_candidates_r_yes_excluded(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO3", "DK1AA", "2025-01-01 10:00:00Z", "20m", "CW", "DH3KR", _qsl_json("Yes")),
+        ("QSO3", "DK1AA", "2025-01-01 10:00:00Z", "20m", "CW", "DL0AAA", _qsl_json("Yes")),
     )
     conn.commit(); conn.close()
 
@@ -125,7 +125,7 @@ def test_load_candidates_r_invalid_excluded(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO4", "DK1BB", "2025-01-01 10:00:00Z", "20m", "CW", "DH3KR", _qsl_json("Invalid")),
+        ("QSO4", "DK1BB", "2025-01-01 10:00:00Z", "20m", "CW", "DL0AAA", _qsl_json("Invalid")),
     )
     conn.commit(); conn.close()
 
@@ -140,7 +140,7 @@ def test_load_candidates_no_qsl_entry_excluded(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO5", "DK1CC", "2025-01-01 10:00:00Z", "20m", "CW", "DH3KR",
+        ("QSO5", "DK1CC", "2025-01-01 10:00:00Z", "20m", "CW", "DL0AAA",
          json.dumps([{"CT": "EQSL", "R": "No"}])),
     )
     conn.commit(); conn.close()
@@ -156,17 +156,17 @@ def test_load_station_callsigns(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", _qsl_json("No")),
+        ("QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA", _qsl_json("No")),
     )
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO2", "DL5XYZ", "2024-06-21 14:00:00Z", "40m", "SSB", "DH3KR/P", _qsl_json("Yes")),
+        ("QSO2", "DL5XYZ", "2024-06-21 14:00:00Z", "40m", "SSB", "DL0AAA/P", _qsl_json("Yes")),
     )
     conn.commit(); conn.close()
 
     data = load_qso_candidates(p)
-    assert "DH3KR" in data.station_callsigns
-    assert "DH3KR/P" in data.station_callsigns
+    assert "DL0AAA" in data.station_callsigns
+    assert "DL0AAA/P" in data.station_callsigns
 
 
 def test_load_expected_states(tmp_path):
@@ -176,11 +176,11 @@ def test_load_expected_states(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", _qsl_json("No")),
+        ("QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA", _qsl_json("No")),
     )
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO2", "DL5XYZ", "2024-06-21 14:00:00Z", "40m", "SSB", "DH3KR", _qsl_json("Requested")),
+        ("QSO2", "DL5XYZ", "2024-06-21 14:00:00Z", "40m", "SSB", "DL0AAA", _qsl_json("Requested")),
     )
     conn.commit(); conn.close()
 
@@ -195,7 +195,7 @@ def test_load_existing_confirmations(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR",
+        ("QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA",
          _qsl_json("No", extra=[{"CT": "EQSL", "R": "Yes"}, {"CT": "LOTW", "R": "No"}])),
     )
     conn.commit(); conn.close()
@@ -225,7 +225,7 @@ def test_load_time_utc_extracted(tmp_path):
     conn, p = _make_run_db(tmp_path)
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", _qsl_json("No")),
+        ("QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA", _qsl_json("No")),
     )
     conn.commit(); conn.close()
 
@@ -239,10 +239,10 @@ def test_parse_ocr_structured_format():
     """Strukturierter Key:Value-Text (DARC-Format) wird über parse_qr_text ausgewertet."""
     from qsl73.run import _parse_ocr_text
 
-    text = "From: DK8NE To: DH3KR Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
+    text = "From: DK8XX To: DL0AAA Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
     card, source = _parse_ocr_text(text)
     assert source == "ocr"
-    assert card.call_from == "DK8NE"
+    assert card.call_from == "DK8XX"
     assert card.date == "2025-04-02"
     assert card.band == "6m"
     assert card.mode == "FT8"
@@ -299,10 +299,10 @@ def test_parse_ocr_from_to_labels():
     """From: und To: Labels werden extrahiert."""
     from qsl73.run import _parse_ocr_text
 
-    text = "From: DL5ABC To: DH3KR Band: 6m Mode: FT8 Date: 2025-04-02"
+    text = "From: DL5ABC To: DL0AAA Band: 6m Mode: FT8 Date: 2025-04-02"
     card, source = _parse_ocr_text(text)
     assert card.call_from == "DL5ABC"
-    assert card.call_to == "DH3KR"
+    assert card.call_to == "DL0AAA"
 
 
 def test_parse_ocr_date_not_overcaptured_multiline():
@@ -337,7 +337,7 @@ def test_evaluate_card_qr_found():
     from qsl73.matching import CardFields
     from qsl73.run import evaluate_card
 
-    qr_fields = CardFields("DK8NE", "DH3KR", "2025-04-02", "6m", "FT8", "19:42")
+    qr_fields = CardFields("DK8XX", "DL0AAA", "2025-04-02", "6m", "FT8", "19:42")
 
     client = _make_mock_client(download_bytes=b"%PDF-fake")
     doc = {"id": 1, "content": ""}
@@ -346,7 +346,7 @@ def test_evaluate_card_qr_found():
         card, source = evaluate_card(doc, client)
 
     assert source == "qr"
-    assert card.call_from == "DK8NE"
+    assert card.call_from == "DK8XX"
 
 
 def test_evaluate_card_no_qr_uses_ocr():
@@ -354,7 +354,7 @@ def test_evaluate_card_no_qr_uses_ocr():
     from qsl73.run import evaluate_card
 
     client = _make_mock_client(download_bytes=b"%PDF-no-qr")
-    doc = {"id": 2, "content": "From: DL5ABC To: DH3KR Band: 40m Mode: CW Date: 2024-06-21"}
+    doc = {"id": 2, "content": "From: DL5ABC To: DL0AAA Band: 40m Mode: CW Date: 2024-06-21"}
 
     with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
         card, source = evaluate_card(doc, client)
@@ -409,7 +409,7 @@ def test_evaluate_card_missing_content_key():
 
 # --- run_pass Orchestrierung ---
 
-def _make_config(own_callsign: str = "DH3KR"):
+def _make_config(own_callsign: str = "DL0AAA"):
     """Minimalconfig für run_pass-Tests."""
     from qsl73.config import Config
     cfg = Config()
@@ -441,11 +441,11 @@ def test_run_pass_certain_match(tmp_path):
     from qsl73.run import run_pass
 
     conn, db_path = _make_run_db(tmp_path)
-    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR")
+    _insert_qso(conn, "QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA")
     conn.commit(); conn.close()
 
     # OCR-Text mit allen vier Pflichtfeldern (parse_qr_text-Format)
-    docs = [{"id": 1, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    docs = [{"id": 1, "content": "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"}]
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
@@ -462,10 +462,10 @@ def test_run_pass_no_match(tmp_path):
     from qsl73.run import run_pass
 
     conn, db_path = _make_run_db(tmp_path)
-    _insert_qso(conn, "QSO1", "DK9ZZZ", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR")
+    _insert_qso(conn, "QSO1", "DK9ZZZ", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA")
     conn.commit(); conn.close()
 
-    docs = [{"id": 2, "content": "From: DL1ABC To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    docs = [{"id": 2, "content": "From: DL1ABC To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"}]
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
@@ -481,12 +481,12 @@ def test_run_pass_uncertain_multiple_candidates(tmp_path):
     from qsl73.run import run_pass
 
     conn, db_path = _make_run_db(tmp_path)
-    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 09:00:00Z", "6m", "FT8", "DH3KR")
-    _insert_qso(conn, "QSO2", "DK8NE", "2025-04-02 19:00:00Z", "6m", "FT8", "DH3KR")
+    _insert_qso(conn, "QSO1", "DK8XX", "2025-04-02 09:00:00Z", "6m", "FT8", "DL0AAA")
+    _insert_qso(conn, "QSO2", "DK8XX", "2025-04-02 19:00:00Z", "6m", "FT8", "DL0AAA")
     conn.commit(); conn.close()
 
     # OCR: kein Time-Feld → kein Tie-Breaker → two candidates → uncertain
-    docs = [{"id": 3, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    docs = [{"id": 3, "content": "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"}]
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
@@ -503,12 +503,12 @@ def test_run_pass_existing_confirmations_in_result(tmp_path):
 
     conn, db_path = _make_run_db(tmp_path)
     _insert_qso(
-        conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR",
+        conn, "QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA",
         extra=[{"CT": "EQSL", "R": "Yes"}],
     )
     conn.commit(); conn.close()
 
-    docs = [{"id": 1, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    docs = [{"id": 1, "content": "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"}]
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
@@ -524,7 +524,7 @@ def test_run_pass_fingerprint_and_expected_states_in_result(tmp_path):
     from qsl73.run import run_pass
 
     conn, db_path = _make_run_db(tmp_path)
-    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR")
+    _insert_qso(conn, "QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA")
     conn.commit(); conn.close()
 
     docs = []
@@ -565,10 +565,10 @@ def test_run_pass_r_yes_excluded_from_candidates(tmp_path):
     from qsl73.run import run_pass
 
     conn, db_path = _make_run_db(tmp_path)
-    _insert_qso(conn, "QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", r="Yes")
+    _insert_qso(conn, "QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA", r="Yes")
     conn.commit(); conn.close()
 
-    docs = [{"id": 1, "content": "From: DK8NE To: DH3KR Date: 02.04.25 Band: 6m Mode: FT8"}]
+    docs = [{"id": 1, "content": "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"}]
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
@@ -606,7 +606,7 @@ def _make_writable_db(tmp_path: Path, name: str = "write_test.sqlite") -> tuple[
     qsl_json = json.dumps([{"CT": "QSL", "R": "No", "S": "No", "SV": "Electronic"}])
     conn.execute(
         "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
-        ("QSO1", "DK8NE", "2025-04-02 19:42:00Z", "6m", "FT8", "DH3KR", qsl_json),
+        ("QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA", qsl_json),
     )
     conn.commit()
     return conn, p
@@ -816,19 +816,19 @@ def test_write_selected_no_warnings_on_success(tmp_path):
 # ---------------------------------------------------------------------------
 #
 # 7 reale OCR-Texte (oder enge Annäherungen) aus dem Realtest 2026-06-17.
-# own_callsign = "DH3KR" ist der Empfänger aller Testkarten.
+# own_callsign = "DL0AAA" ist der Empfänger aller Testkarten.
 
-_OWN = "DH3KR"
+_OWN = "DL0AAA"
 _OWN_CALLS = set()
 _SUFFIXES = ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
 
-# 1. OE6DRG — echter Paperless-OCR-Text (gedruckte Karte, Tabellenlayout)
-OCR_OE6DRG = (
+# 1. OE6XXX — echter Paperless-OCR-Text (gedruckte Karte, Tabellenlayout)
+OCR_OE6XXX = (
     "|\n"
     "!\n"
     "ap 7\n"
-    "OE6DRG Ll/p Ll/m VIA:\n"
-    "(— OE6DRG toRadio DH3KR =\n"
+    "OE6XXX Ll/p Ll/m VIA:\n"
+    "(— OE6XXX toRadio DL0AAA =\n"
     "— $SwisslogV5 QTH: JO30EV ~\n"
     "~ | DATE TIME | BAND MODE RST\n"
     "23Apr2025 | 12:23 20m FT8 -07\n"
@@ -838,17 +838,17 @@ OCR_OE6DRG = (
     "Gerhard Radl VY 73!\n"
     "Buchenhof 1/2/8\n"
     "A-8724 SPIELBERG\n"
-    "oe6drg@gmail.com\n"
+    "oe6xxx@gmail.com\n"
     "LOC: JN77JE PSE QSL: VIA OEVSV OR DIRECT\n"
     "ADL: 609\n"
 )
 
-# 2. DG5MLA — echter Paperless-OCR-Text (gedruckte Karte, Frequenz statt Bandname)
-OCR_DG5MLA = (
-    "Gerald Graf email: dg5mla@darc.de\n"
+# 2. DG5XXX — echter Paperless-OCR-Text (gedruckte Karte, Frequenz statt Bandname)
+OCR_DG5XXX = (
+    "Gerald Graf email: dg5xxx@darc.de\n"
     "Germany QSL-Info: www.qrz.com\n"
-    "DG5MLA confirming the following QSO\n"
-    "ToRadio DH3KR via\n"
+    "DG5XXX confirming the following QSO\n"
+    "ToRadio DL0AAA via\n"
     "Date UTC MHz RST 2-WAY\n"
     "26.04.25 19:52 5,3570 +13 FT8\n"
     "PSE QSL DIRECT OR VIA DARC QSL BUREAU\n"
@@ -857,24 +857,24 @@ OCR_DG5MLA = (
     "DOK T@8 ITU 28 vy 73\n"
 )
 
-# 3. DK8NE — DARC-QR-Karte; OCR-Pfad nicht auswertbar (QR hat Vorrang)
-OCR_DK8NE = "tToemvem g4rbl3d 1gxK ##!!##"
+# 3. DK8XX — DARC-QR-Karte; OCR-Pfad nicht auswertbar (QR hat Vorrang)
+OCR_DK8XX = "tToemvem g4rbl3d 1gxK ##!!##"
 
-# 4. G7JVJ — Formular, Datenzeile zerstört; nur Call erkennbar
-OCR_G7JVJ = (
-    "G7JVJ\n"
+# 4. G7XXX — Formular, Datenzeile zerstört; nur Call erkennbar
+OCR_G7XXX = (
+    "G7XXX\n"
     "Station Log\n"
     "|/ .63 | 88 1558 | .3V/0 |\n"
 )
 
-# 5. TM2CIN — handschriftlich; Leerzeichen im Call ("TM 2 CIN") → kein gültiges Token
-OCR_TM2CIN = (
+# 5. TM2XXX — handschriftlich; Leerzeichen im Call ("TM 2 CIN") → kein gültiges Token
+OCR_TM2XXX = (
     "TM 2 CIN\n"
     "... confirming ...\n"
 )
 
-# 6. WB1CLT — handschriftlich; 1→L OCR-Fehler ("WBLCLT")
-OCR_WB1CLT = (
+# 6. WB1XXX — handschriftlich; 1→L OCR-Fehler ("WBLCLT")
+OCR_WB1XXX = (
     "WBLCLT\n"
     "de W/P\n"
 )
@@ -887,33 +887,33 @@ def _ocr(text, own=_OWN, calls=_OWN_CALLS, suffixes=_SUFFIXES):
 
 # --- Fixture-Tests ---
 
-def test_ocr_fixture_oe6drg_all_fields():
-    """OE6DRG: Tabellenlayout → call_from, date, band, mode vollständig."""
-    card, source = _ocr(OCR_OE6DRG)
+def test_ocr_fixture_oe6xxx_all_fields():
+    """OE6XXX: Tabellenlayout → call_from, date, band, mode vollständig."""
+    card, source = _ocr(OCR_OE6XXX)
     assert source == "ocr"
-    assert card.call_from == "OE6DRG"
-    assert card.call_to == "DH3KR"
+    assert card.call_from == "OE6XXX"
+    assert card.call_to == "DL0AAA"
     assert card.date == "2025-04-23"
     assert card.band == "20m"
     assert card.mode == "FT8"
     assert card.time_utc == "12:23"
 
 
-def test_ocr_fixture_dg5mla_frequency_to_band():
-    """DG5MLA: Frequenz 5,3570 MHz → Band 60m; Pipe-Trennzeichen korrekt tokenisiert."""
-    card, source = _ocr(OCR_DG5MLA)
+def test_ocr_fixture_dg5xxx_frequency_to_band():
+    """DG5XXX: Frequenz 5,3570 MHz → Band 60m; Pipe-Trennzeichen korrekt tokenisiert."""
+    card, source = _ocr(OCR_DG5XXX)
     assert source == "ocr"
-    assert card.call_from == "DG5MLA"
-    assert card.call_to == "DH3KR"
+    assert card.call_from == "DG5XXX"
+    assert card.call_to == "DL0AAA"
     assert card.date == "2025-04-26"
     assert card.band == "60m"
     assert card.mode == "FT8"
     assert card.time_utc == "19:52"
 
 
-def test_ocr_fixture_dk8ne_garbled_all_none():
-    """DK8NE: zerstörter OCR-Text → alle Felder None (QR hat in der Praxis Vorrang)."""
-    card, source = _ocr(OCR_DK8NE)
+def test_ocr_fixture_dk8xx_garbled_all_none():
+    """DK8XX: zerstörter OCR-Text → alle Felder None (QR hat in der Praxis Vorrang)."""
+    card, source = _ocr(OCR_DK8XX)
     assert source == "ocr"
     assert card.call_from is None
     assert card.band is None
@@ -921,26 +921,26 @@ def test_ocr_fixture_dk8ne_garbled_all_none():
     assert card.date is None
 
 
-def test_ocr_fixture_g7jvj_call_recognized_data_none():
-    """G7JVJ: Call erkannt, Datenzeile zerstört → nur call_from, Rest None."""
-    card, source = _ocr(OCR_G7JVJ)
+def test_ocr_fixture_g7xxx_call_recognized_data_none():
+    """G7XXX: Call erkannt, Datenzeile zerstört → nur call_from, Rest None."""
+    card, source = _ocr(OCR_G7XXX)
     assert source == "ocr"
-    assert card.call_from == "G7JVJ"
+    assert card.call_from == "G7XXX"
     assert card.date is None
     assert card.band is None
     assert card.mode is None
 
 
-def test_ocr_fixture_tm2cin_call_not_extractable():
-    """TM2CIN: 'TM 2 CIN' — Leerzeichen im Call → kein gültiges Rufzeichen-Token → None."""
-    card, source = _ocr(OCR_TM2CIN)
+def test_ocr_fixture_tm2xxx_call_not_extractable():
+    """TM2XXX: 'TM 2 CIN' — Leerzeichen im Call → kein gültiges Rufzeichen-Token → None."""
+    card, source = _ocr(OCR_TM2XXX)
     assert source == "ocr"
     assert card.call_from is None
 
 
-def test_ocr_fixture_wb1clt_ocr_error_not_extractable():
-    """WB1CLT: 'WBLCLT' (1→L OCR-Fehler) → trifft Rufzeichen-Muster nicht → None."""
-    card, source = _ocr(OCR_WB1CLT)
+def test_ocr_fixture_wb1xxx_ocr_error_not_extractable():
+    """WB1XXX: 'WBLCLT' (1→L OCR-Fehler) → trifft Rufzeichen-Muster nicht → None."""
+    card, source = _ocr(OCR_WB1XXX)
     assert source == "ocr"
     assert card.call_from is None
 
@@ -949,7 +949,7 @@ def test_ocr_fixture_wb1clt_ocr_error_not_extractable():
 
 def test_ocr_ambiguous_two_different_bands():
     """Zwei verschiedene gültige Bänder im Text → band = None (kein Raten, ADR-0007)."""
-    text = "QSO auf 20m und 40m FT8 DX5ABC DH3KR 2025-04-23"
+    text = "QSO auf 20m und 40m FT8 DX5ABC DL0AAA 2025-04-23"
     card, _ = _ocr(text)
     assert card.band is None
     assert card.mode == "FT8"  # Mode eindeutig
@@ -957,7 +957,7 @@ def test_ocr_ambiguous_two_different_bands():
 
 def test_ocr_same_band_twice_not_ambiguous():
     """Dasselbe Band zweimal → kein Mehrdeutigkeitsproblem → Band korrekt."""
-    text = "20m QSO 20m FT8 DX5ABC DH3KR 2025-04-23"
+    text = "20m QSO 20m FT8 DX5ABC DL0AAA 2025-04-23"
     card, _ = _ocr(text)
     assert card.band == "20m"
 
@@ -979,11 +979,11 @@ def test_ocr_table_layout_header_ignored():
 def test_ocr_regression_key_value_format():
     """DARC-Key:Value-Format (parse_qr_text, Schicht 1) bleibt unverändert auswertbar."""
     from qsl73.run import _parse_ocr_text
-    text = "From: DK8NE To: DH3KR Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
+    text = "From: DK8XX To: DL0AAA Date: 02.04.25 Time: 19:42 Band: 6m Mode: FT8"
     card, source = _parse_ocr_text(text)
     assert source == "ocr"
-    assert card.call_from == "DK8NE"
-    assert card.call_to == "DH3KR"
+    assert card.call_from == "DK8XX"
+    assert card.call_to == "DL0AAA"
     assert card.date == "2025-04-02"
     assert card.band == "6m"
     assert card.mode == "FT8"
@@ -1012,8 +1012,8 @@ def test_ocr_regression_empty_text():
 def test_ocr_tokenize_strips_surrounding_punct():
     """_tokenize entfernt umgebende Satzzeichen, behält Slash im Rufzeichen."""
     from qsl73.run import _tokenize
-    tokens = _tokenize("(DH3KR) ,FT8, |20m| [CW]")
-    assert "DH3KR" in tokens
+    tokens = _tokenize("(DL0AAA) ,FT8, |20m| [CW]")
+    assert "DL0AAA" in tokens
     assert "FT8" in tokens
     assert "20m" in tokens
     assert "CW" in tokens

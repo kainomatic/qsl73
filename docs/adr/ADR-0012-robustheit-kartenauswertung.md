@@ -35,7 +35,7 @@ verwenden.
 
 **2. Tolerantes eigenes-Call-Matching (§6.3):**
 Der Abgleich von `To` (Karte) gegen den eigenen Call erfolgt Basis-Call-basiert:
-Präfixe (`SV9/DH3KR`) und Suffixe (`DH3KR/P`, `/M`, `/MM`) werden abgetrennt.
+Präfixe (`SV9/DL0AAA`) und Suffixe (`DL0AAA/P`, `/M`, `/MM`) werden abgetrennt.
 Optional zusätzlicher Abgleich gegen `stationcallsign`-Werte aus der Log4OM-DB.
 Ziel: Portabel-QSLs korrekt dem eigenen Log zuordnen, nicht verwerfen.
 

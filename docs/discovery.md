@@ -31,7 +31,7 @@ ProgramName = 'LOG4OM2', ProgramVersion = '0.6', DBVersion = 1
 | `band` | VARCHAR(10) NOCASE | Band (z. B. `'10m'`, `'40m'`) |
 | `mode` | VARCHAR(30) NOCASE | Betriebsart (z. B. `'SSB'`, `'FT8'`) |
 | `qsoid` | VARCHAR(17) UNIQUE | Primärschlüssel, Zeitstempel-basiert (z. B. `'20230304145400760'`) |
-| `stationcallsign` | VARCHAR(50) NOCASE | Eigenes Rufzeichen bei diesem QSO (z. B. `'DO6KBO'` bzw. `'DF1DS'`) |
+| `stationcallsign` | VARCHAR(50) NOCASE | Eigenes Rufzeichen bei diesem QSO (z. B. `'DO6XXX'` bzw. `'DF1DS'`) |
 | `qsoconfirmations` | NVARCHAR(3000) | JSON-Array aller QSL-Bestätigungstypen (siehe §2) |
 | `qsoenddate` | DATETIME | QSO-Endzeit UTC |
 | `ownercallsign` | VARCHAR(50) | Rufzeichen des Log-Inhabers |
@@ -166,12 +166,12 @@ undefined, bureau, direct). Vorher/Nachher-Vergleich der DB-Kopie durch Claude D
 
 ### 5.1 Karten-Analyse (echte Karten, read-only durch Claude Desktop, 2026-06-16)
 
-**Getestetes Material:** 2 echte QSL-Karten (DH3KR-Sammlung).
+**Getestetes Material:** 2 echte QSL-Karten (DL0AAA-Sammlung).
 
 **Befund QR-Code (moderne Karte, DARC-QSL-Service):**
 - Karte trägt QR-Code mit sauberem, strukturiertem Klartext-Format:
   ```
-  From: DK8NE  To: DH3KR
+  From: DK8XX  To: DL0AAA
   Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RST: -24  QSL: TNX
   ```
 - Felder: `From` (Gegenstation), `To` (eigener Call), `Date`, `Time`, `Band`, `Mode`, `RST`.
@@ -179,9 +179,9 @@ undefined, bureau, direct). Vorher/Nachher-Vergleich der DB-Kopie durch Claude D
 - Liefert alle vier Match-Felder fehlerfrei — löst OCR-Probleme vollständig für diese Karten.
 
 **Befund OCR (PDF-interne OCR, Sichtprüfung):**
-- Gedruckte Karte (DK8NE): Band `"6m"` wurde von der OCR zu `"tToemvem"` zerstört.
+- Gedruckte Karte (DK8XX): Band `"6m"` wurde von der OCR zu `"tToemvem"` zerstört.
   Tabellen-Layout wird im OCR-Textfluss zerrissen; andere Felder partiell erkennbar.
-- Handschriftliche Karte (G7JVJ, 1992): liefert kaum brauchbaren OCR-Text;
+- Handschriftliche Karte (G7XXX, 1992): liefert kaum brauchbaren OCR-Text;
   Datum `"3/10/92"` (Format TT/MM/JJ, 2-stellig), handschriftliche Felder nicht erkannt.
 - **Wichtig:** Die sichtgeprüfte OCR ist die **PDF-interne** OCR, NICHT die Paperless-OCR.
   QSL73 nutzt `GET /api/documents/{id}/?fields=content` (Paperless-OCR), die abweichen kann.

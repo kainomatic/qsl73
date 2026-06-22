@@ -21,7 +21,7 @@ log4om:
   db_path: "C:\\Users\\DEIN_NAME\\Documents\\Log4OM2\\log4om.db"
   # Eigenes Rufzeichen (manueller Anker für From/To-Zugehörigkeitsprüfung).
   # QSL73 erkennt außerdem automatisch alle in der DB vorkommenden stationcallsign-Werte
-  # als eigene Calls (z. B. portabel geloggte Varianten wie DH3KR/P). own_callsign ist
+  # als eigene Calls (z. B. portabel geloggte Varianten wie DL0AAA/P). own_callsign ist
   # der Fallback, falls die DB noch leer oder ein abweichender Call konfiguriert ist.
   own_callsign: "DF1DS"
 
