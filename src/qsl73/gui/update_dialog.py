@@ -10,6 +10,7 @@ from typing import Callable, Optional
 import tkinter as tk
 from tkinter import ttk
 
+from qsl73.gui.tooltip import attach_tooltip
 from qsl73.updater import AssetInfo, download_update
 
 _log = logging.getLogger("qsl73.updater")
@@ -24,6 +25,11 @@ _CHK_DONT_REMIND = "Nicht mehr an Updates erinnern"
 _BTN_INSTALL = "Herunterladen und installieren"
 _BTN_LATER = "Später"
 _ERR_PREFIX = "Download fehlgeschlagen:"
+
+# Tooltip-Texte (i18n-Vorbereitung)
+_TT_INSTALL = "Installer herunterladen und ausführen — QSL73 beendet sich danach automatisch"
+_TT_LATER = "Dialog schließen — beim nächsten Start wird das Update erneut angeboten"
+_TT_DONT_REMIND = "Automatische Update-Prüfung beim Start dauerhaft deaktivieren"
 
 
 class UpdateDialog(tk.Toplevel):
@@ -107,13 +113,17 @@ class UpdateDialog(tk.Toplevel):
         btn_frame = ttk.Frame(outer, padding=(0, 14, 0, 0))
         btn_frame.pack(fill="x", side="bottom")
 
-        ttk.Checkbutton(btn_frame, text=_CHK_DONT_REMIND, variable=self._dont_remind).pack(side="left")
+        _dont_remind_cb = ttk.Checkbutton(btn_frame, text=_CHK_DONT_REMIND, variable=self._dont_remind)
+        _dont_remind_cb.pack(side="left")
+        attach_tooltip(_dont_remind_cb, _TT_DONT_REMIND)
 
         self._later_btn = ttk.Button(btn_frame, text=_BTN_LATER, command=self._on_later)
         self._later_btn.pack(side="right", padx=(8, 0))
+        attach_tooltip(self._later_btn, _TT_LATER)
 
         self._install_btn = ttk.Button(btn_frame, text=_BTN_INSTALL, command=self._on_download_install)
         self._install_btn.pack(side="right")
+        attach_tooltip(self._install_btn, _TT_INSTALL)
 
     def _center(self, parent: tk.Misc) -> None:
         self.update_idletasks()

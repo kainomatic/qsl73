@@ -3,7 +3,7 @@
 ; Stabile Variante: installer/qsl73.iss (eigene GUID, eigener Pfad -- parallel installierbar)
 
 #ifndef APP_VERSION
-  #define APP_VERSION "0.2.3"
+  #define APP_VERSION "0.3.0"
 #endif
 
 [Setup]

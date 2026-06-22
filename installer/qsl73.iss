@@ -5,7 +5,7 @@
 ; APP_VERSION wird vom Release-Workflow per /DAPP_VERSION=x.y.z injiziert.
 ; Lokaler Build ohne /D-Flag verwendet den hardkodierten Fallback.
 #ifndef APP_VERSION
-  #define APP_VERSION "0.2.3"
+  #define APP_VERSION "0.3.0"
 #endif
 
 [Setup]

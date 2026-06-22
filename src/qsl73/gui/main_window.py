@@ -39,6 +39,7 @@ from qsl73.gui.filter_util import (
     workflow_card_context,
     written_doc_ids,
 )
+from qsl73.gui.tooltip import attach_tooltip
 
 
 _log = logging.getLogger("qsl73")
@@ -95,6 +96,16 @@ _ABOUT_URL_GITHUB = "https://github.com/kainomatic/qsl73"
 _ABOUT_URL_QRZ = "https://www.qrz.com/db/DF1DS"
 
 
+# Tooltip-Texte (i18n-Vorbereitung)
+_TT_FILTER = "Zeigt alle Karten / nur sichere Treffer / nur unsichere / nur Karten ohne Treffer"
+_TT_RUN_BTN = "Ruft QSL-Karten aus Paperless ab und gleicht sie mit dem Log4OM-Logbuch ab"
+_TT_WRITE_BTN = (
+    "Schreibt ausgewählte Karten als Papier-QSL bestätigt in Log4OM "
+    "und setzt Paperless-Tags (Vor-Backup wird erstellt)"
+)
+_TT_SELECT_ALL = "Wählt alle sicheren Treffer in der aktuellen Ansicht aus"
+_TT_DESELECT_ALL = "Hebt die aktuelle Auswahl auf"
+
 # Pulsintervall für indeterminate-Fortschrittsbalken in ms.
 # tk-Standard 10 ms ist sehr schnell (Pendeln wirkt nervös); 40 ms ist deutlich ruhiger.
 _PROGRESS_PULSE_MS = 40
@@ -135,10 +146,11 @@ def _resolve_dialog_width(inner_w: int, min_w: int = 360) -> int:
     return max(inner_w, min_w)
 
 
-# Über-Dialog — harte Mindestmaße (Logo-inklusive Summe: Logo 112px + pady 10 +
-# Titel + Beschreibung + Separator + Lizenz + Autor + Links + Button + Frame-Padding 48
-# + Chrome 90 ≈ 491 px; 520 px lässt sicheren Puffer für DPI-Varianz und Fontgrößen)
-_ABOUT_MIN_H: int = 520
+# Über-Dialog — harte Mindestmaße (Sicherheitsnetz; bei zuverlässiger reqH-Messung gewinnt
+# der berechnete Wert frame.winfo_reqheight()+90. Auf DF1DS' Win10 (tk-scaling 1.33):
+# reqH≈411 → needed_h=501 > 480 → berechneter Wert bestimmt die Höhe; 480 greift nur
+# bei Timing-Artefakten (reqH≈1) oder Logo-loser Messung (reqH≈285 → 375 < 480).)
+_ABOUT_MIN_H: int = 480
 _ABOUT_MIN_W: int = 360
 
 _RESULT_LABELS = {
@@ -226,23 +238,26 @@ class MainWindow(tk.Tk):
         )
         filter_combo.pack(side="left", padx=(4, 12))
         filter_combo.bind("<<ComboboxSelected>>", lambda _e: self._refresh_tree())
+        attach_tooltip(filter_combo, _TT_FILTER)
         # Map display label back to mode key
         self._filter_label_to_mode = {_FILTER_LABELS[m]: m for m in FILTER_MODES}
 
         self._run_btn = ttk.Button(toolbar, text="Durchlauf starten", command=self._on_run)
         self._run_btn.pack(side="left")
+        attach_tooltip(self._run_btn, _TT_RUN_BTN)
 
         self._write_btn = ttk.Button(
             toolbar, text="Jetzt schreiben", command=self._on_write, state="disabled"
         )
         self._write_btn.pack(side="left", padx=(8, 0))
+        attach_tooltip(self._write_btn, _TT_WRITE_BTN)
 
-        ttk.Button(toolbar, text="Alle auswählen", command=self._select_all).pack(
-            side="left", padx=(8, 0)
-        )
-        ttk.Button(toolbar, text="Auswahl aufheben", command=self._deselect_all).pack(
-            side="left", padx=(4, 0)
-        )
+        _btn_sel_all = ttk.Button(toolbar, text="Alle auswählen", command=self._select_all)
+        _btn_sel_all.pack(side="left", padx=(8, 0))
+        attach_tooltip(_btn_sel_all, _TT_SELECT_ALL)
+        _btn_desel_all = ttk.Button(toolbar, text="Auswahl aufheben", command=self._deselect_all)
+        _btn_desel_all.pack(side="left", padx=(4, 0))
+        attach_tooltip(_btn_desel_all, _TT_DESELECT_ALL)
 
         # Hinweis: Bedienhinweise
         hint = ttk.Frame(self, padding=(8, 0, 8, 4))

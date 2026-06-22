@@ -14,8 +14,32 @@ _LBL_TAG_INFO = (
 )
 _WARN_CONN_NOT_TESTED = "Bitte zuerst 'Verbindung testen' ausführen."
 
+# Tooltip-Texte (i18n-Vorbereitung)
+_TT_PAPERLESS_URL = "Vollständige URL Ihrer Paperless-Instanz, z. B. https://paperless.intern:8000"
+_TT_AUTH_MODE = "Token: empfohlen — API-Token aus den Paperless-Einstellungen. Password: QSL73 holt den Token automatisch"
+_TT_API_TOKEN = "API-Token aus den Paperless-Einstellungen (Benutzerprofil → API-Token)"
+_TT_USERNAME = "Paperless-Benutzername — wird nur einmalig zum Abrufen des API-Tokens verwendet"
+_TT_PASSWORD = "Paperless-Passwort — wird nicht gespeichert, nur zum einmaligen Token-Abruf verwendet"
+_TT_TEST_CONNECTION = "Verbindung zu Paperless testen und verfügbare Tags laden"
+_TT_DB_PATH = "Pfad zur Log4OM-SQLite-Datenbankdatei (normalerweise Log4OM2.sqlite)"
+_TT_OWN_CALLSIGN = "Ihr Rufzeichen — QSL73 prüft damit, ob eine eingehende Karte an Ihr Logbuch gerichtet ist"
+_TT_TAG_INPUT = "Paperless-Tag, mit dem eingehende QSL-Karten markiert sind (Eingangskorb)"
+_TT_TAG_CONFIRMED = "Paperless-Tag, der nach erfolgreicher Bestätigung gesetzt wird"
+_TT_TAG_UNCERTAIN = "Paperless-Tag, der bei unsicherer Zuordnung gesetzt wird (zur manuellen Durchsicht)"
+_TT_TAG_CREATE = "Legt den eingegebenen Tag-Namen in Paperless an (ohne automatisches Matching)"
+_TT_RELOAD_TAGS = "Lädt die aktuellen Tags aus Paperless neu — Verbindung muss zuerst getestet werden"
+_TT_FUZZY = "Bei OCR-Tippfehlern im Rufzeichen (1 Zeichen Abweichung) trotzdem einen Treffer suchen"
+_TT_QSL_ROUTE = (
+    "Received Via — Bureau: Amateurfunkbüro, Direct: Direktsendung, "
+    "Undefined: kein RV-Eintrag gesetzt"
+)
+_TT_BACKUP_COUNT = "Wie viele Log4OM-Datenbank-Backups QSL73 aufbewahrt (älteste werden automatisch gelöscht)"
+_TT_UPDATE_CHECK = "QSL73 prüft beim Start automatisch, ob eine neue Version verfügbar ist"
+_TT_MATCH_LIMIT = "Maximale Kandidaten im manuellen Zuordnungs-Dialog — 0 bedeutet kein Limit"
+
 from qsl73.config import Config
 from qsl73.crypto import CryptoBackend, get_default_backend
+from qsl73.gui.tooltip import attach_tooltip
 from qsl73.setup_assistant import create_initial_config
 
 
@@ -111,7 +135,7 @@ class SetupWizard(tk.Toplevel):
             row += 1
 
         def field(key: str, label: str, default: str = "", password: bool = False,
-                  browse: bool = False) -> None:
+                  browse: bool = False, tooltip: str = "") -> None:
             nonlocal row
             var = tk.StringVar(value=_d.get(key, default))
             self._vars[key] = var
@@ -119,6 +143,8 @@ class SetupWizard(tk.Toplevel):
             show = "*" if password else ""
             entry = ttk.Entry(inner, textvariable=var, width=42, show=show)
             entry.grid(row=row, column=1, sticky="ew")
+            if tooltip:
+                attach_tooltip(entry, tooltip)
             if browse:
                 ttk.Button(
                     inner, text="…",
@@ -133,31 +159,34 @@ class SetupWizard(tk.Toplevel):
                 ).grid(row=row, column=2, padx=(4, 0))
             row += 1
 
-        def bool_field(key: str, label: str, default: bool = True) -> None:
+        def bool_field(key: str, label: str, default: bool = True, tooltip: str = "") -> None:
             nonlocal row
             val = _d.get(key, default)
             var = tk.BooleanVar(value=bool(val))
             self._vars[key] = var
-            ttk.Checkbutton(inner, text=label, variable=var).grid(
-                row=row, column=0, columnspan=2, sticky="w"
-            )
+            cb = ttk.Checkbutton(inner, text=label, variable=var)
+            cb.grid(row=row, column=0, columnspan=2, sticky="w")
+            if tooltip:
+                attach_tooltip(cb, tooltip)
             row += 1
 
-        def combo_field(key: str, label: str, values: list[str], default: str) -> None:
+        def combo_field(key: str, label: str, values: list[str], default: str, tooltip: str = "") -> None:
             nonlocal row
             var = tk.StringVar(value=_d.get(key, default))
             self._vars[key] = var
             ttk.Label(inner, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8))
-            ttk.Combobox(inner, textvariable=var, values=values, state="readonly", width=20).grid(
-                row=row, column=1, sticky="w"
-            )
+            cb = ttk.Combobox(inner, textvariable=var, values=values, state="readonly", width=20)
+            cb.grid(row=row, column=1, sticky="w")
+            if tooltip:
+                attach_tooltip(cb, tooltip)
             row += 1
 
         inner.columnconfigure(1, weight=1)
 
         section("Paperless-ngx")
-        field("paperless.url", "URL *", "https://")
-        combo_field("paperless.auth_mode", "Authentifizierung", ["token", "password"], "token")
+        field("paperless.url", "URL *", "https://", tooltip=_TT_PAPERLESS_URL)
+        combo_field("paperless.auth_mode", "Authentifizierung", ["token", "password"], "token",
+                    tooltip=_TT_AUTH_MODE)
 
         # Token-Auth-Felder (sichtbar bei Modus "token", Standard)
         self._vars["paperless.token"] = tk.StringVar()  # immer leer (§4: kein Klartext im Feld)
@@ -165,6 +194,7 @@ class SetupWizard(tk.Toplevel):
         self._token_lbl.grid(row=row, column=0, sticky="w", padx=(0, 8))
         self._token_entry = ttk.Entry(inner, textvariable=self._vars["paperless.token"], width=42, show="*")
         self._token_entry.grid(row=row, column=1, sticky="ew")
+        attach_tooltip(self._token_entry, _TT_API_TOKEN)
         row += 1
 
         # Hinweis im Bearbeiten-Modus: leeres Feld = Token behalten
@@ -183,6 +213,7 @@ class SetupWizard(tk.Toplevel):
         self._pw_user_lbl.grid(row=row, column=0, sticky="w", padx=(0, 8))
         self._pw_user_entry = ttk.Entry(inner, textvariable=self._pw_username_var, width=42)
         self._pw_user_entry.grid(row=row, column=1, sticky="ew")
+        attach_tooltip(self._pw_user_entry, _TT_USERNAME)
         self._pw_user_lbl.grid_remove()
         self._pw_user_entry.grid_remove()
         row += 1
@@ -192,6 +223,7 @@ class SetupWizard(tk.Toplevel):
         self._pw_pass_lbl.grid(row=row, column=0, sticky="w", padx=(0, 8))
         self._pw_pass_entry = ttk.Entry(inner, textvariable=self._pw_password_var, width=42, show="*")
         self._pw_pass_entry.grid(row=row, column=1, sticky="ew")
+        attach_tooltip(self._pw_pass_entry, _TT_PASSWORD)
         self._pw_pass_lbl.grid_remove()
         self._pw_pass_entry.grid_remove()
         row += 1
@@ -201,9 +233,11 @@ class SetupWizard(tk.Toplevel):
             "write", lambda *_: self._update_auth_fields()
         )
 
-        ttk.Button(
+        _btn_conn = ttk.Button(
             inner, text="Verbindung testen", command=self._test_connection,
-        ).grid(row=row, column=1, sticky="w", pady=(6, 0))
+        )
+        _btn_conn.grid(row=row, column=1, sticky="w", pady=(6, 0))
+        attach_tooltip(_btn_conn, _TT_TEST_CONNECTION)
         row += 1
         self._conn_status_lbl = ttk.Label(
             inner, text="", foreground="#555555", wraplength=380,
@@ -212,8 +246,8 @@ class SetupWizard(tk.Toplevel):
         row += 1
 
         section("Log4OM")
-        field("log4om.db_path", "Datenbank *", browse=True)
-        field("log4om.own_callsign", "Eigenes Rufzeichen *")
+        field("log4om.db_path", "Datenbank *", browse=True, tooltip=_TT_DB_PATH)
+        field("log4om.own_callsign", "Eigenes Rufzeichen *", tooltip=_TT_OWN_CALLSIGN)
 
         section("Tags")
         ttk.Label(
@@ -223,6 +257,11 @@ class SetupWizard(tk.Toplevel):
         ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 4))
         row += 1
 
+        _tag_tt = {
+            "tags.input": _TT_TAG_INPUT,
+            "tags.confirmed": _TT_TAG_CONFIRMED,
+            "tags.uncertain": _TT_TAG_UNCERTAIN,
+        }
         for _tag_key, _tag_label, _tag_default in [
             ("tags.input", "Eingangs-Tag", "qsl-card"),
             ("tags.confirmed", "Bestätigt-Tag", "qsl-bestätigt"),
@@ -241,6 +280,7 @@ class SetupWizard(tk.Toplevel):
                 _tag_frame, textvariable=_var, values=[], state="disabled", width=22,
             )
             _combo.grid(row=0, column=0, sticky="ew")
+            attach_tooltip(_combo, _tag_tt.get(_tag_key, ""))
             self._tag_combos[_tag_key] = _combo
 
             _new_var = tk.StringVar()
@@ -248,10 +288,12 @@ class SetupWizard(tk.Toplevel):
             ttk.Entry(_tag_frame, textvariable=_new_var, width=14).grid(
                 row=0, column=1, padx=(4, 0)
             )
-            ttk.Button(
+            _btn_create = ttk.Button(
                 _tag_frame, text="Anlegen", width=8,
                 command=lambda k=_tag_key: self._create_tag(k),
-            ).grid(row=0, column=2, padx=(4, 0))
+            )
+            _btn_create.grid(row=0, column=2, padx=(4, 0))
+            attach_tooltip(_btn_create, _TT_TAG_CREATE)
             row += 1
 
             if _tag_key != "tags.input":
@@ -267,17 +309,19 @@ class SetupWizard(tk.Toplevel):
 
             _var.trace_add("write", lambda *_, k=_tag_key: self._check_tag_warning(k))
 
-        ttk.Button(
+        _btn_reload_tags = ttk.Button(
             inner, text="Tags neu laden", command=self._reload_tags,
-        ).grid(row=row, column=1, sticky="w", pady=(4, 4))
+        )
+        _btn_reload_tags.grid(row=row, column=1, sticky="w", pady=(4, 4))
+        attach_tooltip(_btn_reload_tags, _TT_RELOAD_TAGS)
         row += 1
 
         section("Einstellungen")
-        bool_field("matching.fuzzy_enabled", "Fuzzy-Matching aktivieren", True)
+        bool_field("matching.fuzzy_enabled", "Fuzzy-Matching aktivieren", True, tooltip=_TT_FUZZY)
         combo_field("confirm.qsl_route_default", "QSL-Route-Default",
-                    ["undefined", "bureau", "direct"], "undefined")
-        field("app.backup_count", "Anzahl Backups", "5")
-        bool_field("app.update_check", "Update-Prüfung beim Start", True)
+                    ["undefined", "bureau", "direct"], "undefined", tooltip=_TT_QSL_ROUTE)
+        field("app.backup_count", "Anzahl Backups", "5", tooltip=_TT_BACKUP_COUNT)
+        bool_field("app.update_check", "Update-Prüfung beim Start", True, tooltip=_TT_UPDATE_CHECK)
 
         # Trefferlimit für manuellen Zuordnungs-Dialog (ADR-0030)
         var_limit = tk.StringVar(value=_d.get("app.manual_match_limit", "100"))
@@ -290,6 +334,7 @@ class SetupWizard(tk.Toplevel):
             width=20,
         )
         limit_combo.grid(row=row, column=1, sticky="w")
+        attach_tooltip(limit_combo, _TT_MATCH_LIMIT)
         row += 1
 
         # Buttons

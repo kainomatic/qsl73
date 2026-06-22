@@ -57,15 +57,22 @@ def test_compute_dialog_geometry_dialog_taller_than_parent_x_not_zero():
 # ---------------------------------------------------------------------------
 
 def test_about_min_h_covers_logo_plus_content():
-    """_ABOUT_MIN_H muss Logo (112 px) + gesamten Inhalt + Chrome (90 px) abdecken.
+    """_ABOUT_MIN_H ist Sicherheitsnetz; bei reqH≈411 (Win10) gewinnt der berechnete Wert.
 
-    Untere Schranke: Logo+pady(122) + Titel(36) + Beschr(62) + Sep(16) + Lizenz(26)
-    + Autor(34) + Links(38) + Button(25) + Padding(48) + Chrome(90) ≈ 497 px.
-    _ABOUT_MIN_H muss ≥ 490 sein.
+    Bei zuverlässiger Messung: _resolve_dialog_height(411, chrome=90, min_h=_ABOUT_MIN_H)
+    muss Logo (116 px) + alle Texte + Button vollständig fassen → Ergebnis ≥ 411 + chrome.
+    _ABOUT_MIN_H selbst darf kleiner als needed_h sein (greift nur bei Timing-Artefakten).
+    Untere Schranke für _ABOUT_MIN_H: ≥ 440 (genug Sicherheitsnetz, aber < 501 damit
+    berechneter Wert bei reqH≈411 gewinnt).
     """
-    assert _ABOUT_MIN_H >= 490, (
-        f"_ABOUT_MIN_H={_ABOUT_MIN_H} ist zu klein — "
-        "muss Logo+Inhalt+Chrome (≥490 px) abdecken"
+    assert _ABOUT_MIN_H >= 440, (
+        f"_ABOUT_MIN_H={_ABOUT_MIN_H} ist zu klein — Sicherheitsnetz muss ≥ 440 px sein"
+    )
+    # Bei realistischem reqH: berechneter Wert muss gewinnen und Logo+Inhalt fassen
+    REQ_H_WIN10 = 411
+    final_h = _resolve_dialog_height(REQ_H_WIN10, chrome=90, min_h=_ABOUT_MIN_H)
+    assert final_h >= REQ_H_WIN10 + 50, (
+        f"Finale Höhe {final_h} deckt den gemessenen Inhalt ({REQ_H_WIN10} px) nicht sicher ab"
     )
 
 
@@ -92,11 +99,11 @@ def test_about_min_w_covers_logo():
     (400, 40, 300, 440),
     # Chrome = 0
     (200, 0, 150, 200),
-    # Über-Dialog-Muster: chrome=90, min_h=_ABOUT_MIN_H (520)
-    (411, 90, 520, 520),   # frame=411 (mit Logo) → 501 < 520 → Minimum greift
-    (450, 90, 520, 540),   # frame=450 → 540 > 520 → Inhalt bestimmt
-    (1, 90, 520, 520),     # 1px-Timing-Artefakt → hartes Minimum greift
-    (285, 90, 520, 520),   # frame ohne Logo (285) → 375 < 520 → Minimum greift
+    # Über-Dialog-Muster: chrome=90, min_h=_ABOUT_MIN_H (480)
+    (411, 90, 480, 501),   # frame=411 (mit Logo) → 501 > 480 → berechneter Wert bestimmt
+    (450, 90, 480, 540),   # frame=450 → 540 > 480 → Inhalt bestimmt
+    (1, 90, 480, 480),     # 1px-Timing-Artefakt → hartes Minimum greift
+    (285, 90, 480, 480),   # frame ohne Logo (285) → 375 < 480 → Minimum greift
 ])
 def test_resolve_dialog_height(inner_h, chrome, min_h, expected):
     assert _resolve_dialog_height(inner_h, chrome=chrome, min_h=min_h) == expected

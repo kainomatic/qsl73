@@ -294,7 +294,7 @@ class TestNeverFalsePositive:
 
     def test_distance_2_callsign_is_never_certain(self):
         card = _card(call_from="DK8XX")
-        cand = _candidate(callsign="DK00E")
+        cand = _candidate(callsign="DK00X")
         assert _match(card, [cand], fuzzy=True).result == MatchResult.NO_MATCH
 
 
@@ -503,7 +503,7 @@ class TestDbCollisions:
         assert result.result == MatchResult.UNCERTAIN
 
     def test_fuzzy_off_similar_calls_only_exact_matches(self):
-        # fuzzy=aus: "DK8N0" matcht weder DK8XX noch DK8XY → NO_MATCH
+        # fuzzy=aus: "DK8X0" matcht weder DK8XX noch DK8XY → NO_MATCH
         card = _card(call_from="DK8X0")
         cand_ne = _candidate(callsign="DK8XX", qsoid="ne")
         cand_nf = _candidate(callsign="DK8XY", qsoid="nf")

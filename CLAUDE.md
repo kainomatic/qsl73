@@ -49,6 +49,21 @@ Claude Desktop wird über seine Projekt-Anweisungen hierher verwiesen.
 
 ---
 
+## Git-Branch-Operationen — Zuständigkeit
+
+**Alle Git-Branch-Operationen sind ausschließlich Aufgabe von Claude Code:**
+Merges, Rück-Merges, Konfliktauflösung, Tagging, Branch-Pflege (Löschen lokal/remote).
+
+**DF1DS (Vermittler/Tester) führt keine Merges oder Konfliktauflösungen von Hand aus.**
+Wenn ein Schritt einen Merge mit möglichen Konflikten erfordert, schneidet Desktop dafür
+einen CC-Auftrag — kein manuelles Mergen durch DF1DS.
+
+**Ausnahme:** Die *Entscheidung*, ein Stable-Release auszulösen, bleibt DF1DS (gemäß
+ADR-0046 §5). Die technische Durchführung (Merge dev→main, Tag setzen, pushen) übernimmt
+Claude Code im Release-Auftrag. → ADR-0049
+
+---
+
 ## Pflicht-Pfad
 
 Das Repo **muss** unter `C:\Entwicklung\qsl73` liegen.
@@ -215,8 +230,10 @@ nicht bei Beta-Pre-Releases. → vollständiger Workflow: **ADR-0046**
 3. **Neuen `[Unreleased]`-Block** direkt darüber anlegen — leere Sammelstelle.
 4. **Kategorien-Konvention prüfen:** `Added → Changed → Deprecated → Removed → Fixed → Security`
    (Keep-a-Changelog-Standard); leere Kategorien weglassen; mehrere gleichnamige Blöcke zusammenführen.
-5. **`dev → main` mergen:** `git checkout main && git merge dev && git push origin main`
-6. **Tag setzen und pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z`
+5. **Datenschutz-Check:** Sicherstellen, dass README und die generierte Doku (AENDERUNGEN/LIESMICH)
+   den aktuellen Stand widerspiegeln und nur `DF1DS` / fiktive Calls enthalten (→ ADR-0050).
+6. **`dev → main` mergen:** `git checkout main && git merge dev && git push origin main`
+7. **Tag setzen und pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z`
    → Workflow baut Stable-Installer; Release-Notes aus `[X.Y.Z]`.
 
 ### Welche Stelle bei gemischten Änderungen? Wer entscheidet?
@@ -289,6 +306,19 @@ bleibt Pflicht laut Definition of Done — `-m "not slow"` ersetzt ihn nicht.
 
 `pytest-timeout` setzt ein Default-Timeout von 60 s pro Test, damit ein hängender
 einzelner Test gezielt fehlschlägt statt die gesamte Suite zu killen.
+
+---
+
+## GUI-Konventionen
+
+### Hover-Tooltips (ADR-0047)
+
+Jedes neue Fenster/Widget, das eine Erklärung verdient, bekommt einen Hover-Tooltip.
+**Kein Fragezeichen-Icon, kein separates Hilfe-Widget.**
+
+- Infrastruktur: `from qsl73.gui.tooltip import attach_tooltip`; danach `attach_tooltip(widget, text)`.
+- Texte als `_TT_*`-Modulkonstanten direkt im Fenster-Modul (neben `_LBL_*`/`_MSG_*`).
+- Delay 500 ms (Standard), crash-sicher, Bildschirmrand-Clamp eingebaut.
 
 ---
 

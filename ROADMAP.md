@@ -422,12 +422,47 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Hotfix v0.2.2 vorbereitet (2026-06-19, ADR-0048):** Bugfix Über-Dialog-Größe/Position
   (`_on_about` via `after(1,...)`). Branch `hotfix/v0.2.2-about-dialog` von `main` (v0.2.1).
   Release durch DF1DS (Hotfix → main mergen, Tag `v0.2.2` pushen, danach Hotfix → dev mergen).
+- **Hotfix v0.2.2 zurück nach dev gemergt (2026-06-19):** Über-Dialog-Fix in dev; Tooltips
+  unverändert; `__version__=0.3.0`. Konflikte in `__version__`, ADR-Index, CHANGELOG
+  korrekt aufgelöst. Hotfix-Branch gelöscht (lokal + remote). ADR-0049 angelegt
+  (Git-Branch-Operationen sind CC-Aufgabe).
 - **Hotfix v0.2.3 vorbereitet (2026-06-19):** v0.2.2-Über-Dialog-Fix war unvollständig —
   `dlg.winfo_reqheight()` lieferte durch `minsize(340, 1)` stets 1px zurück. Neuer Fix:
   Höhe aus innerem Frame (`frame.winfo_reqheight()`) + Chrome-Aufschlag + Mindesthöhe via
   `_resolve_dialog_height`, analog `SetupWizard._adjust_window_size`. Branch
   `hotfix/v0.2.3-about-dialog-height` von `main` (v0.2.2). Release durch DF1DS (Hotfix →
   main mergen, Tag `v0.2.3` pushen; danach Rück-Merge hotfix → dev als separater CC-Auftrag).
+- **v0.2.3-Über-Dialog-Höhen-Fix nach dev gemergt (2026-06-19):** Wird über v0.3.0-beta2
+  getestet; Stable-Release v0.2.3 folgt separat über main.
+- **Verbesserter Über-Dialog-Fix (Logo-robust, 520er Mindesthöhe, mittiger Parent-Zentrierung)
+  nach dev gemergt (2026-06-19):** Hotfix-Branch `hotfix/v0.2.3-about-dialog-height` →
+  `dev` Rück-Merge (kein manueller Konflikt nötig — auto-aufgelöst). `dev` enthält nun:
+  `_ABOUT_MIN_H=520`, `_ABOUT_MIN_W=360`, `_resolve_dialog_width`, `update_idletasks`,
+  `ismapped`-Fallback (SetupWizard-Muster) + alle `attach_tooltip`-Aufrufe. `__version__=0.3.0`.
+  Wird über v0.3.0-beta3 auf Win10 verifiziert; Stable v0.2.3 folgt separat über main.
+  1172 Tests grün. origin/dev = 6f7f2c1. Hotfix-Branch bleibt erhalten (für Stable v0.2.3).
+- **resizable(True,True)-Fix (echte Über-Dialog-Wurzel) nach dev gemergt (2026-06-20):**
+  Rück-Merge `hotfix/v0.2.3-about-dialog-height` → `dev`. Echte Ursache des winzigen Dialogs:
+  `dlg.resizable(False,False)` ließ den Windows-WM `geometry()`-Aufrufe ignorieren — unabhängig
+  von `minsize`, Timing und `_ABOUT_MIN_H`. Fix: `dlg.resizable(True,True)` wie SetupWizard;
+  die gesamte `_do_center`-Logik (`_ABOUT_MIN_H=520`, `ismapped`-Zentrierung, Tooltips) bleibt
+  erhalten und greift nun wirklich. Neuer Diagnosetest `test_resizable_false_vs_true_geometry`
+  belegt die Wurzelursache. `__version__=0.3.0`. Wird über v0.3.0-beta4 auf Win10 verifiziert;
+  Stable v0.2.3 folgt separat über main. 1178 Tests grün. origin/dev = 6810013.
+  Hotfix-Branch bleibt erhalten (für Stable v0.2.3).
+- **v0.3.0-beta4 veröffentlicht (2026-06-20):** resizable(True,True)-Fix (echte Über-Dialog-
+  Wurzel). Pre-Release; Asset `QSL73-Beta-Setup-v0.3.0.exe`; v0.2.2 bleibt Latest-Stable.
+  Win10-Verifikation durch DF1DS ausstehend.
+- **Über-Dialog-Fix vollständig nach dev gemergt; v0.2.3 Stable released + auf Win10 verifiziert (2026-06-20):**
+  Rück-Merge `hotfix/v0.2.3-about-dialog-height` (660c3f1) → `dev` abgeschlossen. Enthält
+  den vollständigen Über-Dialog-Fix (echte Wurzel: ttk/bg-cget `TclError` auf Win10/Tk 8.6
+  bei `ttk.Frame` + `tk.Label bg=cget`; Fix: `ttk.Label` ohne `bg`-Argument, defensive
+  Logo-Kapselung via try/except) sowie den Größen-Feinschliff (`_ABOUT_MIN_H` 520→480,
+  damit der berechnete Wert 501 px bei Win10-scaling 1.33 greift). `resizable(True,True)` +
+  `_do_center`-Logik + Tooltips (`attach_tooltip`) vollständig erhalten. `__version__=0.3.0`.
+  v0.2.3 Stable auf DF1DS' Win10 verifiziert (Dialog vollständig korrekt). 1180 Tests grün.
+  Hotfix-Branch `hotfix/v0.2.3-about-dialog-height` gelöscht (lokal + remote), da v0.2.3
+  released und vollständig zurückgeführt.
 
 #### Anleitung für DF1DS: Erstes Release v0.1.0 auslösen
 
@@ -452,6 +487,39 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - ~~pyzbar/libzbar-64.dll auf Windows~~ — **entschärft durch zxingcpp (ADR-0017)**; kein
   nativer DLL-Ballast mehr. ~~`zxing-cpp` + `pywin32` im PyInstaller-Bundle einbetten~~
   — **erledigt in Schritt 9a (ADR-0040, Issue #6 geschlossen)**.
+
+### ✅ Beta-Release v0.3.0-beta1 (erstes Beta-Release des Projekts)
+
+- Tag `v0.3.0-beta1` gepusht → GitHub Actions Workflow grün (1m57s) →
+  Pre-Release `v0.3.0-beta1` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und
+  gefüllten Release-Notes veröffentlicht. `v0.2.1` bleibt weiterhin Stable/Latest.
+
+### Beta-Release v0.3.0-beta2 (Über-Dialog-Höhen-Fix + erster Self-Update-Test)
+
+- Enthält zusätzlich `_resolve_dialog_height` (Über-Dialog-Höhe aus innerem Frame +
+  Mindesthöhe — Hotfix v0.2.3 bereits auf dev gemergt). Erster automatischer
+  Self-Update-Test: laufende beta1 erkennt beta2 und bietet Update an.
+- Tag `v0.3.0-beta2` gepusht → GitHub Actions Workflow grün (1m56s) →
+  Pre-Release `v0.3.0-beta2` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und gefüllten
+  Release-Notes (aus [Unreleased]) veröffentlicht. `v0.2.2` bleibt weiterhin Stable/Latest.
+
+### Beta-Release v0.3.0-beta3 (Logo-robuster Über-Dialog-Fix — Win10-Verifikation ausstehend)
+
+- Enthält verbesserten Über-Dialog-Fix: `_ABOUT_MIN_H=520`, `_ABOUT_MIN_W=360`,
+  `_resolve_dialog_width`, `update_idletasks`, `ismapped`-Fallback (vollständiges
+  SetupWizard-Muster). Rück-Merge `hotfix/v0.2.3-about-dialog-height` → `dev` war
+  konfliktfrei (auto-aufgelöst); Tooltips bleiben vollständig erhalten.
+- Tag `v0.3.0-beta3` gepusht → GitHub Actions Workflow grün (2m4s) →
+  Pre-Release `v0.3.0-beta3` mit Asset `QSL73-Beta-Setup-v0.3.0.exe` und gefüllten
+  Release-Notes (aus [Unreleased]) veröffentlicht. `v0.2.2` bleibt weiterhin Stable/Latest.
+- **Win10-Verifikation durch DF1DS ausstehend:** Über-Dialog öffnet mit Logo vollständig
+  sichtbar und mittig über dem Hauptfenster?
+
+### ✅ Tooltips (Issue #15) — geplant für v0.3.0
+
+- Flächendeckende Hover-Tooltips über alle Fenster (Haupt, Setup, manuelle Zuordnung,
+  Update-Dialog, Fehlermelde-Dialog). Wiederverwendbare Infrastruktur `gui/tooltip.py`;
+  Texte als `_TT_*`-Konstanten; Konvention in CLAUDE.md + ADR-0047. __version__ = 0.3.0.
 
 ## V2 — Vorgemerkte Features
 

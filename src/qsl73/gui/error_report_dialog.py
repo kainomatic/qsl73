@@ -6,6 +6,13 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from pathlib import Path
 
+from qsl73.gui.tooltip import attach_tooltip
+
+# Tooltip-Texte (i18n-Vorbereitung)
+_TT_SAVE_REPORT = "Fehlerbericht als Textdatei speichern — enthält keine Zugangsdaten oder QSO-Daten"
+_TT_GITHUB = "Vorgefülltes GitHub-Issue im Browser öffnen — GitHub-Konto erforderlich"
+_TT_PREVIEW = "Vorschau des bereinigten Fehlerberichts — keine Tokens, Passwörter oder QSO-Inhalte enthalten"
+
 
 class ErrorReportDialog:
     """Modaler Dialog zur Vorschau und zum Versand eines Fehlerberichts.
@@ -63,17 +70,20 @@ class ErrorReportDialog:
         txt.insert("1.0", self._report_text)
         txt.configure(state="disabled")
         txt.grid(row=1, column=0, sticky="nsew", padx=10, pady=4)
+        attach_tooltip(txt, _TT_PREVIEW)
 
         # Button-Leiste
         btn_frame = ttk.Frame(self._top, padding=(10, 6))
         btn_frame.grid(row=2, column=0, sticky="ew")
 
-        ttk.Button(btn_frame, text="Lokal speichern", command=self._on_save).pack(
-            side="left", padx=(0, 6)
-        )
-        ttk.Button(btn_frame, text="Auf GitHub melden", command=self._on_github).pack(
-            side="left"
-        )
+        _btn_save = ttk.Button(btn_frame, text="Lokal speichern", command=self._on_save)
+        _btn_save.pack(side="left", padx=(0, 6))
+        attach_tooltip(_btn_save, _TT_SAVE_REPORT)
+
+        _btn_github = ttk.Button(btn_frame, text="Auf GitHub melden", command=self._on_github)
+        _btn_github.pack(side="left")
+        attach_tooltip(_btn_github, _TT_GITHUB)
+
         ttk.Button(btn_frame, text="Schließen", command=self._top.destroy).pack(
             side="right"
         )
