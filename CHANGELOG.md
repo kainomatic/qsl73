@@ -311,11 +311,11 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Schreibtest end-to-end vollständig verifiziert (Issue #8 Szenario B, geschlossen):**
   Kompletter Kreislauf Paperless → QR/OCR → Match → schreiben → Anzeige in Log4OM bestätigt.
-  Schreibformat byte-identisch zu Log4OM-eigenem Format (Vergleich DN9MF vs. OE6DRG-QSO).
+  Schreibformat byte-identisch zu Log4OM-eigenem Format (Vergleich DN9XX vs. OE6XXX-QSO).
   Log4OM zeigt nach Neustart korrekt „Qsl Received = Yes" für alle 3 bestätigten QSOs.
   Byte-genau: R `No`→`Yes` bei exakt 3 Treffern; RV-Feld bei `route=undefined` entfernt;
   S/CT/SV/EQSL-Eintrag unberührt; 3 von 467 QSOs geändert, Rest unberührt.
-  ADR-0013 real bestätigt: DH3KR-Karten erkannt trotz `own_callsign=DF1DS`.
+  ADR-0013 real bestätigt: DL0AAA-Karten erkannt trotz `own_callsign=DF1DS`.
   DatabaseChangedError und Vor-Schreib-Backup real bestätigt (ADR-0008/ADR-0020).
   Workflow-Befund (→ ADR-0008, KONZEPT.md §7): Log4OM muss nach QSL73-Schreibvorgang
   **neugestartet** werden — externes Neu-Laden reicht nicht.
@@ -345,7 +345,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     und schickt jedes Token durch `normalize_band`, `normalize_mode(fuzzy=False)`,
     `normalize_date`; Rufzeichen werden per `is_own_call` als Absender/Empfänger
     klassifiziert; mehrere verschiedene gültige Bänder/Modi → Feld `None` (kein Raten)
-  - Gedruckte Karten im Tabellen-/Fließtext-Layout (OE6DRG, DG5MLA) jetzt vollständig
+  - Gedruckte Karten im Tabellen-/Fließtext-Layout (OE6XXX, DG5XXX) jetzt vollständig
     automatisch auswertbar ohne Key:Value-Beschriftung
   - Frequenzangabe im OCR-Text (z. B. „5,3570" MHz) wird korrekt zu Band normalisiert (60m)
   - `normalize_mode` erhält optionalen Parameter `fuzzy=True`; Token-Scan nutzt `fuzzy=False`
@@ -353,7 +353,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Reine Ganzzahlen (ITU-Zone, Wattangabe u. ä.) werden nicht als Frequenz gewertet
     (`_RE_PURE_INT`-Guard); Bindestrich aus Tokenizer-Stripzeichen entfernt damit
     „-07" (RST-Wert) nicht zu „07" = 40m verfälscht wird
-  - Echte Paperless-OCR-Texte von OE6DRG und DG5MLA als Fixtures (schmutziger als
+  - Echte Paperless-OCR-Texte von OE6XXX und DG5XXX als Fixtures (schmutziger als
     synthetische Tests); DEBUG-Log zeigt Band/Mode/Date/Call-Kandidaten je Karte
   - 7 reale OCR-Texte als Test-Fixtures; 14 neue Tests; alle bestehenden Tests grün
 
@@ -512,7 +512,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (Original-DB unverändert; CI-kompatibel — skippt ohne `docs/testdateien/`):
     A: Anker → CERTAIN · B: Anker gelöscht → NO_MATCH ·
     C: Band-Widerspruch → NO_MATCH · D: Band fehlt, 2 QSOs → UNCERTAIN ·
-    E: DG5MLA (60m/FT8) + OE6DRG (20m/FT8) → CERTAIN
+    E: DG5XXX (60m/FT8) + OE6XXX (20m/FT8) → CERTAIN
 
 - **Schritt 4a — Matching-/Normalisierungslogik** (freigegeben):
   - `src/qsl73/normalize.py`: Datum-Normalisierung (alle §6.3-Formate, mehrdeutig →

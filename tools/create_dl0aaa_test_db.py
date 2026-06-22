@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
-"""Erstellt TESTDB_DH3KR_schreibtest.sqlite — Testkopie der Log4OM-DB für Schreib-Test.
+"""Erstellt TESTDB_DL0AAA_schreibtest.sqlite — Testkopie der Log4OM-DB für Schreib-Test.
 
 Issue #8 (Szenario B): Schreib-Pfad (write_selected → log4om_db.write_confirmations)
-gegen eine DB, in der stationcallsign="DH3KR" vorkommt, end-to-end testen — ohne dass
+gegen eine DB, in der stationcallsign="DL0AAA" vorkommt, end-to-end testen — ohne dass
 own_callsign in der Config geändert werden muss. Prüft die Zugehörigkeitserkennung über
 DB-stationcallsign-Werte (ADR-0013).
 
 WICHTIG: Diese Datenbank enthält KÜNSTLICHE, nicht-reale QSO-Daten.
-NUR gegen TESTDB_DH3KR_schreibtest.sqlite testen.
+NUR gegen TESTDB_DL0AAA_schreibtest.sqlite testen.
 NIEMALS gegen TESTDB_DF1DS_Mai24_backup.sqlite (Original) schreiben.
 
-Eingefügte QSOs (stationcallsign="DH3KR", ownercallsign="DH3KR"):
+Eingefügte QSOs (stationcallsign="DL0AAA", ownercallsign="DL0AAA"):
 
   Callsign  Datum/Zeit UTC         Band  Mode  Erwartetes Matching
-  OE6DRG    2025-04-23 12:23:00Z   20m   FT8   SICHER  (passt zu OE6DRG-Karte)
-  DG5MLA    2025-04-26 19:52:00Z   60m   FT8   SICHER  (passt zu DG5MLA-Karte; EQSL bereits bestätigt → ADR-0015-Info)
-  DK8NE     2025-04-02 19:42:00Z   6m    FT8   SICHER  (passt zu DK8NE-Karte; QR→Band=6m eindeutig)
-  DK8NE     2025-04-02 09:00:00Z   20m   FT8   AUSGESCHLOSSEN (Band 20m widerspricht Karte 6m)
+  OE6XXX    2025-04-23 12:23:00Z   20m   FT8   SICHER  (passt zu OE6XXX-Karte)
+  DG5XXX    2025-04-26 19:52:00Z   60m   FT8   SICHER  (passt zu DG5XXX-Karte; EQSL bereits bestätigt → ADR-0015-Info)
+  DK8XX     2025-04-02 19:42:00Z   6m    FT8   SICHER  (passt zu DK8XX-Karte; QR→Band=6m eindeutig)
+  DK8XX     2025-04-02 09:00:00Z   20m   FT8   AUSGESCHLOSSEN (Band 20m widerspricht Karte 6m)
 
 Karten-QSO-Zuordnung:
-  OE6DRG-Karte → OE6DRG 2025-04-23 20m FT8  → SICHER
-  DG5MLA-Karte → DG5MLA 2025-04-26 60m FT8  → SICHER (+EQSL-Bestätigung sichtbar)
-  DK8NE-Karte  → DK8NE  2025-04-02 6m  FT8  → SICHER (6m-QSO)
-  DK8NE-Karte  → DK8NE  2025-04-02 20m FT8  → AUSGESCHLOSSEN durch Band-Widerspruch
+  OE6XXX-Karte → OE6XXX 2025-04-23 20m FT8  → SICHER
+  DG5XXX-Karte → DG5XXX 2025-04-26 60m FT8  → SICHER (+EQSL-Bestätigung sichtbar)
+  DK8XX-Karte  → DK8XX  2025-04-02 6m  FT8  → SICHER (6m-QSO)
+  DK8XX-Karte  → DK8XX  2025-04-02 20m FT8  → AUSGESCHLOSSEN durch Band-Widerspruch
 
 Nutzung:
-  python tools/create_dh3kr_test_db.py
+  python tools/create_dl0aaa_test_db.py
 
-Ausgabe: docs/testdateien/TESTDB_DH3KR_schreibtest.sqlite
+Ausgabe: docs/testdateien/TESTDB_DL0AAA_schreibtest.sqlite
 
 EINSCHRAENKUNG — Anzeige in Log4OM (Realtest-Befund 2026-06-18):
 Die hier erzeugten QSOs enthalten nur die match-relevanten Minimalfelder
@@ -65,7 +65,7 @@ from qsl73.run import load_qso_candidates  # noqa: E402
 REPO_ROOT = Path(__file__).parent.parent
 TESTDB_DIR = REPO_ROOT / "docs" / "testdateien"
 ORIGINAL_DB = TESTDB_DIR / "TESTDB_DF1DS_Mai24_backup.sqlite"
-COPY_DB = TESTDB_DIR / "TESTDB_DH3KR_schreibtest.sqlite"
+COPY_DB = TESTDB_DIR / "TESTDB_DL0AAA_schreibtest.sqlite"
 
 EXPECTED_ORIGINAL_SHA256 = (
     "8f96afe5ade88c358a9fe3496e27e39377d24c2b58d55a6f28e6e8eb48e6a8fc"
@@ -86,7 +86,7 @@ _OPEN_CONFIRMATIONS = [
     {"CT": "CLUBLOG", "S": "No", "R": "No", "SV": "Electronic", "RV": "Electronic"},
 ]
 
-# EQSL bereits bestätigt (für DG5MLA — testet ADR-0015-Anzeige)
+# EQSL bereits bestätigt (für DG5XXX — testet ADR-0015-Anzeige)
 _EQSL_CONFIRMED_CONFIRMATIONS = [
     {"CT": "QSL",     "S": "No", "R": "No",  "SV": "Electronic", "RV": "Electronic"},
     {"CT": "EQSL",    "S": "Yes", "R": "Yes", "SV": "Electronic", "RV": "Electronic",
@@ -99,49 +99,49 @@ _EQSL_CONFIRMED_CONFIRMATIONS = [
 ]
 
 # qsoid: 17-stellig, zeitstempel-basiert (YYYYMMDDHHMMSS + 3-stellige Seriennummer)
-# Alle DH3KR-QSOs — Seriennummern 001–004 zur Kollisionsvermeidung
-DH3KR_QSOS = [
+# Alle DL0AAA-QSOs — Seriennummern 001–004 zur Kollisionsvermeidung
+DL0AAA_QSOS = [
     {
         "qsoid":            "20250423122300001",
-        "callsign":         "OE6DRG",
+        "callsign":         "OE6XXX",
         "qsodate":          "2025-04-23 12:23:00Z",
         "band":             "20m",
         "mode":             "FT8",
-        "stationcallsign":  "DH3KR",
-        "ownercallsign":    "DH3KR",
+        "stationcallsign":  "DL0AAA",
+        "ownercallsign":    "DL0AAA",
         "qsoconfirmations": _OPEN_CONFIRMATIONS,
-        # Erwartetes Matching: SICHER (passt zu OE6DRG-Karte)
+        # Erwartetes Matching: SICHER (passt zu OE6XXX-Karte)
     },
     {
         "qsoid":            "20250426195200002",
-        "callsign":         "DG5MLA",
+        "callsign":         "DG5XXX",
         "qsodate":          "2025-04-26 19:52:00Z",
         "band":             "60m",
         "mode":             "FT8",
-        "stationcallsign":  "DH3KR",
-        "ownercallsign":    "DH3KR",
+        "stationcallsign":  "DL0AAA",
+        "ownercallsign":    "DL0AAA",
         "qsoconfirmations": _EQSL_CONFIRMED_CONFIRMATIONS,
         # Erwartetes Matching: SICHER + EQSL-Bestätigungs-Info (ADR-0015)
     },
     {
         "qsoid":            "20250402194200003",
-        "callsign":         "DK8NE",
+        "callsign":         "DK8XX",
         "qsodate":          "2025-04-02 19:42:00Z",
         "band":             "6m",
         "mode":             "FT8",
-        "stationcallsign":  "DH3KR",
-        "ownercallsign":    "DH3KR",
+        "stationcallsign":  "DL0AAA",
+        "ownercallsign":    "DL0AAA",
         "qsoconfirmations": _OPEN_CONFIRMATIONS,
         # Erwartetes Matching: SICHER (QR-Code-Band=6m trifft eindeutig dieses QSO)
     },
     {
         "qsoid":            "20250402090000004",
-        "callsign":         "DK8NE",
+        "callsign":         "DK8XX",
         "qsodate":          "2025-04-02 09:00:00Z",
         "band":             "20m",
         "mode":             "FT8",
-        "stationcallsign":  "DH3KR",
-        "ownercallsign":    "DH3KR",
+        "stationcallsign":  "DL0AAA",
+        "ownercallsign":    "DL0AAA",
         "qsoconfirmations": _OPEN_CONFIRMATIONS,
         # Erwartetes Matching: AUSGESCHLOSSEN — Band 20m widerspricht Karte 6m
         # → belegt Band-Disambiguierung (Grenzfall-QSO)
@@ -174,7 +174,7 @@ def _insert_qsos(conn: sqlite3.Connection) -> None:
             0, 0, 0, 1
         )
     """
-    for qso in DH3KR_QSOS:
+    for qso in DL0AAA_QSOS:
         row = dict(qso)
         row["qsoconfirmations"] = json.dumps(qso["qsoconfirmations"], separators=(",", ":"))
         conn.execute(sql, row)
@@ -187,7 +187,7 @@ def _insert_qsos(conn: sqlite3.Connection) -> None:
 
 
 def main() -> int:
-    print("=== create_dh3kr_test_db.py ===")
+    print("=== create_dl0aaa_test_db.py ===")
 
     # Schritt 1: Original-DB prüfen
     if not ORIGINAL_DB.exists():
@@ -211,7 +211,7 @@ def main() -> int:
     conn = sqlite3.connect(str(COPY_DB))
     try:
         _insert_qsos(conn)
-        print(f"{len(DH3KR_QSOS)} QSOs eingefügt.")
+        print(f"{len(DL0AAA_QSOS)} QSOs eingefügt.")
     finally:
         conn.close()
 
@@ -230,33 +230,33 @@ def main() -> int:
     # Schritt 4b: load_qso_candidates + station_callsigns prüfen
     data = load_qso_candidates(COPY_DB)
 
-    dh3kr_candidates = [c for c in data.candidates if c.stationcallsign == "DH3KR"]
+    dl0aaa_candidates = [c for c in data.candidates if c.stationcallsign == "DL0AAA"]
     print(f"load_qso_candidates: {len(data.candidates)} Kandidaten gesamt, "
-          f"{len(dh3kr_candidates)} davon DH3KR")
+          f"{len(dl0aaa_candidates)} davon DL0AAA")
 
-    if "DH3KR" not in data.station_callsigns:
-        print("FEHLER: 'DH3KR' nicht in station_callsigns!")
+    if "DL0AAA" not in data.station_callsigns:
+        print("FEHLER: 'DL0AAA' nicht in station_callsigns!")
         return 1
-    print(f"station_callsigns enthält 'DH3KR': OK  (alle: {sorted(data.station_callsigns)})")
+    print(f"station_callsigns enthält 'DL0AAA': OK  (alle: {sorted(data.station_callsigns)})")
 
-    # Erwartete DH3KR-Kandidaten: alle 4 QSOs haben R='No' → alle sind Kandidaten
-    expected_callsigns = {"OE6DRG", "DG5MLA", "DK8NE"}
-    found_callsigns = {c.callsign for c in dh3kr_candidates}
+    # Erwartete DL0AAA-Kandidaten: alle 4 QSOs haben R='No' → alle sind Kandidaten
+    expected_callsigns = {"OE6XXX", "DG5XXX", "DK8XX"}
+    found_callsigns = {c.callsign for c in dl0aaa_candidates}
     if not expected_callsigns.issubset(found_callsigns):
         print(f"FEHLER: Erwartete Rufzeichen {expected_callsigns} "
               f"nicht alle in Kandidaten {found_callsigns}")
         return 1
     print(f"Alle Ziel-Rufzeichen als Kandidaten gefunden: {sorted(found_callsigns)}")
 
-    # ADR-0015-Check: DG5MLA sollte EQSL in existing_confirmations haben
-    dg5mla_candidates = [c for c in dh3kr_candidates if c.callsign == "DG5MLA"]
-    if dg5mla_candidates:
-        qsoid = dg5mla_candidates[0].qsoid
+    # ADR-0015-Check: DG5XXX sollte EQSL in existing_confirmations haben
+    dg5xxx_candidates = [c for c in dl0aaa_candidates if c.callsign == "DG5XXX"]
+    if dg5xxx_candidates:
+        qsoid = dg5xxx_candidates[0].qsoid
         eqsl_info = data.existing_confirmations.get(qsoid, [])
         if "EQSL" in eqsl_info:
-            print(f"ADR-0015 EQSL-Info für DG5MLA: OK  ({eqsl_info})")
+            print(f"ADR-0015 EQSL-Info für DG5XXX: OK  ({eqsl_info})")
         else:
-            print(f"WARNUNG: EQSL-Info für DG5MLA erwartet, gefunden: {eqsl_info}")
+            print(f"WARNUNG: EQSL-Info für DG5XXX erwartet, gefunden: {eqsl_info}")
 
     # Original-Integrität abschließend prüfen
     sha_after = _sha256(ORIGINAL_DB)

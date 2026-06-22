@@ -69,13 +69,13 @@ def db_copy(tmp_path) -> Generator[tuple[Path, str], None, None]:
         "INSERT INTO Log"
         " (qsoid, callsign, qsodate, band, mode, stationcallsign, qsoconfirmations)"
         " VALUES (?,?,?,?,?,?,?)",
-        (QSOID_A, "DK8NE", "2023-01-01 12:00:00Z", "20m", "FT8", "DH3KR", qso_json),
+        (QSOID_A, "DK8XX", "2023-01-01 12:00:00Z", "20m", "FT8", "DL0AAA", qso_json),
     )
     conn.execute(
         "INSERT INTO Log"
         " (qsoid, callsign, qsodate, band, mode, stationcallsign, qsoconfirmations)"
         " VALUES (?,?,?,?,?,?,?)",
-        (QSOID_B, "DL1ABC", "2023-01-01 12:30:00Z", "40m", "CW", "DH3KR", qso_json),
+        (QSOID_B, "DL1ABC", "2023-01-01 12:30:00Z", "40m", "CW", "DL0AAA", qso_json),
     )
     conn.commit()
     conn.close()
@@ -201,7 +201,7 @@ def test_E_backup_created_and_rotation(db_copy, tmp_path):
             "INSERT INTO Log"
             " (qsoid, callsign, qsodate, band, mode, stationcallsign, qsoconfirmations)"
             " VALUES (?,?,?,?,?,?,?)",
-            (QSOID_A, "DK8NE", "2023-01-01 12:00:00Z", "20m", "FT8", "DH3KR", _base_qso_json()),
+            (QSOID_A, "DK8XX", "2023-01-01 12:00:00Z", "20m", "FT8", "DL0AAA", _base_qso_json()),
         )
         conn.commit()
         conn.close()

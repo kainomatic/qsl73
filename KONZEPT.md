@@ -168,13 +168,13 @@ Moderne Karten (z. B. DARC-QSL-Service) tragen einen QR-Code mit QSO-Daten als
 strukturierten Klartext. Bekanntes Format (tolerant gegenüber Feldreihenfolge/Varianten):
 
 ```
-From: DK8NE  To: DH3KR
+From: DK8XX  To: DL0AAA
 Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RST: -24  QSL: TNX
 ```
 
 - **From** = Rufzeichen der Gegenstation (Match-Schlüssel gegen Log4OM `callsign`).
 - **To** = eigener Call; toleranter Abgleich gegen `log4om.own_callsign` (siehe §6.3
-  „Rufzeichen / From-To-Logik") — portabel geänderte Calls (z. B. `SV9/DH3KR`) werden
+  „Rufzeichen / From-To-Logik") — portabel geänderte Calls (z. B. `SV9/DL0AAA`) werden
   korrekt dem eigenen Log zugeordnet.
 - **Date/Time** → normalisieren (siehe §6.3).
 - **Band/Mode** → normalisieren (siehe §6.3); QR liefert Klartext-Band (`6m`), kein OCR-Artefakt.
@@ -283,8 +283,8 @@ Rufzeichen mit `/` werden zerlegt. Reihenfolge (Kurzschluss nach erstem Treffer)
 
 | Fall | Erkennungsregel | Stammrufzeichen |
 |------|----------------|-----------------|
-| a) | Teil **nach** `/` ist bekanntes Suffix (→ `matching.portable_suffixes` in Config) | Teil **vor** `/` (z. B. `DL1EJD/P` → `DL1EJD`) |
-| b) | Teil **vor** `/` ist bekannter ITU-Länderpräfix (Code-interne Datendatei) | Teil **nach** `/` (z. B. `5Z4/UA4WHX` → `UA4WHX`) |
+| a) | Teil **nach** `/` ist bekanntes Suffix (→ `matching.portable_suffixes` in Config) | Teil **vor** `/` (z. B. `DL1XXX/P` → `DL1XXX`) |
+| b) | Teil **vor** `/` ist bekannter ITU-Länderpräfix (Code-interne Datendatei) | Teil **nach** `/` (z. B. `5Z4/UA4XXX` → `UA4XXX`) |
 | c) | Beide Seiten mehrdeutig / keiner Regel eindeutig zuordenbar | Karte → **unsicher** (kein erzwungenes Match) |
 
 Unbekannte Suffixe lösen kein Parsing-Fehler aus — sie führen zu Fall c) (vorsichtiges Verhalten).
@@ -293,8 +293,8 @@ Konstante im Code geführt (Details: Schritt 4).
 
 **Suffix-Unterschied-Regel:**
 
-Stimmt das Stammrufzeichen überein, aber der Zusatz unterscheidet sich (z. B. Karte `DL1EJD`,
-Log `DL1EJD/P`, oder umgekehrt):
+Stimmt das Stammrufzeichen überein, aber der Zusatz unterscheidet sich (z. B. Karte `DL1XXX`,
+Log `DL1XXX/P`, oder umgekehrt):
 - → **sicher** nur, wenn Datum + Band + Mode **eindeutig** übereinstimmen (genau ein Kandidat).
 - → **unsicher**, wenn bei Datum/Band/Mode irgendeine Unschärfe besteht (mehrere Kandidaten,
   Band nicht normalisierbar, Datum mehrdeutig). Nie raten.
@@ -415,13 +415,13 @@ nicht eine evtl. in der PDF eingebettete OCR. Qualität variiert; Befund siehe
 - US-Spaltenformat Month=`06` Day=`21` Year=`2024` → `2024-06-21`.
 - Unbekanntes Datumsformat (z. B. römische Monatsziffern `17-XI-93`) → **unsicher**,
   kein Absturz, kein Rate-Match; manuelle Zuordnung greift.
-- `To: SV9/DH3KR` bei `own_callsign = DH3KR` → Karte korrekt als eigenes Log erkannt.
+- `To: SV9/DL0AAA` bei `own_callsign = DL0AAA` → Karte korrekt als eigenes Log erkannt.
 - Karte adressiert eigenen portablen Call (`[EIGENCALL]/P`), der nur in `stationcallsign`
   der DB steht (nicht in `own_callsign`) → Karte wird korrekt als eigenes Log erkannt.
 - `From`/`To` korrekt unterschieden; Stammrufzeichen von `To` stimmt nicht überein → Karte übersprungen.
-- `DL1EJD/P` im Log, `DL1EJD` auf Karte (oder umgekehrt): bei sonst exakten Feldern → **sicher**;
+- `DL1XXX/P` im Log, `DL1XXX` auf Karte (oder umgekehrt): bei sonst exakten Feldern → **sicher**;
   bei jeder Unschärfe bei Datum/Band/Mode → **unsicher**.
-- `5Z4/UA4WHX` auf Karte → Stammrufzeichen `UA4WHX` (Präfix erkannt) → korrekt gegen Log abgeglichen.
+- `5Z4/UA4XXX` auf Karte → Stammrufzeichen `UA4XXX` (Präfix erkannt) → korrekt gegen Log abgeglichen.
 - `[CALL]/IF9` (Fall c, mehrdeutig) → **unsicher**, kein erzwungenes Match, kein Absturz.
 - Zwei QSOs derselben Station am selben Tag, Karte nennt nur das Datum → Uhrzeit-Tie-Breaker;
   bleibt mehrdeutig → **unsicher**.

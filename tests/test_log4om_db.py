@@ -50,7 +50,7 @@ def _make_mini_db(tmp_path, name="mini.sqlite") -> tuple[sqlite3.Connection, Pat
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
     conn.execute(
-        "INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", _valid_qso_json())
+        "INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", _valid_qso_json())
     )
     conn.commit()
     return conn, p
@@ -261,7 +261,7 @@ def _make_write_db(tmp_path, name="write_test.sqlite") -> Path:
     conn.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", qso_json))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", qso_json))
     conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO2", "DL1ABC", qso_json))
     conn.commit()
     conn.close()
@@ -495,7 +495,7 @@ def test_fingerprints_differ_after_external_write_and_checkpoint(tmp_path):
     setup.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    setup.execute("INSERT INTO Log VALUES (?,?,?)", ("Q1", "DK8NE", _valid_qso_json()))
+    setup.execute("INSERT INTO Log VALUES (?,?,?)", ("Q1", "DK8XX", _valid_qso_json()))
     setup.commit()
     setup.close()
 
@@ -632,7 +632,7 @@ def _make_busy_db(tmp_path: Path, name: str = "busy.sqlite") -> Path:
     conn.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", _valid_qso_json()))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", _valid_qso_json()))
     conn.commit()
     conn.close()
     return db_path
@@ -767,7 +767,7 @@ def _make_write_db_extended(tmp_path, name="ext_write.sqlite") -> Path:
     conn.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", qso_json))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", qso_json))
     conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO2", "DL1ABC", qso_json))
     conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO3", "OE5XY", qso_json))
     conn.commit()
@@ -867,7 +867,7 @@ def test_optimistic_invalid_json_rollback_all(tmp_path):
     conn.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", _valid_qso_json()))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", _valid_qso_json()))
     conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO2", "OE2XX", "INVALID {{{"))
     conn.commit()
     conn.close()
@@ -893,7 +893,7 @@ def test_optimistic_missing_qsl_entry_rollback_all(tmp_path):
     conn.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", _valid_qso_json()))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", _valid_qso_json()))
     conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO2", "OE9XX", qso_without_qsl))
     conn.commit()
     conn.close()
@@ -917,7 +917,7 @@ def test_optimistic_unknown_r_value_skipped(tmp_path):
     conn.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", invalid_qsl))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", invalid_qsl))
     conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO2", "DL1XX", _valid_qso_json()))
     conn.commit()
     conn.close()
@@ -1003,7 +1003,7 @@ def test_requested_r_value_is_written(tmp_path):
     conn.execute(
         "CREATE TABLE Log (qsoid TEXT PRIMARY KEY, callsign TEXT, qsoconfirmations TEXT)"
     )
-    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8NE", requested_qsl))
+    conn.execute("INSERT INTO Log VALUES (?,?,?)", ("QSO1", "DK8XX", requested_qsl))
     conn.commit()
     conn.close()
 

@@ -20,6 +20,7 @@ ENV/
 
 # Inno Setup — Installer-Output nie ins Repo
 installer/Output/
+installer/installer/Output/
 # Generierte HTML-Infodateien (Build-Artefakte aus tools/make_docs_html.py)
 installer/docs/
 

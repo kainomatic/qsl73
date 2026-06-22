@@ -24,11 +24,11 @@ from qsl73.matching import CardFields, MatchResult, QsoCandidate, match_card
 from qsl73.qr import parse_qr_text
 
 DB_ORIG = Path("docs/testdateien/TESTDB_DF1DS_Mai24_backup.sqlite")
-OWN_CALL = "DH3KR"
+OWN_CALL = "DL0AAA"
 PORTABLE_SUFFIXES = ["P", "M", "MM", "AM", "QRP", "A", "R", "T"]
 
-DK8NE_QR_TEXT = (
-    "From: DK8NE  To: DH3KR\n"
+DK8XX_QR_TEXT = (
+    "From: DK8XX  To: DL0AAA\n"
     "Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  "
     "Prop_Mode: TR  RST: -24  QSL: TNX"
 )
@@ -47,11 +47,11 @@ def _fake_qso_json() -> str:
 
 
 def _insert_fake_qsos(conn: sqlite3.Connection) -> None:
-    """Legt Anker-QSOs in der DB-Kopie an (stationcallsign=DH3KR)."""
+    """Legt Anker-QSOs in der DB-Kopie an (stationcallsign=DL0AAA)."""
     rows = [
-        ("20250402194200001", "DK8NE",  "2025-04-02 19:42:00Z", "6m",  "FT8", OWN_CALL),
-        ("20250426195200001", "DG5MLA", "2025-04-26 19:52:00Z", "60m", "FT8", OWN_CALL),
-        ("20250423122300001", "OE6DRG", "2025-04-23 12:23:00Z", "20m", "FT8", OWN_CALL),
+        ("20250402194200001", "DK8XX",  "2025-04-02 19:42:00Z", "6m",  "FT8", OWN_CALL),
+        ("20250426195200001", "DG5XXX", "2025-04-26 19:52:00Z", "60m", "FT8", OWN_CALL),
+        ("20250423122300001", "OE6XXX", "2025-04-23 12:23:00Z", "20m", "FT8", OWN_CALL),
     ]
     json_val = _fake_qso_json()
     for qsoid, callsign, qsodate, band, mode, stationcallsign in rows:
@@ -130,10 +130,10 @@ def db_copy(tmp_path) -> Generator[sqlite3.Connection, None, None]:
 # ---------------------------------------------------------------------------
 
 def test_a_anchor_positive(db_copy: sqlite3.Connection) -> None:
-    """A) DK8NE-QR → CERTAIN; getroffenes QSO ist der eingefügte Anker."""
-    card = parse_qr_text(DK8NE_QR_TEXT)
+    """A) DK8XX-QR → CERTAIN; getroffenes QSO ist der eingefügte Anker."""
+    card = parse_qr_text(DK8XX_QR_TEXT)
     assert card is not None, "QR-Text muss zu CardFields parsen"
-    outcome = _do_match(db_copy, card, "DK8NE")
+    outcome = _do_match(db_copy, card, "DK8XX")
     assert outcome.result == MatchResult.CERTAIN
     assert outcome.matched_qso is not None
     assert outcome.matched_qso.qsoid == "20250402194200001"
@@ -143,9 +143,9 @@ def test_b_anchor_negative(db_copy: sqlite3.Connection) -> None:
     """B) Anker-QSO gelöscht → NO_MATCH (korrekte Daten, QSO fehlt in Kopie)."""
     db_copy.execute("DELETE FROM Log WHERE qsoid = '20250402194200001'")
     db_copy.commit()
-    card = parse_qr_text(DK8NE_QR_TEXT)
+    card = parse_qr_text(DK8XX_QR_TEXT)
     assert card is not None
-    outcome = _do_match(db_copy, card, "DK8NE")
+    outcome = _do_match(db_copy, card, "DK8XX")
     assert outcome.result == MatchResult.NO_MATCH
 
 
@@ -155,45 +155,45 @@ def test_c_wrong_band(db_copy: sqlite3.Connection) -> None:
         "UPDATE Log SET band = '2m' WHERE qsoid = '20250402194200001'"
     )
     db_copy.commit()
-    card = parse_qr_text(DK8NE_QR_TEXT)
+    card = parse_qr_text(DK8XX_QR_TEXT)
     assert card is not None
-    outcome = _do_match(db_copy, card, "DK8NE")
+    outcome = _do_match(db_copy, card, "DK8XX")
     assert outcome.result == MatchResult.NO_MATCH
 
 
 def test_d_ambiguous(db_copy: sqlite3.Connection) -> None:
-    """D) Zweites DK8NE-QSO am gleichen Tag; Karte ohne Band → UNCERTAIN."""
+    """D) Zweites DK8XX-QSO am gleichen Tag; Karte ohne Band → UNCERTAIN."""
     db_copy.execute(
         "INSERT INTO Log"
         " (qsoid, callsign, qsodate, band, mode, stationcallsign, qsoconfirmations)"
         " VALUES (?, ?, ?, ?, ?, ?, ?)",
-        ("20250402200000002", "DK8NE", "2025-04-02 20:00:00Z", "20m", "FT8",
+        ("20250402200000002", "DK8XX", "2025-04-02 20:00:00Z", "20m", "FT8",
          OWN_CALL, _fake_qso_json()),
     )
     db_copy.commit()
     card = CardFields(
-        call_from="DK8NE", call_to="DH3KR",
+        call_from="DK8XX", call_to="DL0AAA",
         date="2025-04-02", band=None, mode="FT8",
     )
-    outcome = _do_match(db_copy, card, "DK8NE")
+    outcome = _do_match(db_copy, card, "DK8XX")
     assert outcome.result == MatchResult.UNCERTAIN
 
 
-def test_e_printed_card_dg5mla(db_copy: sqlite3.Connection) -> None:
-    """E) DG5MLA gedruckte Karte (60m/FT8) → CERTAIN."""
+def test_e_printed_card_dg5xxx(db_copy: sqlite3.Connection) -> None:
+    """E) DG5XXX gedruckte Karte (60m/FT8) → CERTAIN."""
     card = CardFields(
-        call_from="DG5MLA", call_to="DH3KR",
+        call_from="DG5XXX", call_to="DL0AAA",
         date="2025-04-26", band="60m", mode="FT8",
     )
-    outcome = _do_match(db_copy, card, "DG5MLA")
+    outcome = _do_match(db_copy, card, "DG5XXX")
     assert outcome.result == MatchResult.CERTAIN
 
 
-def test_e_printed_card_oe6drg(db_copy: sqlite3.Connection) -> None:
-    """E) OE6DRG gedruckte Karte (20m/FT8) → CERTAIN."""
+def test_e_printed_card_oe6xxx(db_copy: sqlite3.Connection) -> None:
+    """E) OE6XXX gedruckte Karte (20m/FT8) → CERTAIN."""
     card = CardFields(
-        call_from="OE6DRG", call_to="DH3KR",
+        call_from="OE6XXX", call_to="DL0AAA",
         date="2025-04-23", band="20m", mode="FT8",
     )
-    outcome = _do_match(db_copy, card, "OE6DRG")
+    outcome = _do_match(db_copy, card, "OE6XXX")
     assert outcome.result == MatchResult.CERTAIN

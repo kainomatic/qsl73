@@ -45,7 +45,7 @@ def _parse_qr_fields(text: str) -> dict[str, str]:
     """Parse 'Key: Value' pairs from QR text.
 
     Handles the DARC QSL-service format:
-        From: DK8NE  To: DH3KR
+        From: DK8XX  To: DL0AAA
         Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  ...
 
     Keys with underscores (Band_RX, Prop_Mode) are supported.

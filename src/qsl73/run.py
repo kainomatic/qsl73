@@ -88,7 +88,7 @@ _RE_CALLSIGN = re.compile(
 _RE_TIME_TOKEN = re.compile(r'^(\d{1,2}:\d{2})(?::\d{2})?$')
 
 # Umgebende Satzzeichen, die von Tokens abgetrennt werden (Slash NICHT hier —
-# er ist Bestandteil von Portable-Suffix-Rufzeichen wie "DH3KR/P").
+# er ist Bestandteil von Portable-Suffix-Rufzeichen wie "DL0AAA/P").
 # Bindestrich/Minus ABSICHTLICH ausgelassen: "-07" (RST-Wert) darf nicht zu "07"
 # werden — normalize_band("07") = "40m" wäre ein Falsch-Positiv.
 _STRIP_CHARS = ".,;:!?()[]{}'\"_#@"
