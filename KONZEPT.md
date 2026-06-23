@@ -191,9 +191,7 @@ Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RS
   korrekt dem eigenen Log zugeordnet.
 - **Date/Time** → normalisieren (siehe §6.3).
 - **Band/Mode** → normalisieren (siehe §6.3); QR liefert Klartext-Band (`6m`), kein OCR-Artefakt.
-- Ein sauberer QR-Treffer (alle vier Pflichtfelder eindeutig) **darf auto-bestätigen**,
-  wenn Rufzeichen + Datum + Band + Mode passen — identische Regel wie beim OCR-Match.
-  Sicherheitsschleife bleibt die gemeinsame Vorschau + Bestätigung (Schreibmodell B).
+- QR dient im manuellen Dialog ausschließlich zur Vorbefüllung der Suchfelder — kein Auto-Select, keine Auto-Bestätigung (→ ADR-0051).
 - Nicht jede Karte hat einen QR-Code; nicht jeder QR-Code enthält QSO-Daten (z. B.
   Druckdienst-/Werbe-Codes). Mehrere QR-Codes pro Karte möglich — den ersten mit gültigem
   QSO-Format verwenden. QR ist ein Bonus, kein Universalersatz.

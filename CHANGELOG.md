@@ -8,7 +8,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
-- Massen-Lauf wertet nur noch OCR-Text aus (kein PDF-Download mehr pro Karte) — deutlich schnellerer Lauf bei vielen Karten (ADR-0051, Fixes #30)
+- Massen-Lauf wertet nur noch OCR-Text aus (kein PDF-Download mehr pro Karte) — deutlich schnellerer Lauf bei vielen Karten (ADR-0051, #30)
 - QR-Auswertung im manuellen Dialog: Suchfelder werden QR-vorrangig vorbefüllt (aus denselben PDF-Bytes wie das Kartenbild — kein zweiter Download)
 
 ### Added

@@ -68,7 +68,7 @@ Geändert wird der **Ort** der QR-Auswertung:
 Der Qualitätsrang wirkt sich aus als **Vorbefüllungs-Priorität** im Dialog:
 QR-Felder überschreiben OCR-Felder (wenn Nutzer noch nichts getippt hat).
 
-ADR-0007 ist durch diesen Punkt berührt — der Verweis auf ADR-0051 wird dort ergänzt.
+ADR-0007 ist durch diesen Punkt berührt — dort wurde ein Rückverweis auf ADR-0051 ergänzt.
 
 ---
 
