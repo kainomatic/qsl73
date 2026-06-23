@@ -3,7 +3,7 @@
 import json
 import sqlite3
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -323,86 +323,54 @@ def test_parse_ocr_mode_de_not_matched_as_from():
     assert card.call_from is None
 
 
-# --- Karten-Auswertung (QR→OCR) ---
+# --- Karten-Auswertung (nur OCR — ADR-0051) ---
 
-def _make_mock_client(download_bytes: bytes = b"") -> MagicMock:
-    """Erstellt einen PaperlessClient-Mock. Content kommt aus dem doc-Dict, nicht vom Client."""
-    client = MagicMock()
-    client.get_document_download.return_value = download_bytes
-    return client
-
-
-def test_evaluate_card_qr_found():
-    """Gültiger QR im PDF → CardFields aus QR, source='qr'."""
-    from qsl73.matching import CardFields
+def test_evaluate_card_ocr_only_fills_fields():
+    """evaluate_card nutzt nur OCR-Text — kein download, kein QR-Pfad."""
     from qsl73.run import evaluate_card
 
-    qr_fields = CardFields("DK8XX", "DL0AAA", "2025-04-02", "6m", "FT8", "19:42")
-
-    client = _make_mock_client(download_bytes=b"%PDF-fake")
-    doc = {"id": 1, "content": ""}
-
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=qr_fields):
-        card, source = evaluate_card(doc, client)
-
-    assert source == "qr"
-    assert card.call_from == "DK8XX"
-
-
-def test_evaluate_card_no_qr_uses_ocr():
-    """Kein QR im PDF → Fallback auf OCR-Text aus doc['content']."""
-    from qsl73.run import evaluate_card
-
-    client = _make_mock_client(download_bytes=b"%PDF-no-qr")
-    doc = {"id": 2, "content": "From: DL5ABC To: DL0AAA Band: 40m Mode: CW Date: 2024-06-21"}
-
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        card, source = evaluate_card(doc, client)
-
+    doc = {"id": 1, "content": "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"}
+    card, source = evaluate_card(doc)
     assert source == "ocr"
-    assert card.call_from == "DL5ABC"
-    assert card.band == "40m"
+    assert card.call_from == "DK8XX"
+    assert card.band == "6m"
 
 
-def test_evaluate_card_no_qr_no_ocr():
-    """Kein QR, kein OCR-Inhalt → alle None, source='none'."""
+def test_evaluate_card_empty_content_returns_none():
+    """evaluate_card mit leerem content → source='none', alle Felder None."""
     from qsl73.run import evaluate_card
 
-    client = _make_mock_client(download_bytes=b"")
-    doc = {"id": 3, "content": ""}
-
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        card, source = evaluate_card(doc, client)
-
+    doc = {"id": 2, "content": ""}
+    card, source = evaluate_card(doc)
     assert source == "none"
     assert card.call_from is None
     assert card.band is None
 
 
-def test_evaluate_card_download_error_falls_back_to_ocr():
-    """Download-Fehler → kein Absturz, Fallback auf OCR."""
-    from qsl73.paperless import PaperlessConnectionError
+def test_evaluate_card_no_client_parameter():
+    """evaluate_card hat keinen paperless_client-Parameter mehr."""
+    import inspect
+    from qsl73.run import evaluate_card
+    sig = inspect.signature(evaluate_card)
+    assert "paperless_client" not in sig.parameters
+
+
+def test_evaluate_card_source_never_qr():
+    """source ist immer 'ocr' oder 'none', niemals 'qr'."""
     from qsl73.run import evaluate_card
 
-    client = MagicMock()
-    client.get_document_download.side_effect = PaperlessConnectionError("Timeout")
-    doc = {"id": 4, "content": "Band: 20m Mode: FT8"}
-
-    card, source = evaluate_card(doc, client)
-
-    assert source == "ocr"
-    assert card.band == "20m"
+    for content in ["", "  ", "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"]:
+        doc = {"id": 1, "content": content}
+        _, source = evaluate_card(doc)
+        assert source in ("ocr", "none"), f"Unerwartete source '{source}' für content={content!r}"
 
 
 def test_evaluate_card_missing_content_key():
     """doc ohne 'content'-Schlüssel → kein Absturz."""
     from qsl73.run import evaluate_card
 
-    client = _make_mock_client(download_bytes=b"")
     doc = {"id": 5}  # kein 'content'-Schlüssel
-
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        card, source = evaluate_card(doc, client)
+    card, source = evaluate_card(doc)
 
     assert source == "none"
 
@@ -436,6 +404,27 @@ def _insert_qso(conn, qsoid, callsign, qsodate, band, mode, stationcallsign, r="
     )
 
 
+def test_run_pass_download_count_zero(tmp_path):
+    """run_pass ruft get_document_download für KEINE Karte auf (Zähler == 0)."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    conn.commit(); conn.close()
+
+    docs = [
+        {"id": 1, "content": "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"},
+        {"id": 2, "content": ""},
+        {"id": 3, "content": "Band: 40m Mode: CW"},
+    ]
+    client = _make_paperless_mock(docs)
+    cfg = _make_config()
+
+    run_pass(client, db_path, cfg)
+
+    # Kernaussage: Download wurde NIE aufgerufen
+    client.get_document_download.assert_not_called()
+
+
 def test_run_pass_certain_match(tmp_path):
     """Ein Dokument + passender Kandidat → RunResult.certain hat einen Eintrag."""
     from qsl73.run import run_pass
@@ -449,8 +438,7 @@ def test_run_pass_certain_match(tmp_path):
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        result = run_pass(client, db_path, cfg)
+    result = run_pass(client, db_path, cfg)
 
     assert len(result.certain) == 1
     assert result.certain[0].doc_id == 1
@@ -469,8 +457,7 @@ def test_run_pass_no_match(tmp_path):
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        result = run_pass(client, db_path, cfg)
+    result = run_pass(client, db_path, cfg)
 
     assert len(result.no_match) == 1
     assert len(result.certain) == 0
@@ -490,8 +477,7 @@ def test_run_pass_uncertain_multiple_candidates(tmp_path):
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        result = run_pass(client, db_path, cfg)
+    result = run_pass(client, db_path, cfg)
 
     assert len(result.uncertain) == 1
     assert len(result.certain) == 0
@@ -512,8 +498,7 @@ def test_run_pass_existing_confirmations_in_result(tmp_path):
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        result = run_pass(client, db_path, cfg)
+    result = run_pass(client, db_path, cfg)
 
     assert len(result.certain) == 1
     assert "EQSL" in result.certain[0].existing_confirmations
@@ -554,8 +539,7 @@ def test_run_pass_progress_callback(tmp_path):
     def progress(done, total, msg):
         calls.append((done, total, msg))
 
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        run_pass(client, db_path, cfg, on_progress=progress)
+    run_pass(client, db_path, cfg, on_progress=progress)
 
     assert len(calls) >= 3  # mindestens: laden, Kandidaten, 2× Karte
 
@@ -572,8 +556,7 @@ def test_run_pass_r_yes_excluded_from_candidates(tmp_path):
     client = _make_paperless_mock(docs)
     cfg = _make_config()
 
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        result = run_pass(client, db_path, cfg)
+    result = run_pass(client, db_path, cfg)
 
     assert len(result.certain) == 0
     assert len(result.no_match) == 1
@@ -589,8 +572,7 @@ def test_run_pass_passes_exclude_tag_to_paperless(tmp_path):
     client = _make_paperless_mock([])
     cfg = _make_config()
 
-    with patch("qsl73.run.decode_qr_from_pdf", return_value=None):
-        run_pass(client, db_path, cfg)
+    run_pass(client, db_path, cfg)
 
     client.get_documents_by_tag.assert_called_once_with(
         cfg.tags.input,

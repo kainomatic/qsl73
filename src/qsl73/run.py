@@ -34,7 +34,7 @@ from qsl73.log4om_db import (
 from qsl73.matching import CardFields, MatchOutcome, MatchResult, QsoCandidate, match_card
 from qsl73.normalize import normalize_band, normalize_date, normalize_mode
 from qsl73.paperless import PaperlessClient
-from qsl73.qr import decode_qr_from_pdf, parse_qr_text
+from qsl73.qr import parse_qr_text
 
 _log = logging.getLogger("qsl73")
 
@@ -45,7 +45,7 @@ class CardResult:
 
     doc_id: int
     card_fields: CardFields
-    source: str                        # "qr" | "ocr" | "none"
+    source: str                        # "ocr" | "none"
     outcome: MatchOutcome
     existing_confirmations: list[str]  # CT-Werte mit R="Yes" (ohne "QSL") — ADR-0015
 
@@ -244,35 +244,15 @@ def _parse_ocr_text(
 
 def evaluate_card(
     doc: dict,
-    paperless_client: PaperlessClient,
     own_callsign: Optional[str] = None,
     station_callsigns: Optional[set[str]] = None,
     portable_suffixes: Optional[list[str]] = None,
 ) -> tuple[CardFields, str]:
-    """Ermittelt CardFields für ein Paperless-Dokument (QR-Vorrang vor OCR).
+    """Ermittelt CardFields für ein Paperless-Dokument aus OCR-Text (§6.1, ADR-0051).
 
-    Reihenfolge (§6.1 / ADR-0007):
-    1. QR-Code aus PDF-Bytes (get_document_download)
-    2. OCR-Text (doc['content'], im Listen-Response enthalten)
-
-    Kein Absturz bei fehlerhafter Eingabe (ADR-0012).
-
-    Returns:
-        (CardFields, source) — source: "qr" | "ocr" | "none"
+    QR-Auswertung findet nicht mehr im Massen-Lauf statt — sie ist in den manuellen
+    Zuordnungs-Dialog verlagert (ADR-0051). source ∈ {"ocr", "none"}, nie "qr".
     """
-    doc_id = doc["id"]
-
-    # Versuch 1: QR-Code aus heruntergeladenem PDF
-    try:
-        pdf_bytes = paperless_client.get_document_download(doc_id)
-        qr_fields = decode_qr_from_pdf(pdf_bytes)
-        if qr_fields is not None:
-            return qr_fields, "qr"
-        _log.debug("doc_id=%d: QR-Dekodierung lieferte None — Fallback auf OCR", doc_id)
-    except Exception as exc:
-        _log.debug("QR-Dekodierung fehlgeschlagen für Dok. %s: %s", doc_id, exc)
-
-    # Versuch 2: OCR-Text aus dem Dokument-Dict
     ocr_text = doc.get("content") or ""
     return _parse_ocr_text(ocr_text, own_callsign, station_callsigns, portable_suffixes)
 
@@ -423,7 +403,6 @@ def run_pass(
 
         card_fields, source = evaluate_card(
             doc,
-            paperless_client,
             own_callsign=config.log4om.own_callsign,
             station_callsigns=data.station_callsigns,
             portable_suffixes=config.matching.portable_suffixes,
