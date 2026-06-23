@@ -613,3 +613,92 @@ def test_status_color_constants_exist():
     from qsl73.gui import manual_assignment as ma
     assert ma._COLOR_UNCERTAIN.startswith("#")
     assert ma._COLOR_NO_MATCH.startswith("#")
+
+
+# ---------------------------------------------------------------------------
+# QR-Vorbefüllung — reine Logik (kein tk)
+# ---------------------------------------------------------------------------
+
+from qsl73.gui.manual_assignment import compute_qr_prefill
+
+
+def _make_qr_fields(call_from=None, band=None, mode=None, date=None) -> CardFields:
+    return CardFields(call_from=call_from, call_to=None, date=date, band=band, mode=mode)
+
+
+def test_compute_qr_prefill_overwrites_ocr_value():
+    """QR liefert call; aktueller Wert == OCR-Wert → QR-Wert wird gesetzt."""
+    qr = _make_qr_fields(call_from="DK8XX", band="6m", mode="FT8")
+    result = compute_qr_prefill(
+        qr,
+        current_call="DL5ABC", current_band="40m", current_mode="CW",
+        ocr_call="DL5ABC", ocr_band="40m", ocr_mode="CW",
+        date_explicit=False,
+    )
+    assert result.get("call") == "DK8XX"
+    assert result.get("band") == "6m"
+    assert result.get("mode") == "FT8"
+
+
+def test_compute_qr_prefill_no_overwrite_user_modified_call():
+    """Nutzer hat call geändert (≠ OCR-Wert) → QR darf call NICHT überschreiben."""
+    qr = _make_qr_fields(call_from="DK8XX")
+    result = compute_qr_prefill(
+        qr,
+        current_call="OE6XXX",  # Nutzer hat diesen Wert manuell eingetragen
+        current_band="", current_mode="",
+        ocr_call="DL5ABC",      # OCR hatte diesen Wert
+        ocr_band="", ocr_mode="",
+        date_explicit=False,
+    )
+    assert "call" not in result  # kein Überschreiben
+
+
+def test_compute_qr_prefill_overwrites_empty_field():
+    """OCR hatte keinen Wert (leer); QR hat einen → QR-Wert wird gesetzt."""
+    qr = _make_qr_fields(call_from="DK8XX", band="20m")
+    result = compute_qr_prefill(
+        qr,
+        current_call="", current_band="",  # Felder noch leer
+        current_mode="",
+        ocr_call="", ocr_band="", ocr_mode="",
+        date_explicit=False,
+    )
+    assert result.get("call") == "DK8XX"
+    assert result.get("band") == "20m"
+
+
+def test_compute_qr_prefill_date_set_when_not_explicit():
+    """QR hat Datum; date_explicit=False → Datum wird in result gesetzt."""
+    qr = _make_qr_fields(date="2025-04-02")
+    result = compute_qr_prefill(
+        qr,
+        current_call="", current_band="", current_mode="",
+        ocr_call="", ocr_band="", ocr_mode="",
+        date_explicit=False,
+    )
+    assert result.get("date") == "2025-04-02"
+
+
+def test_compute_qr_prefill_date_not_set_when_explicit():
+    """Nutzer hat Datum gesetzt (date_explicit=True) → QR überschreibt es nicht."""
+    qr = _make_qr_fields(date="2025-04-02")
+    result = compute_qr_prefill(
+        qr,
+        current_call="", current_band="", current_mode="",
+        ocr_call="", ocr_band="", ocr_mode="",
+        date_explicit=True,
+    )
+    assert "date" not in result
+
+
+def test_compute_qr_prefill_empty_qr_returns_empty():
+    """QR ohne gültige Felder → leeres result-Dict."""
+    qr = _make_qr_fields()  # alle None
+    result = compute_qr_prefill(
+        qr,
+        current_call="DL5ABC", current_band="40m", current_mode="CW",
+        ocr_call="DL5ABC", ocr_band="40m", ocr_mode="CW",
+        date_explicit=False,
+    )
+    assert result == {}
