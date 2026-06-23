@@ -218,6 +218,7 @@ class MainWindow(tk.Tk):
     def _on_close(self) -> None:
         """Fenster-Schließen: Cache stoppen, dann Fenster zerstören."""
         self._pdf_cache.stop()
+        self._pdf_cache.clear()
         self.destroy()
 
     # ------------------------------------------------------------------
