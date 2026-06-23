@@ -13,6 +13,8 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - RAM-Byte-Cache (`PdfByteCache`) mit LRU-Verdrängung (150 MB), Hintergrund-Prefetch (4 Karten voraus) — Wechsel zwischen Karten ohne Netzwerk-Wartezeit (ADR-0051)
+- Treeview-Klick-Sortierung: Hauptfenster und manueller Zuordnungs-Dialog per Spaltenklick sortierbar (▲/▼); Band nach Wellenlänge (160m…23cm), Datum als echtes Datum; geschriebene Karten bleiben stets unten (ADR-0052, Fixes #28)
+- Live-Textsuche im Hauptfenster: Suchfeld filtert zusätzlich zum Kategorie-Filter über Rufzeichen, Datum und Band (Teilstring, case-insensitiv, ×-Schaltfläche zum Leeren, ADR-0052, Fixes #29)
 
 ## [0.3.0] - 2026-06-22
 

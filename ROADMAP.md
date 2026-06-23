@@ -531,6 +531,14 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Keine Temp-Dateien. Daemon-Threads, stoppbar via stop(). MainWindow-Lebensdauer.
 - ADR-0051 angelegt; KONZEPT.md §6 präzisiert; Issue #30 geschlossen.
 
+### ✅ UX-Verbesserung — Treeview-Sortierung + Textsuche (Issues #28 + #29, ADR-0052)
+
+- Klick-Sortierung (▲/▼) in Hauptfenster und manuellem Zuordnungs-Dialog.
+  Band nach Wellenlänge (160m…23cm); Datum chronologisch; geschriebene Karten
+  stets unten (zweistufige Sortierung, ADR-0052).
+- Live-Textsuche im Hauptfenster über call/date/band; UND-verknüpft mit
+  Kategorie-Filter; ×-Schaltfläche zum Leeren. Tooltips gemäß ADR-0047.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
