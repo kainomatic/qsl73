@@ -702,3 +702,31 @@ def test_compute_qr_prefill_empty_qr_returns_empty():
         date_explicit=False,
     )
     assert result == {}
+
+
+def test_compute_qr_prefill_date_overrides_ocr_date():
+    """QR-Datum überschreibt OCR-gesetztes Datum (QR > OCR Priorität, ADR-0051)."""
+    qr = _make_qr_fields(call_from="DK8XX", date="2024-05-01", band="40m", mode="SSB")
+    result = compute_qr_prefill(
+        qr,
+        current_call="DK8XX", current_band="40m", current_mode="SSB",
+        ocr_call="DK8XX", ocr_band="40m", ocr_mode="SSB",
+        date_explicit=True,          # OCR hat Datum gesetzt → date_explicit=True
+        current_date="2024-04-01",   # aktuell steht OCR-Datum drin
+        ocr_date="2024-04-01",       # OCR hatte dieses Datum
+    )
+    assert result.get("date") == "2024-05-01", "QR-Datum muss OCR-Datum überschreiben"
+
+
+def test_compute_qr_prefill_date_no_override_user_modified():
+    """QR-Datum überschreibt NICHT wenn Nutzer das Datum manuell geändert hat."""
+    qr = _make_qr_fields(call_from="DK8XX", date="2024-05-01", band="40m", mode="SSB")
+    result = compute_qr_prefill(
+        qr,
+        current_call="DK8XX", current_band="40m", current_mode="SSB",
+        ocr_call="DK8XX", ocr_band="40m", ocr_mode="SSB",
+        date_explicit=True,
+        current_date="2024-03-15",   # Nutzer hat anderes Datum getippt
+        ocr_date="2024-04-01",       # OCR hatte etwas anderes → current ≠ ocr_date
+    )
+    assert "date" not in result, "Nutzer-Datum darf nicht überschrieben werden"

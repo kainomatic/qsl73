@@ -181,12 +181,21 @@ def compute_qr_prefill(
     ocr_band: str,
     ocr_mode: str,
     date_explicit: bool,
+    current_date: str = "",
+    ocr_date: str = "",
 ) -> dict:
     """Berechnet QR-Vorbefüllung als dict (rein, tk-frei, testbar).
 
     Überschreibt ein Feld nur wenn der aktuelle Wert == OCR-Vorbefüllung
-    oder leer ist (Nutzer hat das Feld noch nicht verändert). date nur wenn
-    noch nicht explizit gesetzt (date_explicit=False).
+    oder leer ist (Nutzer hat das Feld noch nicht verändert).
+
+    Datum-Priorität (ADR-0051): QR überschreibt OCR-Datum, solange der
+    Nutzer das Datum noch nicht manuell geändert hat. Konkret: Datum wird
+    überschrieben wenn date_explicit=False (noch gar nicht gesetzt) ODER
+    wenn der aktuelle Wert noch dem OCR-Datum entspricht (Nutzer hat nichts
+    geändert). Nur wenn Nutzer ein abweichendes Datum eingetragen hat
+    (current_date ≠ ocr_date bei date_explicit=True), bleibt sein Wert
+    erhalten.
 
     Returns:
         Dict mit Schlüsseln "call", "band", "mode", "date" — nur für Felder,
@@ -202,8 +211,12 @@ def compute_qr_prefill(
     if qr_fields.mode:
         if not current_mode or current_mode == ocr_mode:
             result["mode"] = qr_fields.mode
-    if qr_fields.date and not date_explicit:
-        result["date"] = qr_fields.date
+    if qr_fields.date:
+        # Datum setzen wenn: noch nicht explizit gesetzt (date_explicit=False)
+        # ODER aktueller Wert stimmt noch mit OCR-Datum überein (Nutzer hat nicht
+        # manuell geändert) — analog zur call/band/mode-Logik. ADR-0051: QR > OCR.
+        if not date_explicit or (ocr_date and current_date == ocr_date):
+            result["date"] = qr_fields.date
     return result
 
 
@@ -263,6 +276,7 @@ if _TK_OK:
             self._zoom_win = None         # Zoom-Fenster (Toplevel) oder None
             self._use_datepicker: bool = False  # tkcalendar verfügbar?
             self._date_explicit: bool = False   # True sobald Nutzer/OCR Datum gesetzt hat
+            self._applying_prefill: bool = False  # Guard gegen Trace-Callbacks während QR-Prefill
 
             self.title("Manuelle Zuordnung — by DF1DS")
             self.resizable(True, True)
@@ -272,6 +286,7 @@ if _TK_OK:
             self._ocr_prefill_call = self._card.card_fields.call_from or ""
             self._ocr_prefill_band = self._card.card_fields.band or ""
             self._ocr_prefill_mode = self._card.card_fields.mode or ""
+            self._ocr_prefill_date = self._card.card_fields.date or ""
 
             self._build_ui()
             self._update_search()
@@ -527,6 +542,8 @@ if _TK_OK:
         # ------------------------------------------------------------------
 
         def _on_field_change(self, *_args) -> None:
+            if self._applying_prefill:
+                return
             self._update_search()
 
         def _on_date_changed(self, _event=None) -> None:
@@ -768,7 +785,12 @@ if _TK_OK:
             self._next_btn.config(state=active)
 
         def _apply_qr_prefill(self, qr_fields: CardFields) -> None:
-            """Überschreibt Suchfelder mit QR-Werten — nur wenn Nutzer noch nichts geändert hat."""
+            """Überschreibt Suchfelder mit QR-Werten — nur wenn Nutzer noch nichts geändert hat.
+
+            Verwendet _applying_prefill-Guard damit trace_add-Callbacks (_on_field_change)
+            während der programmatischen .set()-Aufrufe nicht als Nutzerinteraktion gewertet
+            werden. Nach Abschluss wird _update_search() einmalig explizit aufgerufen.
+            """
             overrides = compute_qr_prefill(
                 qr_fields,
                 current_call=self._var_call.get().strip(),
@@ -778,26 +800,33 @@ if _TK_OK:
                 ocr_band=self._ocr_prefill_band,
                 ocr_mode=self._ocr_prefill_mode,
                 date_explicit=self._date_explicit,
+                current_date=self._get_date_str(),
+                ocr_date=self._ocr_prefill_date,
             )
             if not overrides:
                 return
-            if "call" in overrides:
-                self._var_call.set(overrides["call"])
-            if "band" in overrides:
-                self._var_band.set(overrides["band"])
-            if "mode" in overrides:
-                self._var_mode.set(overrides["mode"])
-            if "date" in overrides:
-                try:
-                    from datetime import datetime as _dt
-                    parsed = _dt.strptime(overrides["date"], "%Y-%m-%d").date()
-                    if self._use_datepicker:
-                        self._date_entry.set_date(parsed)
-                    else:
-                        self._var_date.set(overrides["date"])
-                    self._date_explicit = True
-                except Exception as exc:
-                    _log.debug("QR-Datum konnte nicht gesetzt werden: %s", exc)
+            self._applying_prefill = True
+            try:
+                if "call" in overrides:
+                    self._var_call.set(overrides["call"])
+                if "band" in overrides:
+                    self._var_band.set(overrides["band"])
+                if "mode" in overrides:
+                    self._var_mode.set(overrides["mode"])
+                if "date" in overrides:
+                    try:
+                        from datetime import datetime as _dt
+                        parsed = _dt.strptime(overrides["date"], "%Y-%m-%d").date()
+                        if self._use_datepicker:
+                            self._date_entry.set_date(parsed)
+                        else:
+                            self._var_date.set(overrides["date"])
+                        self._date_explicit = True
+                        self._ocr_prefill_date = ""  # nicht mehr OCR-gesetzt
+                    except Exception as exc:
+                        _log.debug("QR-Datum konnte nicht gesetzt werden: %s", exc)
+            finally:
+                self._applying_prefill = False
             self._update_search()
 
 else:
