@@ -23,7 +23,7 @@ import io
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
-from qsl73.gui.filter_util import apply_display_limit
+from qsl73.gui.filter_util import apply_display_limit, sort_candidates_by_column
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
 from qsl73.gui.tooltip import attach_tooltip
 from qsl73.matching import CardFields, MatchResult, QsoCandidate
@@ -277,6 +277,8 @@ if _TK_OK:
             self._use_datepicker: bool = False  # tkcalendar verfügbar?
             self._date_explicit: bool = False   # True sobald Nutzer/OCR Datum gesetzt hat
             self._applying_prefill: bool = False  # Guard gegen Trace-Callbacks während QR-Prefill
+            self._sort_column: Optional[str] = None
+            self._sort_ascending: bool = True
 
             self.title("Manuelle Zuordnung — by DF1DS")
             self.resizable(True, True)
@@ -496,7 +498,8 @@ if _TK_OK:
                 ("mode",     "Mode",        60),
             ]
             for cid, heading, width in col_defs:
-                self._tree.heading(cid, text=heading)
+                self._tree.heading(cid, text=heading,
+                                   command=lambda c=cid: self._on_sort_click(c))
                 self._tree.column(cid, width=width, anchor="w", stretch=True)
 
             sb = ttk.Scrollbar(res_frame, orient="vertical", command=self._tree.yview)
@@ -565,6 +568,29 @@ if _TK_OK:
             self._btn_save.config(state="normal" if has_sel else "disabled")
             save_next_state = "normal" if (has_sel and self._has_next) else "disabled"
             self._btn_save_next.config(state=save_next_state)
+
+        def _on_sort_click(self, column: str) -> None:
+            """Spaltenklick: Richtung umkehren wenn dieselbe Spalte, sonst neue Spalte setzen."""
+            if self._sort_column == column:
+                self._sort_ascending = not self._sort_ascending
+            else:
+                self._sort_column = column
+                self._sort_ascending = True
+            self._update_sort_headings()
+            self._update_search()
+
+        def _update_sort_headings(self) -> None:
+            """Setzt ▲/▼ nur am aktiven Spaltenkopf."""
+            _base = {
+                "callsign": "Rufzeichen", "date": "Datum",
+                "band": "Band", "mode": "Mode",
+            }
+            for col, base_text in _base.items():
+                if col == self._sort_column:
+                    arrow = " ▲" if self._sort_ascending else " ▼"
+                    self._tree.heading(col, text=base_text + arrow)
+                else:
+                    self._tree.heading(col, text=base_text)
 
         def _resolve_selection(self) -> Optional[tuple[str, str]]:
             """Liest die gewählte Treeview-Zeile und gibt (qsoid, route) zurück, oder None."""
@@ -710,6 +736,12 @@ if _TK_OK:
             self._iid_to_qsoid.clear()
             self._btn_save.config(state="disabled")
             self._btn_save_next.config(state="disabled")
+
+            # Einstufige Klick-Sortierung (kein written-last im Dialog, ADR-0052)
+            if self._sort_column is not None:
+                candidates = sort_candidates_by_column(
+                    candidates, self._sort_column, self._sort_ascending
+                )
 
             shown, total = apply_display_limit(candidates, self._limit)
             if total > len(shown):
