@@ -82,3 +82,9 @@ niemals wird geraten oder ein falsches QSO bestätigt.
   das ist bewusst so gewählt.
 - Fuzzy nur auf Rufzeichen: exaktes Band/Mode-Matching schützt vor Falsch-Positiven bei
   ähnlichen, aber verschiedenen Werten.
+
+---
+
+**Hinweis (2026-06-23):** Der Ort der QR-Auswertung wurde durch ADR-0051 geändert.
+QR wird nicht mehr im Massen-Lauf ausgewertet, sondern im manuellen Dialog (Vorbefüllung).
+Der Qualitätsrang QR > OCR > manuell bleibt gültig. → ADR-0051

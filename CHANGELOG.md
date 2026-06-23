@@ -7,6 +7,13 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Massen-Lauf wertet nur noch OCR-Text aus (kein PDF-Download mehr pro Karte) — deutlich schnellerer Lauf bei vielen Karten (ADR-0051, Fixes #30)
+- QR-Auswertung im manuellen Dialog: Suchfelder werden QR-vorrangig vorbefüllt (aus denselben PDF-Bytes wie das Kartenbild — kein zweiter Download)
+
+### Added
+- RAM-Byte-Cache (`PdfByteCache`) mit LRU-Verdrängung (150 MB), Hintergrund-Prefetch (4 Karten voraus) — Wechsel zwischen Karten ohne Netzwerk-Wartezeit (ADR-0051)
+
 ## [0.3.0] - 2026-06-22
 
 ### Added

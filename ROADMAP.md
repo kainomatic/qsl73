@@ -521,6 +521,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Update-Dialog, Fehlermelde-Dialog). Wiederverwendbare Infrastruktur `gui/tooltip.py`;
   Texte als `_TT_*`-Konstanten; Konvention in CLAUDE.md + ADR-0047. __version__ = 0.3.0.
 
+### ✅ Performance-Verbesserung manueller Zuordnungs-Dialog (Issue #30, ADR-0051)
+
+- `run_pass`: kein `get_document_download` mehr — evaluate_card nutzt nur OCR-Text.
+  source ∈ {"ocr","none"}, nie "qr". Download-Zähler == 0 bei N Dokumenten (per Test).
+- `manual_assignment.py`: _load_image dekodiert QR aus denselben PDF-Bytes wie das Kartenbild.
+  `compute_qr_prefill` (rein, testbar) überschreibt Felder nur wenn Nutzer nicht getippt hat.
+- `pdf_cache.py`: LRU-RAM-Cache (CACHE_MAX_MB=150 MB), Prefetch-Tiefe PREFETCH_DEPTH=4.
+  Keine Temp-Dateien. Daemon-Threads, stoppbar via stop(). MainWindow-Lebensdauer.
+- ADR-0051 angelegt; KONZEPT.md §6 präzisiert; Issue #30 geschlossen.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

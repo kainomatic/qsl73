@@ -142,9 +142,15 @@ dry-run-Modus).
 
 Für jede Karte werden Felder in dieser Reihenfolge bezogen — höhere Quelle schlägt niedrigere:
 
-1. **QR-Code** (beste Qualität; nur auf modernen Karten vorhanden)
-2. **OCR-Text** (Paperless-OCR; unzuverlässig, braucht Normalisierung)
+1. **QR-Code** (beste Qualität; nur auf modernen Karten; Auswertung im manuellen Dialog, nicht im Massen-Lauf — ADR-0051)
+2. **OCR-Text** (Paperless-OCR; unzuverlässig, braucht Normalisierung; einzige Quelle im Massen-Lauf)
 3. **Manueller Zuordnungs-Bildschirm** (Fallback wenn QR und OCR versagen; § 9)
+
+**Performance-Entscheidung (ADR-0051):** Der Massen-Lauf wertet nur noch den OCR-Text aus
+(`doc["content"]`, gratis im Listen-Response). QR-Auswertung findet im manuellen Dialog statt,
+wo das PDF ohnehin für das Kartenbild geladen wird. Trade-off: Karten mit gutem QR aber
+schlechtem OCR landen auf "unsicher/kein Treffer" und werden im Dialog erledigt — dort sind
+die QR-Felder als Vorbefüllung verfügbar.
 
 ### 6.2 QR-Code-Auswertung
 
@@ -163,6 +169,13 @@ Kartenbild/PDF dekodieren**.
    verwenden; ungültige ignorieren (z. B. Druckdienst-/Werbe-Codes wie Zazzle).
 5. Schlägt Decoding fehl, liefert kein QR einen gültigen QSO-Inhalt oder ist kein QR
    vorhanden → Fallback auf §6.3 (OCR).
+
+**Ablauf im manuellen Dialog (ADR-0051):**
+Der Dialog lädt das PDF für das Kartenbild (§9). Aus **denselben Bytes** wird
+`decode_qr_from_pdf` aufgerufen. Gültige QR-Felder werden in die Suchfelder
+(call, band, mode, date) eingetragen — nur wenn der Nutzer das jeweilige Feld
+noch nicht manuell verändert hat (QR > OCR als Vorbefüllungs-Priorität).
+Kein Auto-Select, keine Auto-Bestätigung: der Dialog bleibt menschengeführt.
 
 Moderne Karten (z. B. DARC-QSL-Service) tragen einen QR-Code mit QSO-Daten als
 strukturierten Klartext. Bekanntes Format (tolerant gegenüber Feldreihenfolge/Varianten):
