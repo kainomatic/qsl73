@@ -507,3 +507,253 @@ class TestWorkflowCardContext:
         ctx = workflow_card_context(card, uncertain, [])
         assert ctx["has_next"] is False
         assert ctx["total_cards"] == 1
+
+
+# ----- Klick-Sortierung (#28) und Textfilter (#29) -----
+
+from qsl73.gui.filter_util import (
+    sort_cards_by_column,
+    sort_cards_written_last_then_by_column,
+    sort_candidates_by_column,
+    text_filter_cards,
+)
+
+
+# --- Test-Hilfsfabriken ---
+
+def _make_card_full(
+    doc_id: int,
+    result: MatchResult = MatchResult.CERTAIN,
+    call: str = "",
+    date: str = "",
+    band: str = "",
+    mode: str = "",
+    source: str = "ocr",
+) -> CardResult:
+    return CardResult(
+        doc_id=doc_id,
+        card_fields=CardFields(call_from=call, call_to=None, date=date, band=band, mode=mode),
+        source=source,
+        outcome=MatchOutcome(result=result, matched_qso=None),
+        existing_confirmations=[],
+    )
+
+
+def _make_candidate(
+    callsign: str = "",
+    date: str = "",
+    band: str = "",
+    mode: str = "",
+    qsoid: str = "q1",
+) -> QsoCandidate:
+    return QsoCandidate(qsoid=qsoid, callsign=callsign, date=date, band=band, mode=mode)
+
+
+# --- sort_cards_by_column ---
+
+def test_sort_cards_call_ascending():
+    cards = [_make_card_full(1, call="DL1ZZZ"), _make_card_full(2, call="DL1AAA")]
+    result = sort_cards_by_column(cards, "call", ascending=True)
+    assert [c.doc_id for c in result] == [2, 1]
+
+
+def test_sort_cards_call_descending():
+    cards = [_make_card_full(1, call="DL1AAA"), _make_card_full(2, call="DL1ZZZ")]
+    result = sort_cards_by_column(cards, "call", ascending=False)
+    assert [c.doc_id for c in result] == [2, 1]
+
+
+def test_sort_cards_date_chronological():
+    cards = [
+        _make_card_full(1, date="2025-12-31"),
+        _make_card_full(2, date="2025-01-02"),
+    ]
+    result = sort_cards_by_column(cards, "date", ascending=True)
+    assert [c.doc_id for c in result] == [2, 1]
+
+
+def test_sort_cards_date_empty_last():
+    cards = [
+        _make_card_full(1, date=""),
+        _make_card_full(2, date="2025-06-01"),
+    ]
+    result = sort_cards_by_column(cards, "date", ascending=True)
+    assert result[0].doc_id == 2
+    assert result[-1].doc_id == 1
+
+
+def test_sort_cards_band_by_wavelength():
+    # Akzeptanzkriterium: 160m < 80m < 40m < 20m < 6m < 2m < 70cm (aufsteigende Frequenz)
+    cards = [
+        _make_card_full(7, band="160m"),
+        _make_card_full(1, band="70cm"),
+        _make_card_full(2, band="2m"),
+        _make_card_full(3, band="6m"),
+        _make_card_full(4, band="20m"),
+        _make_card_full(5, band="40m"),
+        _make_card_full(6, band="80m"),
+    ]
+    result = sort_cards_by_column(cards, "band", ascending=True)
+    ids = [c.doc_id for c in result]
+    assert ids == [7, 6, 5, 4, 3, 2, 1]
+
+
+def test_sort_cards_band_unknown_last():
+    cards = [
+        _make_card_full(1, band="unbekannt"),
+        _make_card_full(2, band="40m"),
+        _make_card_full(3, band=""),
+    ]
+    result = sort_cards_by_column(cards, "band", ascending=True)
+    assert result[0].doc_id == 2
+    assert set(c.doc_id for c in result[1:]) == {1, 3}
+
+
+def test_sort_cards_stable_equal_keys():
+    # Gleiche Sortierwerte → ursprüngliche Reihenfolge erhalten (stable sort)
+    cards = [_make_card_full(1, band="40m"), _make_card_full(2, band="40m")]
+    result = sort_cards_by_column(cards, "band", ascending=True)
+    assert [c.doc_id for c in result] == [1, 2]
+
+
+# --- sort_cards_written_last_then_by_column (V4) ---
+
+def test_written_last_regardless_of_sort_order():
+    # DL1AAA würde alphabetisch vor DL1ZZZ kommen — aber DL1AAA ist written → muss hinten
+    written_card = _make_card_full(1, call="DL1AAA")
+    not_written = _make_card_full(2, call="DL1ZZZ")
+    result = sort_cards_written_last_then_by_column(
+        [written_card, not_written], written={1}, column="call", ascending=True
+    )
+    assert result[0].doc_id == 2
+    assert result[1].doc_id == 1
+
+
+def test_sort_within_not_written_group():
+    cards = [
+        _make_card_full(1, call="DL1ZZZ"),
+        _make_card_full(2, call="DL1AAA"),
+        _make_card_full(3, call="DL1BBB"),  # written
+    ]
+    result = sort_cards_written_last_then_by_column(
+        cards, written={3}, column="call", ascending=True
+    )
+    assert result[0].doc_id == 2   # AAA zuerst
+    assert result[1].doc_id == 1   # ZZZ danach
+    assert result[2].doc_id == 3   # written immer am Ende
+
+
+def test_written_last_column_none_preserves_groups_order():
+    cards = [_make_card_full(1), _make_card_full(2)]
+    result = sort_cards_written_last_then_by_column(cards, written={1}, column=None)
+    assert result[0].doc_id == 2
+    assert result[1].doc_id == 1
+
+
+# --- sort_candidates_by_column ---
+
+def test_sort_candidates_callsign_ascending():
+    cands = [_make_candidate("DL1ZZZ", qsoid="q1"), _make_candidate("DL1AAA", qsoid="q2")]
+    result = sort_candidates_by_column(cands, "callsign", ascending=True)
+    assert result[0].qsoid == "q2"
+    assert result[1].qsoid == "q1"
+
+
+def test_sort_candidates_date_chronological():
+    cands = [
+        _make_candidate(date="2025-12-31", qsoid="q1"),
+        _make_candidate(date="2025-01-02", qsoid="q2"),
+    ]
+    result = sort_candidates_by_column(cands, "date", ascending=True)
+    assert result[0].qsoid == "q2"
+
+
+def test_sort_candidates_band_by_wavelength():
+    # 40m hat niedrigere Frequenz als 2m → steht bei ascending zuerst
+    cands = [
+        _make_candidate(band="2m", qsoid="q1"),
+        _make_candidate(band="40m", qsoid="q2"),
+    ]
+    result = sort_candidates_by_column(cands, "band", ascending=True)
+    assert result[0].qsoid == "q2"  # 40m kommt vor 2m
+
+
+# --- text_filter_cards (V5) ---
+
+def test_text_filter_by_call_substring():
+    cards = [
+        _make_card_full(1, call="DL1ABC"),
+        _make_card_full(2, call="DF1DS"),
+    ]
+    result = text_filter_cards(cards, "dl1")
+    assert len(result) == 1
+    assert result[0].doc_id == 1
+
+
+def test_text_filter_case_insensitive():
+    cards = [_make_card_full(1, call="DF1DS")]
+    assert len(text_filter_cards(cards, "df1ds")) == 1
+    assert len(text_filter_cards(cards, "DF1DS")) == 1
+    assert len(text_filter_cards(cards, "df1")) == 1
+
+
+def test_text_filter_by_date():
+    cards = [
+        _make_card_full(1, date="2025-03-15"),
+        _make_card_full(2, date="2024-03-15"),
+    ]
+    result = text_filter_cards(cards, "2025")
+    assert len(result) == 1
+    assert result[0].doc_id == 1
+
+
+def test_text_filter_by_band():
+    cards = [
+        _make_card_full(1, band="40m"),
+        _make_card_full(2, band="20m"),
+    ]
+    result = text_filter_cards(cards, "40m")
+    assert len(result) == 1
+    assert result[0].doc_id == 1
+
+
+def test_text_filter_empty_query_returns_all():
+    cards = [_make_card_full(1, call="DF1DS"), _make_card_full(2, call="DL1XXX")]
+    assert len(text_filter_cards(cards, "")) == 2
+    assert len(text_filter_cards(cards, "  ")) == 2
+
+
+def test_text_filter_no_match_returns_empty():
+    cards = [_make_card_full(1, call="DF1DS")]
+    assert text_filter_cards(cards, "DK8XX") == []
+
+
+def test_text_filter_mode_not_searchable():
+    # mode ist NICHT durchsuchbar (V5)
+    cards = [_make_card_full(1, mode="FT8", call="DL1XXX")]
+    assert text_filter_cards(cards, "FT8") == []
+
+
+def test_text_filter_source_not_searchable():
+    # source ist NICHT durchsuchbar (V5)
+    cards = [_make_card_full(1, source="qr", call="DL1XXX")]
+    assert text_filter_cards(cards, "qr") == []
+
+
+def test_text_filter_and_category_filter_intersection():
+    # Simuliert V1: Kategorie-Filter zuerst, dann Textfilter
+    from qsl73.gui.filter_util import filter_results
+    rr = RunResult(
+        certain=[
+            _make_card_full(1, call="DF1DS", result=MatchResult.CERTAIN),
+            _make_card_full(2, call="DL1XXX", result=MatchResult.CERTAIN),
+        ],
+        uncertain=[],
+        no_match=[],
+        fingerprint={},
+        expected_states={},
+    )
+    category_filtered = filter_results(rr, "certain")   # beide Karten
+    text_filtered = text_filter_cards(category_filtered, "DF1")
+    assert len(text_filtered) == 1
+    assert text_filtered[0].doc_id == 1

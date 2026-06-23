@@ -1,7 +1,10 @@
 # QSL73 — Copyright (C) 2026 DF1DS (kainomatic) — SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
+from datetime import date as _date
+
 from qsl73.matching import MatchResult
+from qsl73.normalize import BAND_ORDER
 from qsl73.run import CardResult, RunResult
 
 
@@ -251,3 +254,123 @@ def format_progress_text(done: int, total: int, message: str) -> str:
         return message
     pct = done * 100 // total
     return f"{message} — {pct} %"
+
+
+# ---------------------------------------------------------------------------
+# Klick-Sortierung (#28) — tk-frei, testbar (ADR-0052)
+# ---------------------------------------------------------------------------
+
+
+def _date_sort_key(date_str) -> tuple:
+    """Sortierschlüssel für YYYY-MM-DD. Leer/ungültig → ans Ende."""
+    s = (date_str or "").strip()
+    if not s or s == "–":
+        return (1, "")
+    try:
+        _date.fromisoformat(s[:10])
+        return (0, s[:10])
+    except ValueError:
+        return (1, "")
+
+
+def _band_sort_key(band_str) -> tuple:
+    """Sortierschlüssel nach BAND_ORDER-Reihenfolge. Unbekannt/leer → ans Ende."""
+    s = (band_str or "").strip()
+    if not s or s == "–":
+        return (1, 0)
+    try:
+        return (0, BAND_ORDER.index(s))
+    except ValueError:
+        return (1, 0)
+
+
+def _card_sort_key(card, column: str) -> tuple:
+    """Extrakt Sortierschlüssel aus CardResult nach Spaltenname."""
+    if column == "call":
+        v = (card.card_fields.call_from or card.card_fields.call_to or "").upper()
+        return (0 if v else 1, v)
+    if column == "date":
+        return _date_sort_key(card.card_fields.date)
+    if column == "band":
+        return _band_sort_key(card.card_fields.band)
+    if column == "mode":
+        v = (card.card_fields.mode or "").upper()
+        return (0 if v else 1, v)
+    if column == "source":
+        v = (card.source or "").upper()
+        return (0 if v else 1, v)
+    if column == "status":
+        order = {MatchResult.CERTAIN: 0, MatchResult.UNCERTAIN: 1, MatchResult.NO_MATCH: 2}
+        return (0, order.get(card.outcome.result, 99))
+    return (0, "")
+
+
+def sort_cards_by_column(cards: list, column: str, ascending: bool = True) -> list:
+    """Sortiert CardResult-Liste nach Spalte (stabil, tk-frei)."""
+    return sorted(cards, key=lambda c: _card_sort_key(c, column), reverse=not ascending)
+
+
+def sort_cards_written_last_then_by_column(
+    cards: list,
+    written: set,
+    column,
+    ascending: bool = True,
+) -> list:
+    """Zweistufige Sortierung: written-last (Ebene 1) + Klick-Kriterium (Ebene 2, V4).
+
+    column=None → entspricht sort_cards_written_last ohne Klick-Sortierung.
+    """
+    not_written = [c for c in cards if c.doc_id not in written]
+    written_cards = [c for c in cards if c.doc_id in written]
+    if column is not None:
+        not_written = sort_cards_by_column(not_written, column, ascending)
+        written_cards = sort_cards_by_column(written_cards, column, ascending)
+    return not_written + written_cards
+
+
+def _candidate_sort_key(candidate, column: str) -> tuple:
+    """Extrakt Sortierschlüssel aus QsoCandidate nach Spaltenname."""
+    if column == "callsign":
+        v = (getattr(candidate, "callsign", "") or "").upper()
+        return (0 if v else 1, v)
+    if column == "date":
+        return _date_sort_key(getattr(candidate, "date", None))
+    if column == "band":
+        return _band_sort_key(getattr(candidate, "band", None))
+    if column == "mode":
+        v = (getattr(candidate, "mode", "") or "").upper()
+        return (0 if v else 1, v)
+    return (0, "")
+
+
+def sort_candidates_by_column(candidates: list, column: str, ascending: bool = True) -> list:
+    """Sortiert QsoCandidate-Liste nach Spalte (stabil, tk-frei)."""
+    return sorted(
+        candidates,
+        key=lambda c: _candidate_sort_key(c, column),
+        reverse=not ascending,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Textsuche (#29) — tk-frei, testbar (V5: call/date/band durchsuchbar)
+# ---------------------------------------------------------------------------
+
+
+def text_filter_cards(cards: list, query: str) -> list:
+    """Filtert CardResult-Liste per Teilstring über call/date/band (V5, ADR-0052).
+
+    case-insensitiv, Teilstring. Leerer Query → Kopie aller Karten unverändert.
+    Durchsuchbare Felder: call_from/call_to, date, band. mode/source/status NICHT.
+    """
+    q = query.strip().lower() if query else ""
+    if not q:
+        return list(cards)
+
+    def matches(card) -> bool:
+        call = (card.card_fields.call_from or card.card_fields.call_to or "").lower()
+        date = (card.card_fields.date or "").lower()
+        band = (card.card_fields.band or "").lower()
+        return q in call or q in date or q in band
+
+    return [c for c in cards if matches(c)]
