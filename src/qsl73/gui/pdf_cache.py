@@ -26,6 +26,9 @@ _log = logging.getLogger("qsl73")
 PREFETCH_DEPTH: int = 4
 CACHE_MAX_MB: int = 150
 
+# Finding 4: Konstante einmal ausrechnen statt in jedem _put()-Aufruf
+_CACHE_MAX_BYTES: int = CACHE_MAX_MB * 1024 * 1024
+
 
 class PdfByteCache:
     """LRU-Byte-Cache für PDF-Dokumente mit Hintergrund-Prefetch.
@@ -39,6 +42,8 @@ class PdfByteCache:
         self._cache_bytes: int = 0
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
+        # Finding 1: Thread-Referenzen speichern für join() in stop()
+        self._threads: list[threading.Thread] = []
 
     # ------------------------------------------------------------------
     # Öffentliche API
@@ -48,16 +53,23 @@ class PdfByteCache:
         """Gibt PDF-Bytes aus Cache oder lädt sie via downloader (blockierend).
 
         Bei Cache-Treffer: kein Netzwerk. Bei Cache-Miss: download + in Cache legen.
-        Thread-safe.
+        Thread-safe. Finding 2: Doppelt-Check nach Download vermeidet TOCTOU-Doppeldownload.
         """
         with self._lock:
             if doc_id in self._cache:
                 self._cache.move_to_end(doc_id)
                 return self._cache[doc_id]
 
+        # Download ohne Lock (langsam, kein Blockieren anderer Threads)
         data = downloader(doc_id)
-        self._put(doc_id, data)
-        return data
+
+        with self._lock:
+            # Doppelt-Check: Parallelthread könnte inzwischen eingelegt haben
+            if doc_id not in self._cache:
+                self._put_locked(doc_id, data)
+            else:
+                self._cache.move_to_end(doc_id)
+            return self._cache[doc_id]
 
     def prefetch(self, doc_ids: list[int], downloader: Callable[[int], bytes]) -> None:
         """Lädt die ersten PREFETCH_DEPTH Einträge aus doc_ids im Hintergrund.
@@ -71,17 +83,27 @@ class PdfByteCache:
             with self._lock:
                 if doc_id in self._cache:
                     continue
-            t = threading.Thread(
-                target=self._prefetch_one,
-                args=(doc_id, downloader),
-                daemon=True,
-                name=f"pdf-prefetch-{doc_id}",
-            )
-            t.start()
+                # Finding 1: stop-Check und Thread-Registrierung unter Lock
+                if self._stop_event.is_set():
+                    break
+                t = threading.Thread(
+                    target=self._prefetch_one,
+                    args=(doc_id, downloader),
+                    daemon=True,
+                    name=f"pdf-prefetch-{doc_id}",
+                )
+                t.start()
+                self._threads.append(t)
 
     def stop(self) -> None:
-        """Signalisiert laufenden Prefetch-Threads zu stoppen. Idempotent."""
+        """Signalisiert laufenden Prefetch-Threads zu stoppen und wartet auf sie (max. 2 s je Thread). Idempotent."""
         self._stop_event.set()
+        # Finding 1: Threads joinen damit stop() wirklich blockiert bis alle fertig
+        with self._lock:
+            threads = list(self._threads)
+            self._threads.clear()
+        for t in threads:
+            t.join(timeout=2.0)
 
     def clear(self) -> None:
         """Leert den Cache und setzt den Byte-Zähler zurück."""
@@ -103,18 +125,25 @@ class PdfByteCache:
     # Interne Helfer
     # ------------------------------------------------------------------
 
+    def _put_locked(self, doc_id: int, data: bytes) -> None:
+        """Legt data unter doc_id in den Cache (muss bereits unter self._lock aufgerufen werden).
+
+        Verdrängt LRU-Einträge bis unter _CACHE_MAX_BYTES. Finding 4: Konstante statt
+        inline-Berechnung.
+        """
+        if doc_id in self._cache:
+            self._cache_bytes -= len(self._cache.pop(doc_id))
+        self._cache[doc_id] = data
+        self._cache.move_to_end(doc_id)
+        self._cache_bytes += len(data)
+        while self._cache_bytes > _CACHE_MAX_BYTES and self._cache:
+            _, evicted = self._cache.popitem(last=False)
+            self._cache_bytes -= len(evicted)
+
     def _put(self, doc_id: int, data: bytes) -> None:
-        """Legt data unter doc_id in den Cache; verdrängt LRU-Einträge bis unter Grenze."""
-        max_bytes = CACHE_MAX_MB * 1024 * 1024
+        """Legt data unter doc_id in den Cache (erwirbt selbst den Lock)."""
         with self._lock:
-            if doc_id in self._cache:
-                self._cache_bytes -= len(self._cache.pop(doc_id))
-            self._cache[doc_id] = data
-            self._cache.move_to_end(doc_id)
-            self._cache_bytes += len(data)
-            while self._cache_bytes > max_bytes and self._cache:
-                _, evicted = self._cache.popitem(last=False)
-                self._cache_bytes -= len(evicted)
+            self._put_locked(doc_id, data)
 
     def _prefetch_one(self, doc_id: int, downloader: Callable[[int], bytes]) -> None:
         """Lädt ein Dokument im Hintergrund-Thread. Kein Absturz bei Fehlern."""
