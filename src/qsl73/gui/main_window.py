@@ -189,6 +189,8 @@ class MainWindow(tk.Tk):
         self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
         self._pending_update_result = None    # UpdateCheckResult wenn Nutzer „Später" gewählt
         self._help_menu: Optional[tk.Menu] = None
+        from qsl73.gui.pdf_cache import PdfByteCache
+        self._pdf_cache: PdfByteCache = PdfByteCache()
 
         title = f"QSL73 v{__version__}"
         if CHANNEL == "beta":
@@ -201,6 +203,7 @@ class MainWindow(tk.Tk):
         apply_window_icon(self)
 
         self._build_ui()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._poll()
 
         # QR-Startwarnung (Issue #14 / ADR-0026)
@@ -211,6 +214,11 @@ class MainWindow(tk.Tk):
                 "⚠ QR-Code-Auswertung nicht verfügbar "
                 "(zxing-cpp/pymupdf fehlt) — es wird nur OCR genutzt."
             )
+
+    def _on_close(self) -> None:
+        """Fenster-Schließen: Cache stoppen, dann Fenster zerstören."""
+        self._pdf_cache.stop()
+        self.destroy()
 
     # ------------------------------------------------------------------
     # UI-Aufbau
@@ -606,11 +614,12 @@ class MainWindow(tk.Tk):
 
         pc = self._paperless_client
         cfg = self._config
+        cache = self._pdf_cache
 
         def _image_loader(doc_id_arg: int) -> bytes:
             if pc is None:
                 raise RuntimeError("Kein Paperless-Client verfügbar")
-            return pc.get_document_download(doc_id_arg)
+            return cache.get_or_download(doc_id_arg, pc.get_document_download)
 
         return ManualAssignmentDialog(
             parent=self,
@@ -698,6 +707,13 @@ class MainWindow(tk.Tk):
 
             card = seq[0]
             has_next = len(seq) > 1
+
+            # Prefetch der nächsten PREFETCH_DEPTH Karten im Hintergrund (ADR-0051)
+            if self._paperless_client is not None:
+                from qsl73.gui.pdf_cache import PREFETCH_DEPTH
+                upcoming_ids = [c.doc_id for c in seq[1:PREFETCH_DEPTH + 1]]
+                if upcoming_ids:
+                    self._pdf_cache.prefetch(upcoming_ids, self._paperless_client.get_document_download)
 
             ctx = {
                 "phase": phase_type,
