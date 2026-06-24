@@ -554,14 +554,20 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   cancel_event-Mechanik in run_pass↔RunController; cancelled-Flag in RunResult (ADR-0022).
 - ADR-0053 angelegt; 1237 Tests grün.
 
-### 🔧 Beta-Release v0.4.0-beta1 — IN VORBEREITUNG
+### ✅ Beta-Release v0.4.0-beta1 — VERIFIZIERT
 
-- `__version__ = "0.4.0"` auf dev gesetzt; Tag `v0.4.0-beta1` ausstehend.
-- Enthält: Performance #30 (kein PDF-Download im Massen-Lauf), Treeview-Sortierung #28,
-  Live-Textsuche #29, Durchlauf abbrechbar #31, Self-Update Beta-Fix #27.
-- Ziel: Self-Update-Fix ADR-0054 unter Realbedingungen verifizieren (ältere Beta erkennt
-  v0.4.0-beta1 und bietet Update an). Stables Release v0.4.0 folgt nach erfolgreichem Test.
-- Win10-Verifikation durch DF1DS ausstehend.
+- Tag `v0.4.0-beta1` gepusht → GitHub Actions Workflow grün →
+  Pre-Release `v0.4.0-beta1` mit Asset `QSL73-Beta-Setup-v0.4.0.exe` veröffentlicht.
+- Enthält: Performance #30, Treeview-Sortierung #28, Live-Textsuche #29,
+  Durchlauf abbrechbar #31, Self-Update Beta-Fix #27 (ADR-0054).
+- **Self-Update-Test bestanden (DF1DS):** laufende v0.3.0-Beta erkannte v0.4.0-beta1,
+  lud herunter und installierte — Bug 1 aus #27 real verifiziert.
+
+### ✅ Stable-Release v0.4.0 — VERÖFFENTLICHT (2026-06-24)
+
+- CHANGELOG [0.4.0] - 2026-06-24 eingefroren; dev → main Fast-Forward; Tag `v0.4.0` gesetzt.
+- Alle fünf Issues enthalten: #30 (Performance), #28 (Treeview-Sortierung),
+  #29 (Live-Textsuche), #31 (Durchlauf abbrechbar), #27 (Self-Update Beta-Fix).
 
 ## V2 — Vorgemerkte Features
 
