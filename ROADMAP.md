@@ -521,6 +521,54 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Update-Dialog, Fehlermelde-Dialog). Wiederverwendbare Infrastruktur `gui/tooltip.py`;
   Texte als `_TT_*`-Konstanten; Konvention in CLAUDE.md + ADR-0047. __version__ = 0.3.0.
 
+### ✅ Performance-Verbesserung manueller Zuordnungs-Dialog (Issue #30, ADR-0051)
+
+- `run_pass`: kein `get_document_download` mehr — evaluate_card nutzt nur OCR-Text.
+  source ∈ {"ocr","none"}, nie "qr". Download-Zähler == 0 bei N Dokumenten (per Test).
+- `manual_assignment.py`: _load_image dekodiert QR aus denselben PDF-Bytes wie das Kartenbild.
+  `compute_qr_prefill` (rein, testbar) überschreibt Felder nur wenn Nutzer nicht getippt hat.
+- `pdf_cache.py`: LRU-RAM-Cache (CACHE_MAX_MB=150 MB), Prefetch-Tiefe PREFETCH_DEPTH=4.
+  Keine Temp-Dateien. Daemon-Threads, stoppbar via stop(). MainWindow-Lebensdauer.
+- ADR-0051 angelegt; KONZEPT.md §6 präzisiert; Issue #30 geschlossen.
+
+### ✅ UX-Verbesserung — Treeview-Sortierung + Textsuche (Issues #28 + #29, ADR-0052)
+
+- Klick-Sortierung (▲/▼) in Hauptfenster und manuellem Zuordnungs-Dialog.
+  Band nach Wellenlänge (160m…23cm); Datum chronologisch; geschriebene Karten
+  stets unten (zweistufige Sortierung, ADR-0052).
+- Live-Textsuche im Hauptfenster über call/date/band; UND-verknüpft mit
+  Kategorie-Filter; ×-Schaltfläche zum Leeren. Tooltips gemäß ADR-0047.
+
+### ✅ Bug Fix — Self-Update Beta-Erkennung (Issue #27, ADR-0054)
+
+- BUG 1: Release-Workflow patcht `__version__` ephemer auf die volle Tag-Version (z. B. `"0.3.0"` → `"0.3.0-beta2"`) beim Beta-Build (Option A, kein Commit); Versions-Sync-Check (Schritt 3) bleibt unverändert gültig (prüft nur X.Y.Z-Basis).
+- BUG 2: `semver_gt` und `_find_best_release._sort_key` in `updater.py` vergleichen `betaN`-Suffixe jetzt numerisch (`beta10 > beta2`); neue Hilfsfunktion `_pre_sort_key` (DRY). Robuster Fallback für unbekannte Suffixe (`rc1` u. ä.). ADR-0054.
+
+### ✅ UX-Verbesserung — Durchlauf abbrechbar (Issue #31, ADR-0053)
+
+- Button-Umwandlung (V1): „Durchlauf starten" → „Durchlauf abbrechen" während Lauf,
+  zurück nach Lauf-Ende oder Abbruch.
+- Teilergebnis anzeigen (V2): abgebrochener Lauf zeigt vollständig gelesene Karten
+  mit Status-Hinweis „Teilergebnis: N Karten gelesen".
+- Abbruch nur an Kartengrenze (V3): Datensicherheit — jede Karte im Ergebnis vollständig;
+  cancel_event-Mechanik in run_pass↔RunController; cancelled-Flag in RunResult (ADR-0022).
+- ADR-0053 angelegt; 1237 Tests grün.
+
+### ✅ Beta-Release v0.4.0-beta1 — VERIFIZIERT
+
+- Tag `v0.4.0-beta1` gepusht → GitHub Actions Workflow grün →
+  Pre-Release `v0.4.0-beta1` mit Asset `QSL73-Beta-Setup-v0.4.0.exe` veröffentlicht.
+- Enthält: Performance #30, Treeview-Sortierung #28, Live-Textsuche #29,
+  Durchlauf abbrechbar #31, Self-Update Beta-Fix #27 (ADR-0054).
+- **Self-Update-Test bestanden (DF1DS):** laufende v0.3.0-Beta erkannte v0.4.0-beta1,
+  lud herunter und installierte — Bug 1 aus #27 real verifiziert.
+
+### ✅ Stable-Release v0.4.0 — VERÖFFENTLICHT (2026-06-24)
+
+- CHANGELOG [0.4.0] - 2026-06-24 eingefroren; dev → main Fast-Forward; Tag `v0.4.0` gesetzt.
+- Alle fünf Issues enthalten: #30 (Performance), #28 (Treeview-Sortierung),
+  #29 (Live-Textsuche), #31 (Durchlauf abbrechbar), #27 (Self-Update Beta-Fix).
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

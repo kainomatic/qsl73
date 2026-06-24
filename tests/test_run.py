@@ -1235,3 +1235,132 @@ class TestWriteSelectedAudit:
         )
         content = (log_dir / "audit.log").read_text(encoding="utf-8")
         assert "call=DK1AB" in content
+
+
+# ---------------------------------------------------------------------------
+# run_pass — Abbruch-Mechanik (ADR-0053)
+# ---------------------------------------------------------------------------
+
+def test_run_result_cancelled_flag_default_false():
+    """RunResult.cancelled ist standardmäßig False (Abwärtskompatibilität)."""
+    rr = RunResult(
+        certain=[], uncertain=[], no_match=[],
+        fingerprint={}, expected_states={},
+    )
+    assert rr.cancelled is False
+
+
+def test_run_pass_without_cancel_event_cancelled_false(tmp_path):
+    """run_pass ohne cancel_event → cancelled=False (bestehende Signatur unverändert)."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    conn.commit(); conn.close()
+
+    client = _make_paperless_mock([])
+    result = run_pass(client, db_path, _make_config())
+
+    assert result.cancelled is False
+
+
+def test_run_pass_cancel_event_set_before_start(tmp_path):
+    """cancel_event bereits gesetzt → 0 Karten verarbeitet, cancelled=True (V3, ADR-0053)."""
+    import threading
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK8XX", "2025-04-02 19:42:00Z", "6m", "FT8", "DL0AAA")
+    conn.commit(); conn.close()
+
+    docs = [{"id": 1, "content": "From: DK8XX To: DL0AAA Date: 02.04.25 Band: 6m Mode: FT8"}]
+    client = _make_paperless_mock(docs)
+
+    cancel_event = threading.Event()
+    cancel_event.set()  # Bereits gesetzt vor dem Lauf
+
+    result = run_pass(client, db_path, _make_config(), cancel_event=cancel_event)
+
+    assert result.cancelled is True
+    total = len(result.certain) + len(result.uncertain) + len(result.no_match)
+    assert total == 0  # Keine Karte wurde verarbeitet
+
+
+def test_run_pass_cancel_after_first_card_gives_partial_result(tmp_path):
+    """cancel_event nach erster Karte → genau 1 vollständige Karte im Teilergebnis (V3)."""
+    import threading
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK8XX", "2025-04-01 10:00:00Z", "40m", "FT8", "DL0AAA")
+    _insert_qso(conn, "QSO2", "DL1XXX", "2025-04-02 11:00:00Z", "20m", "SSB", "DL0AAA")
+    _insert_qso(conn, "QSO3", "OE6XXX", "2025-04-03 12:00:00Z", "6m", "CW", "DL0AAA")
+    conn.commit(); conn.close()
+
+    docs = [
+        {"id": 1, "content": "From: DK8XX To: DL0AAA Date: 01.04.25 Band: 40m Mode: FT8"},
+        {"id": 2, "content": "From: DL1XXX To: DL0AAA Date: 02.04.25 Band: 20m Mode: SSB"},
+        {"id": 3, "content": "From: OE6XXX To: DL0AAA Date: 03.04.25 Band: 6m Mode: CW"},
+    ]
+    client = _make_paperless_mock(docs)
+
+    cancel_event = threading.Event()
+
+    def _on_progress(done: int, total: int, msg: str) -> None:
+        if done >= 1:
+            # Nach erster Karte abbrechen — nächste Iteration prüft das Event
+            cancel_event.set()
+
+    result = run_pass(
+        client, db_path, _make_config(),
+        on_progress=_on_progress,
+        cancel_event=cancel_event,
+    )
+
+    assert result.cancelled is True
+    total = len(result.certain) + len(result.uncertain) + len(result.no_match)
+    # Exakt 1 vollständig verarbeitete Karte — keine halbfertige CardResult (V3)
+    assert total == 1
+
+
+def test_run_pass_cancel_check_only_at_card_boundary(tmp_path):
+    """Das cancel_event wird NUR VOR jeder Karte geprüft, nicht mitten in der Verarbeitung.
+
+    Sichergestellt durch: wenn das Event während des Progress-Callbacks (nach Karte N)
+    gesetzt wird, erscheint Karte N vollständig im Ergebnis — keine halbe Karte.
+    """
+    import threading
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    _insert_qso(conn, "QSO1", "DK8XX", "2025-04-01 10:00:00Z", "40m", "FT8", "DL0AAA")
+    _insert_qso(conn, "QSO2", "DL1XXX", "2025-04-02 11:00:00Z", "20m", "SSB", "DL0AAA")
+    conn.commit(); conn.close()
+
+    docs = [
+        {"id": 1, "content": "From: DK8XX To: DL0AAA Date: 01.04.25 Band: 40m Mode: FT8"},
+        {"id": 2, "content": "From: DL1XXX To: DL0AAA Date: 02.04.25 Band: 20m Mode: SSB"},
+    ]
+    client = _make_paperless_mock(docs)
+
+    cancel_event = threading.Event()
+    processed_doc_ids: list[int] = []
+
+    original_progress_calls: list[tuple[int, int]] = []
+
+    def _on_progress(done: int, total: int, msg: str) -> None:
+        original_progress_calls.append((done, total))
+        if done >= 1:
+            cancel_event.set()
+
+    result = run_pass(
+        client, db_path, _make_config(),
+        on_progress=_on_progress,
+        cancel_event=cancel_event,
+    )
+
+    assert result.cancelled is True
+    all_cards = result.certain + result.uncertain + result.no_match
+    # Genau 1 Karte im Ergebnis — die zweite Karte wurde NICHT angetastet
+    assert len(all_cards) == 1
+    # doc_id der einzigen Karte muss doc_id=1 sein (erste Karte vollständig verarbeitet)
+    assert all_cards[0].doc_id == 1

@@ -131,7 +131,8 @@ def test_stop_prevents_new_prefetch_work():
     cache.prefetch([1, 2, 3], slow_dl)  # startet keine Threads mehr nach stop
 
     time.sleep(0.2)
-    # downloaded kann leer oder teilweise sein — Hauptsache kein Crash
+    # Finding 3: Assertion hinzufügen — nach stop() darf kein neuer Download laufen
+    assert downloaded == [], f"Prefetch lief nach stop() noch: {downloaded}"
     cache.stop()  # zweimaliges stop() muss safe sein
 
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
@@ -60,6 +61,7 @@ class RunResult:
     fingerprint: dict                  # DB-Fingerabdruck aus Sammelphase → write_selected
     expected_states: dict[str, str]    # qsoid → R-Wert aus Sammelphase → write_selected
     candidates: list[QsoCandidate] = field(default_factory=list)  # offene QSO-Kandidaten für manuellen Zuordnungs-Dialog
+    cancelled: bool = False  # True wenn run_pass via cancel_event abgebrochen (ADR-0053)
 
 
 @dataclass
@@ -361,11 +363,16 @@ def run_pass(
     db_path: str | Path,
     config: Config,
     on_progress: Optional[Callable[[int, int, str], None]] = None,
+    cancel_event: Optional[threading.Event] = None,
 ) -> RunResult:
     """Rein lesender Lauf: Sammeln → Auswerten → Matchen → Vorschau.
 
     Kein Schreiben in dieser Funktion. Liefert RunResult mit Einteilung
     sicher/unsicher/kein Match sowie Fingerabdruck + expected_states für write_selected.
+
+    cancel_event: optionales threading.Event — wenn gesetzt, bricht der Lauf an der
+    nächsten Kartengrenze ab (V3, ADR-0053). Die bis dahin vollständig verarbeiteten
+    Karten werden als Teilergebnis zurückgegeben (cancelled=True im RunResult).
     """
 
     def _progress(done: int, total: int, msg: str) -> None:
@@ -399,6 +406,13 @@ def run_pass(
 
     # 3. Pro Dokument: auswerten und matchen
     for idx, doc in enumerate(docs):
+        # Abbruch-Prüfung an der Kartengrenze (V3, ADR-0053) — NUR hier, nie
+        # mitten in der Einzelkarten-Verarbeitung. Vollständigkeit aller bisher
+        # verarbeiteten Karten im Teilergebnis ist damit garantiert.
+        if cancel_event is not None and cancel_event.is_set():
+            _log.info("Durchlauf abgebrochen nach %d/%d Karten.", idx, total)
+            break
+
         doc_id = doc["id"]
 
         card_fields, source = evaluate_card(
@@ -441,10 +455,17 @@ def run_pass(
 
         _progress(idx + 1, total, f"Karte {idx + 1}/{total} ausgewertet")
 
-    _log.info(
-        "Lauf beendet — sicher=%d unsicher=%d kein_treffer=%d",
-        len(certain), len(uncertain), len(no_match),
-    )
+    cancelled = cancel_event is not None and cancel_event.is_set()
+    if cancelled:
+        _log.info(
+            "Lauf abgebrochen (Teilergebnis) — sicher=%d unsicher=%d kein_treffer=%d",
+            len(certain), len(uncertain), len(no_match),
+        )
+    else:
+        _log.info(
+            "Lauf beendet — sicher=%d unsicher=%d kein_treffer=%d",
+            len(certain), len(uncertain), len(no_match),
+        )
     return RunResult(
         certain=certain,
         uncertain=uncertain,
@@ -452,6 +473,7 @@ def run_pass(
         fingerprint=data.fingerprint,
         expected_states=data.expected_states,
         candidates=data.candidates,
+        cancelled=cancelled,
     )
 
 

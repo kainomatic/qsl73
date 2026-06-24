@@ -11,6 +11,7 @@
   last_page_index        — Seitenanzahl → Index der letzten Seite (0-basiert)
   wrap_page_index        — Seiten-Umlauf (wrap-around), direction +1/-1
   apply_display_limit    — (candidates, limit) → (shown_list, total_count); ADR-0030
+  compute_qr_prefill     — QR-Felder + OCR-Stand → Überschreibungs-Dict (rein, tk-frei)
 
 tk-abhängig:
   ManualAssignmentDialog — modales tk.Toplevel; result = (qsoid, route) | None;
@@ -22,7 +23,7 @@ import io
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
-from qsl73.gui.filter_util import apply_display_limit
+from qsl73.gui.filter_util import apply_display_limit, sort_candidates_by_column
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
 from qsl73.gui.tooltip import attach_tooltip
 from qsl73.matching import CardFields, MatchResult, QsoCandidate
@@ -171,6 +172,54 @@ def wrap_page_index(current: int, page_count: int, direction: int) -> int:
     return (current + direction) % page_count
 
 
+def compute_qr_prefill(
+    qr_fields: CardFields,
+    current_call: str,
+    current_band: str,
+    current_mode: str,
+    ocr_call: str,
+    ocr_band: str,
+    ocr_mode: str,
+    date_explicit: bool,
+    current_date: str = "",
+    ocr_date: str = "",
+) -> dict:
+    """Berechnet QR-Vorbefüllung als dict (rein, tk-frei, testbar).
+
+    Überschreibt ein Feld nur wenn der aktuelle Wert == OCR-Vorbefüllung
+    oder leer ist (Nutzer hat das Feld noch nicht verändert).
+
+    Datum-Priorität (ADR-0051): QR überschreibt OCR-Datum, solange der
+    Nutzer das Datum noch nicht manuell geändert hat. Konkret: Datum wird
+    überschrieben wenn date_explicit=False (noch gar nicht gesetzt) ODER
+    wenn der aktuelle Wert noch dem OCR-Datum entspricht (Nutzer hat nichts
+    geändert). Nur wenn Nutzer ein abweichendes Datum eingetragen hat
+    (current_date ≠ ocr_date bei date_explicit=True), bleibt sein Wert
+    erhalten.
+
+    Returns:
+        Dict mit Schlüsseln "call", "band", "mode", "date" — nur für Felder,
+        die tatsächlich überschrieben werden sollen.
+    """
+    result: dict = {}
+    if qr_fields.call_from:
+        if not current_call or current_call == ocr_call:
+            result["call"] = qr_fields.call_from
+    if qr_fields.band:
+        if not current_band or current_band == ocr_band:
+            result["band"] = qr_fields.band
+    if qr_fields.mode:
+        if not current_mode or current_mode == ocr_mode:
+            result["mode"] = qr_fields.mode
+    if qr_fields.date:
+        # Datum setzen wenn: noch nicht explizit gesetzt (date_explicit=False)
+        # ODER aktueller Wert stimmt noch mit OCR-Datum überein (Nutzer hat nicht
+        # manuell geändert) — analog zur call/band/mode-Logik. ADR-0051: QR > OCR.
+        if not date_explicit or (ocr_date and current_date == ocr_date):
+            result["date"] = qr_fields.date
+    return result
+
+
 # ---------------------------------------------------------------------------
 # tk-Toplevel — nur importieren wenn tk verfügbar
 # ---------------------------------------------------------------------------
@@ -227,10 +276,19 @@ if _TK_OK:
             self._zoom_win = None         # Zoom-Fenster (Toplevel) oder None
             self._use_datepicker: bool = False  # tkcalendar verfügbar?
             self._date_explicit: bool = False   # True sobald Nutzer/OCR Datum gesetzt hat
+            self._applying_prefill: bool = False  # Guard gegen Trace-Callbacks während QR-Prefill
+            self._sort_column: Optional[str] = None
+            self._sort_ascending: bool = True
 
             self.title("Manuelle Zuordnung — by DF1DS")
             self.resizable(True, True)
             self.grab_set()
+
+            # OCR-Vorbefüllung merken für QR-Vergleich in _apply_qr_prefill
+            self._ocr_prefill_call = self._card.card_fields.call_from or ""
+            self._ocr_prefill_band = self._card.card_fields.band or ""
+            self._ocr_prefill_mode = self._card.card_fields.mode or ""
+            self._ocr_prefill_date = self._card.card_fields.date or ""
 
             self._build_ui()
             self._update_search()
@@ -440,7 +498,8 @@ if _TK_OK:
                 ("mode",     "Mode",        60),
             ]
             for cid, heading, width in col_defs:
-                self._tree.heading(cid, text=heading)
+                self._tree.heading(cid, text=heading,
+                                   command=lambda c=cid: self._on_sort_click(c))
                 self._tree.column(cid, width=width, anchor="w", stretch=True)
 
             sb = ttk.Scrollbar(res_frame, orient="vertical", command=self._tree.yview)
@@ -486,6 +545,8 @@ if _TK_OK:
         # ------------------------------------------------------------------
 
         def _on_field_change(self, *_args) -> None:
+            if self._applying_prefill:
+                return
             self._update_search()
 
         def _on_date_changed(self, _event=None) -> None:
@@ -507,6 +568,29 @@ if _TK_OK:
             self._btn_save.config(state="normal" if has_sel else "disabled")
             save_next_state = "normal" if (has_sel and self._has_next) else "disabled"
             self._btn_save_next.config(state=save_next_state)
+
+        def _on_sort_click(self, column: str) -> None:
+            """Spaltenklick: Richtung umkehren wenn dieselbe Spalte, sonst neue Spalte setzen."""
+            if self._sort_column == column:
+                self._sort_ascending = not self._sort_ascending
+            else:
+                self._sort_column = column
+                self._sort_ascending = True
+            self._update_sort_headings()
+            self._update_search()
+
+        def _update_sort_headings(self) -> None:
+            """Setzt ▲/▼ nur am aktiven Spaltenkopf."""
+            _base = {
+                "callsign": "Rufzeichen", "date": "Datum",
+                "band": "Band", "mode": "Mode",
+            }
+            for col, base_text in _base.items():
+                if col == self._sort_column:
+                    arrow = " ▲" if self._sort_ascending else " ▼"
+                    self._tree.heading(col, text=base_text + arrow)
+                else:
+                    self._tree.heading(col, text=base_text)
 
         def _resolve_selection(self) -> Optional[tuple[str, str]]:
             """Liest die gewählte Treeview-Zeile und gibt (qsoid, route) zurück, oder None."""
@@ -653,6 +737,12 @@ if _TK_OK:
             self._btn_save.config(state="disabled")
             self._btn_save_next.config(state="disabled")
 
+            # Einstufige Klick-Sortierung (kein written-last im Dialog, ADR-0052)
+            if self._sort_column is not None:
+                candidates = sort_candidates_by_column(
+                    candidates, self._sort_column, self._sort_ascending
+                )
+
             shown, total = apply_display_limit(candidates, self._limit)
             if total > len(shown):
                 self._res_frame.config(
@@ -682,6 +772,15 @@ if _TK_OK:
                 return
             try:
                 pdf_bytes = self._image_loader(self._card.doc_id)
+                # QR aus denselben Bytes dekodieren (ADR-0051) — PDF wird nur einmal geladen
+                try:
+                    from qsl73.qr import decode_qr_from_pdf
+                    qr_fields = decode_qr_from_pdf(pdf_bytes)
+                    if qr_fields is not None:
+                        _log.debug("doc_id=%d: QR im manuellen Dialog dekodiert — Vorbefüllung", self._card.doc_id)
+                        self._apply_qr_prefill(qr_fields)
+                except Exception as exc:
+                    _log.debug("QR-Vorbefüllung fehlgeschlagen für doc_id=%d: %s", self._card.doc_id, exc)
                 self._pages = render_pdf_pages(pdf_bytes)
                 if not self._pages:
                     self._img_label.config(text="[Kein Bild verfügbar]")
@@ -716,6 +815,51 @@ if _TK_OK:
             active = "normal" if n > 1 else "disabled"
             self._prev_btn.config(state=active)
             self._next_btn.config(state=active)
+
+        def _apply_qr_prefill(self, qr_fields: CardFields) -> None:
+            """Überschreibt Suchfelder mit QR-Werten — nur wenn Nutzer noch nichts geändert hat.
+
+            Verwendet _applying_prefill-Guard damit trace_add-Callbacks (_on_field_change)
+            während der programmatischen .set()-Aufrufe nicht als Nutzerinteraktion gewertet
+            werden. Nach Abschluss wird _update_search() einmalig explizit aufgerufen.
+            """
+            overrides = compute_qr_prefill(
+                qr_fields,
+                current_call=self._var_call.get().strip(),
+                current_band=self._var_band.get().strip(),
+                current_mode=self._var_mode.get().strip(),
+                ocr_call=self._ocr_prefill_call,
+                ocr_band=self._ocr_prefill_band,
+                ocr_mode=self._ocr_prefill_mode,
+                date_explicit=self._date_explicit,
+                current_date=self._get_date_str(),
+                ocr_date=self._ocr_prefill_date,
+            )
+            if not overrides:
+                return
+            self._applying_prefill = True
+            try:
+                if "call" in overrides:
+                    self._var_call.set(overrides["call"])
+                if "band" in overrides:
+                    self._var_band.set(overrides["band"])
+                if "mode" in overrides:
+                    self._var_mode.set(overrides["mode"])
+                if "date" in overrides:
+                    try:
+                        from datetime import datetime as _dt
+                        parsed = _dt.strptime(overrides["date"], "%Y-%m-%d").date()
+                        if self._use_datepicker:
+                            self._date_entry.set_date(parsed)
+                        else:
+                            self._var_date.set(overrides["date"])
+                        self._date_explicit = True
+                        self._ocr_prefill_date = ""  # nicht mehr OCR-gesetzt
+                    except Exception as exc:
+                        _log.debug("QR-Datum konnte nicht gesetzt werden: %s", exc)
+            finally:
+                self._applying_prefill = False
+            self._update_search()
 
 else:
     # Stub damit Tests den Import nicht brechen wenn tk fehlt

@@ -110,6 +110,8 @@ _BAND_NAMES: frozenset[str] = frozenset({
     "15m", "12m", "10m", "6m", "4m", "2m", "70cm", "23cm",
 })
 
+BAND_ORDER: list[str] = [band for _lo, _hi, band in _FREQ_TO_BAND]
+
 
 def normalize_band(text: str) -> Optional[str]:
     """Normalisiert Bandname oder Frequenz auf kanonischen Bandnamen. None bei Unbekannt."""

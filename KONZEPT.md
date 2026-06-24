@@ -142,9 +142,15 @@ dry-run-Modus).
 
 Für jede Karte werden Felder in dieser Reihenfolge bezogen — höhere Quelle schlägt niedrigere:
 
-1. **QR-Code** (beste Qualität; nur auf modernen Karten vorhanden)
-2. **OCR-Text** (Paperless-OCR; unzuverlässig, braucht Normalisierung)
+1. **QR-Code** (beste Qualität; nur auf modernen Karten; Auswertung im manuellen Dialog, nicht im Massen-Lauf — ADR-0051)
+2. **OCR-Text** (Paperless-OCR; unzuverlässig, braucht Normalisierung; einzige Quelle im Massen-Lauf)
 3. **Manueller Zuordnungs-Bildschirm** (Fallback wenn QR und OCR versagen; § 9)
+
+**Performance-Entscheidung (ADR-0051):** Der Massen-Lauf wertet nur noch den OCR-Text aus
+(`doc["content"]`, gratis im Listen-Response). QR-Auswertung findet im manuellen Dialog statt,
+wo das PDF ohnehin für das Kartenbild geladen wird. Trade-off: Karten mit gutem QR aber
+schlechtem OCR landen auf "unsicher/kein Treffer" und werden im Dialog erledigt — dort sind
+die QR-Felder als Vorbefüllung verfügbar.
 
 ### 6.2 QR-Code-Auswertung
 
@@ -164,6 +170,13 @@ Kartenbild/PDF dekodieren**.
 5. Schlägt Decoding fehl, liefert kein QR einen gültigen QSO-Inhalt oder ist kein QR
    vorhanden → Fallback auf §6.3 (OCR).
 
+**Ablauf im manuellen Dialog (ADR-0051):**
+Der Dialog lädt das PDF für das Kartenbild (§9). Aus **denselben Bytes** wird
+`decode_qr_from_pdf` aufgerufen. Gültige QR-Felder werden in die Suchfelder
+(call, band, mode, date) eingetragen — nur wenn der Nutzer das jeweilige Feld
+noch nicht manuell verändert hat (QR > OCR als Vorbefüllungs-Priorität).
+Kein Auto-Select, keine Auto-Bestätigung: der Dialog bleibt menschengeführt.
+
 Moderne Karten (z. B. DARC-QSL-Service) tragen einen QR-Code mit QSO-Daten als
 strukturierten Klartext. Bekanntes Format (tolerant gegenüber Feldreihenfolge/Varianten):
 
@@ -178,9 +191,7 @@ Date: 02.04.25  Time: 19:42  Band: 6m  Band_RX: 6m  Mode: FT8  Prop_Mode: TR  RS
   korrekt dem eigenen Log zugeordnet.
 - **Date/Time** → normalisieren (siehe §6.3).
 - **Band/Mode** → normalisieren (siehe §6.3); QR liefert Klartext-Band (`6m`), kein OCR-Artefakt.
-- Ein sauberer QR-Treffer (alle vier Pflichtfelder eindeutig) **darf auto-bestätigen**,
-  wenn Rufzeichen + Datum + Band + Mode passen — identische Regel wie beim OCR-Match.
-  Sicherheitsschleife bleibt die gemeinsame Vorschau + Bestätigung (Schreibmodell B).
+- QR dient im manuellen Dialog ausschließlich zur Vorbefüllung der Suchfelder — kein Auto-Select, keine Auto-Bestätigung (→ ADR-0051).
 - Nicht jede Karte hat einen QR-Code; nicht jeder QR-Code enthält QSO-Daten (z. B.
   Druckdienst-/Werbe-Codes). Mehrere QR-Codes pro Karte möglich — den ersten mit gültigem
   QSO-Format verwenden. QR ist ein Bonus, kein Universalersatz.

@@ -20,6 +20,7 @@ from qsl73.updater import (
     _is_stable_tag,
     _parse_semver,
     _pick_asset,
+    _pre_sort_key,
     _verify_asset_url,
     check_for_update,
     download_update,
@@ -127,7 +128,70 @@ class TestSemverGt:
 
 
 # ---------------------------------------------------------------------------
-# _find_best_release
+# _pre_sort_key (ADR-0054)
+# ---------------------------------------------------------------------------
+
+class TestPreSortKey:
+    def test_stable_highest(self):
+        assert _pre_sort_key("") > _pre_sort_key("beta10")
+
+    def test_beta10_above_beta2(self):
+        assert _pre_sort_key("beta10") > _pre_sort_key("beta2")
+
+    def test_beta2_above_beta1(self):
+        assert _pre_sort_key("beta2") > _pre_sort_key("beta1")
+
+    def test_unknown_suffix_below_any_beta(self):
+        # Unbekannte Suffixe (z. B. rc1) sortieren unterhalb jedes betaN
+        assert _pre_sort_key("rc1") < _pre_sort_key("beta1")
+
+    def test_two_unknown_suffixes_no_crash(self):
+        # Vergleich zweier unbekannter Suffixe darf nicht abstürzen
+        result = _pre_sort_key("rc2") > _pre_sort_key("rc1")
+        assert isinstance(result, bool)
+
+
+# ---------------------------------------------------------------------------
+# semver_gt — numerischer betaN-Vergleich (ADR-0054, Issue #27)
+# ---------------------------------------------------------------------------
+
+class TestSemverGtNumericalBeta:
+    def test_beta2_newer_than_beta1_same_base(self):
+        assert semver_gt("v0.3.0-beta2", "0.3.0-beta1") is True
+
+    def test_beta10_newer_than_beta2_numerical(self):
+        # Kernregressionstest: lexikografisch wäre "beta10" < "beta2"
+        assert semver_gt("v0.3.0-beta10", "0.3.0-beta2") is True
+
+    def test_beta1_not_newer_than_beta10(self):
+        assert semver_gt("v0.3.0-beta1", "0.3.0-beta10") is False
+
+    def test_beta1_not_newer_than_beta2_same_base(self):
+        assert semver_gt("v0.3.0-beta1", "0.3.0-beta2") is False
+
+    def test_stable_newer_than_beta_same_base(self):
+        assert semver_gt("v0.3.0", "0.3.0-beta2") is True
+
+    def test_beta_not_newer_than_stable_same_base(self):
+        assert semver_gt("v0.3.0-beta2", "0.3.0") is False
+
+    def test_newer_base_beta_is_newer(self):
+        assert semver_gt("v0.4.0-beta1", "0.3.0") is True
+
+    def test_unknown_pre_release_no_crash(self):
+        # Nicht-betaN-Suffix darf nicht abstürzen; Fallback ist definiert
+        result = semver_gt("v0.3.0-rc1", "0.3.0-beta2")
+        assert isinstance(result, bool)
+        # rc sortiert unterhalb jedes betaN → kein Update erkannt
+        assert result is False
+
+    def test_unknown_pre_release_vs_unknown_no_crash(self):
+        result = semver_gt("v0.3.0-rc2", "0.3.0-rc1")
+        assert isinstance(result, bool)
+
+
+# ---------------------------------------------------------------------------
+# _find_best_release — numerischer Sort-Key (ADR-0054)
 # ---------------------------------------------------------------------------
 
 def _make_release(tag: str, prerelease: bool, assets: list[dict] | None = None) -> dict:
@@ -167,6 +231,17 @@ class TestFindBestRelease:
         best = _find_best_release(releases, "beta")
         assert best is not None
         assert best["tag_name"] == "v0.3.0-beta2"
+
+    def test_beta_picks_beta10_over_beta2_numerical(self):
+        # Sort-Key muss numerisch sein: beta10 > beta2 (lexikografisch wäre es umgekehrt)
+        releases = [
+            _make_release("v0.3.0-beta2", True),
+            _make_release("v0.3.0-beta10", True),
+            _make_release("v0.3.0-beta1", True),
+        ]
+        best = _find_best_release(releases, "beta")
+        assert best is not None
+        assert best["tag_name"] == "v0.3.0-beta10"
 
     def test_beta_ignores_stable(self):
         releases = [

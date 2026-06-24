@@ -35,7 +35,8 @@ from qsl73.gui.filter_util import (
     qso_by_id,
     qso_display_values,
     select_range,
-    sort_cards_written_last,
+    sort_cards_written_last_then_by_column,
+    text_filter_cards,
     workflow_card_context,
     written_doc_ids,
 )
@@ -97,14 +98,21 @@ _ABOUT_URL_QRZ = "https://www.qrz.com/db/DF1DS"
 
 
 # Tooltip-Texte (i18n-Vorbereitung)
+_LBL_RUN_BTN_START = "Durchlauf starten"
+_LBL_RUN_BTN_CANCEL = "Durchlauf abbrechen"
+_LBL_RUN_BTN_CANCELLING = "Abbrechen…"
+
 _TT_FILTER = "Zeigt alle Karten / nur sichere Treffer / nur unsichere / nur Karten ohne Treffer"
 _TT_RUN_BTN = "Ruft QSL-Karten aus Paperless ab und gleicht sie mit dem Log4OM-Logbuch ab"
+_TT_CANCEL_BTN = "Bricht den laufenden Durchlauf ab — bereits vollständig gelesene Karten bleiben als Teilergebnis sichtbar"
 _TT_WRITE_BTN = (
     "Schreibt ausgewählte Karten als Papier-QSL bestätigt in Log4OM "
     "und setzt Paperless-Tags (Vor-Backup wird erstellt)"
 )
 _TT_SELECT_ALL = "Wählt alle sicheren Treffer in der aktuellen Ansicht aus"
 _TT_DESELECT_ALL = "Hebt die aktuelle Auswahl auf"
+_TT_SEARCH = "Suche in Rufzeichen, Datum und Band (Teilstring, Groß-/Kleinschreibung egal)"
+_TT_SEARCH_CLEAR = "Suchfeld leeren"
 
 # Pulsintervall für indeterminate-Fortschrittsbalken in ms.
 # tk-Standard 10 ms ist sehr schnell (Pendeln wirkt nervös); 40 ms ist deutlich ruhiger.
@@ -189,6 +197,11 @@ class MainWindow(tk.Tk):
         self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
         self._pending_update_result = None    # UpdateCheckResult wenn Nutzer „Später" gewählt
         self._help_menu: Optional[tk.Menu] = None
+        self._run_active: bool = False        # True während Hintergrund-Lauf (ADR-0053)
+        from qsl73.gui.pdf_cache import PdfByteCache
+        self._pdf_cache: PdfByteCache = PdfByteCache()
+        self._sort_column: Optional[str] = None
+        self._sort_ascending: bool = True
 
         title = f"QSL73 v{__version__}"
         if CHANNEL == "beta":
@@ -201,6 +214,7 @@ class MainWindow(tk.Tk):
         apply_window_icon(self)
 
         self._build_ui()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._poll()
 
         # QR-Startwarnung (Issue #14 / ADR-0026)
@@ -211,6 +225,12 @@ class MainWindow(tk.Tk):
                 "⚠ QR-Code-Auswertung nicht verfügbar "
                 "(zxing-cpp/pymupdf fehlt) — es wird nur OCR genutzt."
             )
+
+    def _on_close(self) -> None:
+        """Fenster-Schließen: Cache stoppen, dann Fenster zerstören."""
+        self._pdf_cache.stop()
+        self._pdf_cache.clear()
+        self.destroy()
 
     # ------------------------------------------------------------------
     # UI-Aufbau
@@ -242,7 +262,7 @@ class MainWindow(tk.Tk):
         # Map display label back to mode key
         self._filter_label_to_mode = {_FILTER_LABELS[m]: m for m in FILTER_MODES}
 
-        self._run_btn = ttk.Button(toolbar, text="Durchlauf starten", command=self._on_run)
+        self._run_btn = ttk.Button(toolbar, text=_LBL_RUN_BTN_START, command=self._on_run)
         self._run_btn.pack(side="left")
         attach_tooltip(self._run_btn, _TT_RUN_BTN)
 
@@ -258,6 +278,20 @@ class MainWindow(tk.Tk):
         _btn_desel_all = ttk.Button(toolbar, text="Auswahl aufheben", command=self._deselect_all)
         _btn_desel_all.pack(side="left", padx=(4, 0))
         attach_tooltip(_btn_desel_all, _TT_DESELECT_ALL)
+
+        # Suchfeld (#29, ADR-0052)
+        ttk.Label(toolbar, text="Suche:").pack(side="left", padx=(12, 0))
+        self._search_var = tk.StringVar()
+        _search_entry = ttk.Entry(toolbar, textvariable=self._search_var, width=16)
+        _search_entry.pack(side="left", padx=(4, 0))
+        self._search_var.trace_add("write", lambda *_: self._refresh_tree())
+        attach_tooltip(_search_entry, _TT_SEARCH)
+        _clear_search_btn = ttk.Button(
+            toolbar, text="×", width=2,
+            command=lambda: self._search_var.set(""),
+        )
+        _clear_search_btn.pack(side="left", padx=(2, 0))
+        attach_tooltip(_clear_search_btn, _TT_SEARCH_CLEAR)
 
         # Hinweis: Bedienhinweise
         hint = ttk.Frame(self, padding=(8, 0, 8, 4))
@@ -299,7 +333,8 @@ class MainWindow(tk.Tk):
             "status": ("Status", 100),
         }
         for col, (heading, width) in col_cfg.items():
-            self._tree.heading(col, text=heading)
+            self._tree.heading(col, text=heading,
+                               command=lambda c=col: self._on_sort_click(c))
             self._tree.column(col, width=width, minwidth=50)
 
         # Tag-Farben
@@ -355,14 +390,21 @@ class MainWindow(tk.Tk):
             self._run_result = event.result
             self._refresh_tree()
             _reset_progress(self._progress)
-            certain = len(event.result.certain)
-            uncertain = len(event.result.uncertain)
-            no_match = len(event.result.no_match)
-            self._status_var.set(
-                f"Fertig — {certain} sicher, {uncertain} unsicher, {no_match} ohne Treffer."
-            )
-            self._run_btn.configure(state="normal")
+            self._reset_run_btn()
             self._update_write_btn()
+            if event.result.cancelled:
+                n_total = (len(event.result.certain) + len(event.result.uncertain)
+                           + len(event.result.no_match))
+                self._status_var.set(
+                    f"Durchlauf abgebrochen — Teilergebnis: {n_total} Karten gelesen."
+                )
+            else:
+                certain = len(event.result.certain)
+                uncertain = len(event.result.uncertain)
+                no_match = len(event.result.no_match)
+                self._status_var.set(
+                    f"Fertig — {certain} sicher, {uncertain} unsicher, {no_match} ohne Treffer."
+                )
         elif isinstance(event, WriteDoneEvent):
             res = event.result
             actually_written = written_doc_ids(
@@ -391,7 +433,7 @@ class MainWindow(tk.Tk):
         elif isinstance(event, ErrorEvent):
             self._status_var.set(event.status_message or f"Fehler: {event.exc}")
             _reset_progress(self._progress)
-            self._run_btn.configure(state="normal")
+            self._reset_run_btn()
             if event.is_expected:
                 show_error(
                     self,
@@ -414,11 +456,18 @@ class MainWindow(tk.Tk):
         mode_label = self._filter_var.get()
         mode = self._filter_label_to_mode.get(mode_label, "all")
         if self._run_result is not None:
-            self._displayed = filter_results(self._run_result, mode)
+            category_filtered = filter_results(self._run_result, mode)
         else:
-            self._displayed = []
+            category_filtered = []
 
-        sorted_cards = sort_cards_written_last(self._displayed, self._written)
+        # V1: Kategorie-Filter → Textfilter → Sortierung → Befüllung (ADR-0052)
+        query = self._search_var.get() if hasattr(self, "_search_var") else ""
+        text_filtered = text_filter_cards(category_filtered, query)
+
+        sorted_cards = sort_cards_written_last_then_by_column(
+            text_filtered, self._written, self._sort_column, self._sort_ascending
+        )
+        self._displayed = sorted_cards   # Anzeigereihenfolge für Shift-Klick korrekt halten
 
         self._tree.delete(*self._tree.get_children())
         for card in sorted_cards:
@@ -606,11 +655,12 @@ class MainWindow(tk.Tk):
 
         pc = self._paperless_client
         cfg = self._config
+        cache = self._pdf_cache
 
         def _image_loader(doc_id_arg: int) -> bytes:
             if pc is None:
                 raise RuntimeError("Kein Paperless-Client verfügbar")
-            return pc.get_document_download(doc_id_arg)
+            return cache.get_or_download(doc_id_arg, pc.get_document_download)
 
         return ManualAssignmentDialog(
             parent=self,
@@ -699,6 +749,13 @@ class MainWindow(tk.Tk):
             card = seq[0]
             has_next = len(seq) > 1
 
+            # Prefetch der nächsten PREFETCH_DEPTH Karten im Hintergrund (ADR-0051)
+            if self._paperless_client is not None:
+                from qsl73.gui.pdf_cache import PREFETCH_DEPTH
+                upcoming_ids = [c.doc_id for c in seq[1:PREFETCH_DEPTH + 1]]
+                if upcoming_ids:
+                    self._pdf_cache.prefetch(upcoming_ids, self._paperless_client.get_document_download)
+
             ctx = {
                 "phase": phase_type,
                 "card_index": processed + 1,
@@ -752,6 +809,29 @@ class MainWindow(tk.Tk):
         can_write = (bool(self._selected) or bool(self._manual_pending)) and self._run_result is not None
         self._write_btn.configure(state="normal" if can_write else "disabled")
 
+    def _on_sort_click(self, column: str) -> None:
+        """Spaltenklick: Richtung umkehren wenn dieselbe Spalte, sonst neue Spalte setzen."""
+        if self._sort_column == column:
+            self._sort_ascending = not self._sort_ascending
+        else:
+            self._sort_column = column
+            self._sort_ascending = True
+        self._update_sort_headings()
+        self._refresh_tree()
+
+    def _update_sort_headings(self) -> None:
+        """Setzt ▲/▼ nur am aktiven Spaltenkopf; alle anderen zeigen nur den Basistext."""
+        _base = {
+            "call": "Rufzeichen", "date": "Datum", "band": "Band",
+            "mode": "Modus", "source": "Quelle", "status": "Status",
+        }
+        for col, base_text in _base.items():
+            if col == self._sort_column:
+                arrow = " ▲" if self._sort_ascending else " ▼"
+                self._tree.heading(col, text=base_text + arrow)
+            else:
+                self._tree.heading(col, text=base_text)
+
     # ------------------------------------------------------------------
     # Aktionen
     # ------------------------------------------------------------------
@@ -783,13 +863,33 @@ class MainWindow(tk.Tk):
         self._run_result = None
         self._displayed = []
         self._tree.delete(*self._tree.get_children())
-        self._run_btn.configure(state="disabled")
+        # Button-Umwandlung: "Durchlauf starten" → "Durchlauf abbrechen" (ADR-0053/V1)
+        self._run_active = True
+        self._run_btn.configure(
+            text=_LBL_RUN_BTN_CANCEL,
+            command=self._on_cancel,
+            state="normal",
+        )
         self._write_btn.configure(state="disabled")
         self._status_var.set("Durchlauf läuft …")
         self._progress.configure(mode="indeterminate")
         self._progress.start(_PROGRESS_PULSE_MS)
 
         self._controller.start_run(pc, db_path, cfg)
+
+    def _on_cancel(self) -> None:
+        """Abbrechen-Handler: Stop-Signal senden, Button als visuelles Feedback kurz sperren."""
+        self._controller.cancel_run()
+        self._run_btn.configure(text=_LBL_RUN_BTN_CANCELLING, state="disabled")
+
+    def _reset_run_btn(self) -> None:
+        """Setzt den Lauf-Button zurück auf 'Durchlauf starten' (nach Lauf-Ende oder Fehler)."""
+        self._run_active = False
+        self._run_btn.configure(
+            text=_LBL_RUN_BTN_START,
+            command=self._on_run,
+            state="normal",
+        )
 
     def _on_write(self) -> None:
         if not self._selected and not self._manual_pending:

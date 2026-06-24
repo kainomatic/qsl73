@@ -7,6 +7,27 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+## [0.4.0] - 2026-06-24
+
+### Changed
+- Massen-Lauf wertet nur noch OCR-Text aus (kein PDF-Download mehr pro Karte) — deutlich schnellerer Lauf bei vielen Karten (ADR-0051, #30)
+- QR-Auswertung im manuellen Dialog: Suchfelder werden QR-vorrangig vorbefüllt (aus denselben PDF-Bytes wie das Kartenbild — kein zweiter Download)
+
+### Added
+- Laufenden Durchlauf abbrechbar: „Durchlauf starten"-Button wandelt sich während des Laufs in „Durchlauf abbrechen"; Abbruch nur an Kartengrenze (vollständige Karten im Teilergebnis garantiert); Teilergebnis wird direkt angezeigt (ADR-0053, Fixes #31)
+- RAM-Byte-Cache (`PdfByteCache`) mit LRU-Verdrängung (150 MB), Hintergrund-Prefetch (4 Karten voraus) — Wechsel zwischen Karten ohne Netzwerk-Wartezeit (ADR-0051)
+- Treeview-Klick-Sortierung: Hauptfenster und manueller Zuordnungs-Dialog per Spaltenklick sortierbar (▲/▼); Band nach Wellenlänge (160m…23cm), Datum als echtes Datum; geschriebene Karten bleiben stets unten (ADR-0052, Fixes #28)
+- Live-Textsuche im Hauptfenster: Suchfeld filtert zusätzlich zum Kategorie-Filter über Rufzeichen, Datum und Band (Teilstring, case-insensitiv, ×-Schaltfläche zum Leeren, ADR-0052, Fixes #29)
+
+### Fixed
+- Self-Update: laufende Beta erkennt neuere Beta derselben Basisversion jetzt korrekt (`0.3.0-betaN → 0.3.0-betaN+1`); Release-Workflow setzt `__version__` beim Beta-Build ephemer auf die volle Tag-Version; `semver_gt` und `_find_best_release` vergleichen `betaN`-Suffixe numerisch statt lexikografisch (`beta10 > beta2`, ADR-0054, Fixes #27)
+
 ## [0.3.0] - 2026-06-22
 
 ### Added

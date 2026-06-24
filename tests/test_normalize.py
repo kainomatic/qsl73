@@ -261,3 +261,30 @@ def test_date_writing_variants(text, expected):
 ])
 def test_mode_fuzzy_unique_vs_ambiguous(text, expected):
     assert normalize_mode(text) == expected
+
+
+# ----- BAND_ORDER-Export (ADR-0052 / Issue #28) -----
+
+from qsl73.normalize import BAND_ORDER
+
+
+def test_band_order_exports_list():
+    assert isinstance(BAND_ORDER, list)
+    assert len(BAND_ORDER) == 15
+
+
+def test_band_order_starts_160m():
+    assert BAND_ORDER[0] == "160m"
+
+
+def test_band_order_ends_23cm():
+    assert BAND_ORDER[-1] == "23cm"
+
+
+def test_band_order_frequency_ascending():
+    # Akzeptanzkriterium: 160m < 80m < 40m < 20m < 6m < 2m < 70cm
+    assert BAND_ORDER.index("80m") < BAND_ORDER.index("40m")
+    assert BAND_ORDER.index("40m") < BAND_ORDER.index("20m")
+    assert BAND_ORDER.index("20m") < BAND_ORDER.index("6m")
+    assert BAND_ORDER.index("6m") < BAND_ORDER.index("2m")
+    assert BAND_ORDER.index("2m") < BAND_ORDER.index("70cm")
