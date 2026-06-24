@@ -15,6 +15,7 @@ from qsl73.gui.controller import (
     RunDoneEvent,
     WriteDoneEvent,
 )
+from qsl73.run import RunResult
 from qsl73.log4om_db import WriteResult
 from qsl73.matching import CardFields, MatchOutcome, MatchResult
 from qsl73.run import CardResult, RunResult
@@ -57,7 +58,7 @@ def test_start_run_produces_progress_and_done_events():
     mock_result = _make_run_result()
 
     with patch("qsl73.gui.controller.run_pass") as mock_run:
-        def _fake_run(pc, db, cfg, on_progress=None):
+        def _fake_run(pc, db, cfg, on_progress=None, cancel_event=None):
             if on_progress:
                 on_progress(0, 2, "Start")
                 on_progress(1, 2, "Mitte")
@@ -203,3 +204,93 @@ def test_start_run_unexpected_error_is_not_expected():
     assert e.is_expected is False
     assert e.error_title == "Unerwarteter Fehler"
     assert "unbekannt" in e.traceback_str
+
+
+# ---------------------------------------------------------------------------
+# Abbruch-Mechanik (ADR-0053)
+# ---------------------------------------------------------------------------
+
+def test_cancel_run_noop_without_active_run():
+    """cancel_run() ohne aktiven Lauf ist ein no-op — kein Fehler."""
+    q = queue.Queue()
+    controller = RunController(q)
+    assert controller._cancel_event is None
+    controller.cancel_run()  # darf keinen Fehler werfen
+
+
+def test_cancel_run_sets_event():
+    """cancel_run() setzt das _cancel_event des laufenden Laufs (threadsicher)."""
+    q = queue.Queue()
+    controller = RunController(q)
+
+    evt = threading.Event()
+    controller._cancel_event = evt
+
+    assert not evt.is_set()
+    controller.cancel_run()
+    assert evt.is_set()
+
+
+def test_cancel_run_idempotent_multiple_calls():
+    """cancel_run() mehrfach aufrufen → idempotent, kein Fehler."""
+    q = queue.Queue()
+    controller = RunController(q)
+
+    evt = threading.Event()
+    controller._cancel_event = evt
+
+    controller.cancel_run()
+    controller.cancel_run()  # zweiter Aufruf
+    assert evt.is_set()  # immer noch gesetzt, kein Fehler
+
+
+def test_start_run_passes_cancel_event_to_run_pass():
+    """start_run() erzeugt ein threading.Event und übergibt es an run_pass (ADR-0053)."""
+    q = queue.Queue()
+    controller = RunController(q)
+    captured: list = []
+
+    def _fake_run(pc, db, cfg, on_progress=None, cancel_event=None):
+        captured.append(cancel_event)
+        return _make_run_result()
+
+    with patch("qsl73.gui.controller.run_pass", side_effect=_fake_run):
+        controller.start_run(MagicMock(), Path("/fake/db.sqlite"), Config())
+        _drain(q)
+
+    assert len(captured) == 1
+    assert isinstance(captured[0], threading.Event)
+    assert not captured[0].is_set()  # Nicht gesetzt vor dem Lauf
+
+
+def test_start_run_cancel_event_stored_as_instance_variable():
+    """Nach start_run ist _cancel_event auf dem Controller gesetzt."""
+    q = queue.Queue()
+    controller = RunController(q)
+
+    with patch("qsl73.gui.controller.run_pass", return_value=_make_run_result()):
+        controller.start_run(MagicMock(), Path("/fake/db.sqlite"), Config())
+        _drain(q)
+
+    # _cancel_event wurde gesetzt (auch wenn der Lauf schon abgeschlossen ist)
+    assert controller._cancel_event is not None
+    assert isinstance(controller._cancel_event, threading.Event)
+
+
+def test_run_done_event_carries_cancelled_flag():
+    """RunDoneEvent enthält das cancelled-Flag aus dem run_pass-Ergebnis."""
+    q = queue.Queue()
+    controller = RunController(q)
+
+    cancelled_result = RunResult(
+        certain=[], uncertain=[], no_match=[],
+        fingerprint={}, expected_states={}, cancelled=True,
+    )
+
+    with patch("qsl73.gui.controller.run_pass", return_value=cancelled_result):
+        controller.start_run(MagicMock(), Path("/fake/db.sqlite"), Config())
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, RunDoneEvent)]
+    assert len(done) == 1
+    assert done[0].result.cancelled is True

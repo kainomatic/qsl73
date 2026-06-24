@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0051.
+Nächste freie Nummer: ADR-0054.
 
 ## Index
 
@@ -40,6 +40,9 @@ Nächste freie Nummer: ADR-0051.
 | ADR-0048 | Stable-Hotfix über `hotfix/*`-Branch von `main` (bei ungereiftem `dev`-Stand) |
 | ADR-0049 | Git-Branch-Operationen sind ausschließlich Claude-Code-Aufgabe |
 | ADR-0050 | Datenschutz — keine echten fremden Rufzeichen im Repo; fiktive Calls; Historie-Bereinigung zurückgestellt |
+| ADR-0051 | QR-Verlagerung in manuellen Dialog + RAM-Byte-Cache (PdfByteCache, Prefetch) |
+| ADR-0052 | Treeview-Klick-Sortierung + Live-Textsuche im Hauptfenster |
+| ADR-0053 | Durchlauf-Abbruch in der Lesephase (cancel_event-Mechanik, Button-Umwandlung, Teilergebnis) |
 
 ## Abgrenzung
 

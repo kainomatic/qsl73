@@ -539,6 +539,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Live-Textsuche im Hauptfenster über call/date/band; UND-verknüpft mit
   Kategorie-Filter; ×-Schaltfläche zum Leeren. Tooltips gemäß ADR-0047.
 
+### ✅ UX-Verbesserung — Durchlauf abbrechbar (Issue #31, ADR-0053)
+
+- Button-Umwandlung (V1): „Durchlauf starten" → „Durchlauf abbrechen" während Lauf,
+  zurück nach Lauf-Ende oder Abbruch.
+- Teilergebnis anzeigen (V2): abgebrochener Lauf zeigt vollständig gelesene Karten
+  mit Status-Hinweis „Teilergebnis: N Karten gelesen".
+- Abbruch nur an Kartengrenze (V3): Datensicherheit — jede Karte im Ergebnis vollständig;
+  cancel_event-Mechanik in run_pass↔RunController; cancelled-Flag in RunResult (ADR-0022).
+- ADR-0053 angelegt; 1237 Tests grün.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

@@ -98,8 +98,13 @@ _ABOUT_URL_QRZ = "https://www.qrz.com/db/DF1DS"
 
 
 # Tooltip-Texte (i18n-Vorbereitung)
+_LBL_RUN_BTN_START = "Durchlauf starten"
+_LBL_RUN_BTN_CANCEL = "Durchlauf abbrechen"
+_LBL_RUN_BTN_CANCELLING = "Abbrechen…"
+
 _TT_FILTER = "Zeigt alle Karten / nur sichere Treffer / nur unsichere / nur Karten ohne Treffer"
 _TT_RUN_BTN = "Ruft QSL-Karten aus Paperless ab und gleicht sie mit dem Log4OM-Logbuch ab"
+_TT_CANCEL_BTN = "Bricht den laufenden Durchlauf ab — bereits vollständig gelesene Karten bleiben als Teilergebnis sichtbar"
 _TT_WRITE_BTN = (
     "Schreibt ausgewählte Karten als Papier-QSL bestätigt in Log4OM "
     "und setzt Paperless-Tags (Vor-Backup wird erstellt)"
@@ -192,6 +197,7 @@ class MainWindow(tk.Tk):
         self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
         self._pending_update_result = None    # UpdateCheckResult wenn Nutzer „Später" gewählt
         self._help_menu: Optional[tk.Menu] = None
+        self._run_active: bool = False        # True während Hintergrund-Lauf (ADR-0053)
         from qsl73.gui.pdf_cache import PdfByteCache
         self._pdf_cache: PdfByteCache = PdfByteCache()
         self._sort_column: Optional[str] = None
@@ -256,7 +262,7 @@ class MainWindow(tk.Tk):
         # Map display label back to mode key
         self._filter_label_to_mode = {_FILTER_LABELS[m]: m for m in FILTER_MODES}
 
-        self._run_btn = ttk.Button(toolbar, text="Durchlauf starten", command=self._on_run)
+        self._run_btn = ttk.Button(toolbar, text=_LBL_RUN_BTN_START, command=self._on_run)
         self._run_btn.pack(side="left")
         attach_tooltip(self._run_btn, _TT_RUN_BTN)
 
@@ -384,14 +390,21 @@ class MainWindow(tk.Tk):
             self._run_result = event.result
             self._refresh_tree()
             _reset_progress(self._progress)
-            certain = len(event.result.certain)
-            uncertain = len(event.result.uncertain)
-            no_match = len(event.result.no_match)
-            self._status_var.set(
-                f"Fertig — {certain} sicher, {uncertain} unsicher, {no_match} ohne Treffer."
-            )
-            self._run_btn.configure(state="normal")
+            self._reset_run_btn()
             self._update_write_btn()
+            if event.result.cancelled:
+                n_total = (len(event.result.certain) + len(event.result.uncertain)
+                           + len(event.result.no_match))
+                self._status_var.set(
+                    f"Durchlauf abgebrochen — Teilergebnis: {n_total} Karten gelesen."
+                )
+            else:
+                certain = len(event.result.certain)
+                uncertain = len(event.result.uncertain)
+                no_match = len(event.result.no_match)
+                self._status_var.set(
+                    f"Fertig — {certain} sicher, {uncertain} unsicher, {no_match} ohne Treffer."
+                )
         elif isinstance(event, WriteDoneEvent):
             res = event.result
             actually_written = written_doc_ids(
@@ -420,7 +433,7 @@ class MainWindow(tk.Tk):
         elif isinstance(event, ErrorEvent):
             self._status_var.set(event.status_message or f"Fehler: {event.exc}")
             _reset_progress(self._progress)
-            self._run_btn.configure(state="normal")
+            self._reset_run_btn()
             if event.is_expected:
                 show_error(
                     self,
@@ -850,13 +863,33 @@ class MainWindow(tk.Tk):
         self._run_result = None
         self._displayed = []
         self._tree.delete(*self._tree.get_children())
-        self._run_btn.configure(state="disabled")
+        # Button-Umwandlung: "Durchlauf starten" → "Durchlauf abbrechen" (ADR-0053/V1)
+        self._run_active = True
+        self._run_btn.configure(
+            text=_LBL_RUN_BTN_CANCEL,
+            command=self._on_cancel,
+            state="normal",
+        )
         self._write_btn.configure(state="disabled")
         self._status_var.set("Durchlauf läuft …")
         self._progress.configure(mode="indeterminate")
         self._progress.start(_PROGRESS_PULSE_MS)
 
         self._controller.start_run(pc, db_path, cfg)
+
+    def _on_cancel(self) -> None:
+        """Abbrechen-Handler: Stop-Signal senden, Button als visuelles Feedback kurz sperren."""
+        self._controller.cancel_run()
+        self._run_btn.configure(text=_LBL_RUN_BTN_CANCELLING, state="disabled")
+
+    def _reset_run_btn(self) -> None:
+        """Setzt den Lauf-Button zurück auf 'Durchlauf starten' (nach Lauf-Ende oder Fehler)."""
+        self._run_active = False
+        self._run_btn.configure(
+            text=_LBL_RUN_BTN_START,
+            command=self._on_run,
+            state="normal",
+        )
 
     def _on_write(self) -> None:
         if not self._selected and not self._manual_pending:

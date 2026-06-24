@@ -53,6 +53,7 @@ class RunController:
     def __init__(self, event_queue: queue.Queue) -> None:
         self._queue = event_queue
         self._run_result: Optional[RunResult] = None
+        self._cancel_event: Optional[threading.Event] = None  # ADR-0053
 
     @property
     def run_result(self) -> Optional[RunResult]:
@@ -65,13 +66,18 @@ class RunController:
         config: Config,
     ) -> None:
         """Startet run_pass im Daemon-Thread. Ergebnisse → Queue."""
+        cancel_event = threading.Event()
+        self._cancel_event = cancel_event
+
         def _work() -> None:
             try:
                 def on_progress(done: int, total: int, msg: str) -> None:
                     self._queue.put(ProgressEvent(done, total, msg))
 
                 result = run_pass(
-                    paperless_client, db_path, config, on_progress=on_progress
+                    paperless_client, db_path, config,
+                    on_progress=on_progress,
+                    cancel_event=cancel_event,
                 )
                 self._run_result = result
                 self._queue.put(RunDoneEvent(result))
@@ -87,6 +93,14 @@ class RunController:
                 ))
 
         threading.Thread(target=_work, daemon=True).start()
+
+    def cancel_run(self) -> None:
+        """Setzt das Abbruch-Flag für den laufenden Durchlauf.
+
+        Threadsicher und idempotent. Aufruf ohne laufenden Lauf ist ein no-op (ADR-0053).
+        """
+        if self._cancel_event is not None:
+            self._cancel_event.set()
 
     def start_write(
         self,
