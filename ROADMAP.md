@@ -554,6 +554,15 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   cancel_event-Mechanik in run_pass↔RunController; cancelled-Flag in RunResult (ADR-0022).
 - ADR-0053 angelegt; 1237 Tests grün.
 
+### 🔧 Beta-Release v0.4.0-beta1 — IN VORBEREITUNG
+
+- `__version__ = "0.4.0"` auf dev gesetzt; Tag `v0.4.0-beta1` ausstehend.
+- Enthält: Performance #30 (kein PDF-Download im Massen-Lauf), Treeview-Sortierung #28,
+  Live-Textsuche #29, Durchlauf abbrechbar #31, Self-Update Beta-Fix #27.
+- Ziel: Self-Update-Fix ADR-0054 unter Realbedingungen verifizieren (ältere Beta erkennt
+  v0.4.0-beta1 und bietet Update an). Stables Release v0.4.0 folgt nach erfolgreichem Test.
+- Win10-Verifikation durch DF1DS ausstehend.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
