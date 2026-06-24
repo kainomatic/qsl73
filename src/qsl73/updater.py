@@ -90,6 +90,22 @@ def _parse_semver(tag: str) -> Optional[tuple[tuple[int, int, int], str]]:
         return None
 
 
+def _pre_sort_key(pre: str) -> tuple:
+    """Vergleichsschlüssel für Pre-Release-Suffixe (ADR-0054).
+
+    ""      (stable) → (1, 0, "")   — größer als jede beta
+    "betaN" (beta)   → (0, N, "")   — numerisch nach N (beta10 > beta2)
+    anderes          → (-1, 0, pre) — unbekannte Suffixe unterhalb aller betaN;
+                                      lexikografisch untereinander (Fallback).
+    """
+    if pre == "":
+        return (1, 0, "")
+    m = re.match(r"^beta(\d+)$", pre)
+    if m:
+        return (0, int(m.group(1)), "")
+    return (-1, 0, pre)
+
+
 def semver_gt(candidate_tag: str, current_version: str) -> bool:
     """True wenn candidate_tag neuer als current_version ist.
 
@@ -115,7 +131,7 @@ def semver_gt(candidate_tag: str, current_version: str) -> bool:
         return False   # candidate ist beta desselben Release → nicht neuer
     if curr_pre != "" and cand_pre == "":
         return True    # candidate ist Stable, current ist beta → neuer
-    return cand_pre > curr_pre  # beide beta → lexikografisch vergleichen
+    return _pre_sort_key(cand_pre) > _pre_sort_key(curr_pre)  # beide pre → numerisch
 
 
 def _is_stable_tag(tag: str) -> bool:
@@ -146,8 +162,8 @@ def _find_best_release(releases: list[dict], channel: str) -> Optional[dict]:
         if parsed is None:
             return (0, 0, 0), ""
         base, pre = parsed
-        # Leerer pre (stable) soll größer sortieren als jedes beta
-        return base, ("\xff" if pre == "" else pre)
+        # Leerer pre (stable) soll größer sortieren als jedes beta; betaN numerisch
+        return base, _pre_sort_key(pre)
 
     candidates.sort(key=_sort_key, reverse=True)
     return candidates[0]

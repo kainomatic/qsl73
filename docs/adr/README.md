@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0054.
+Nächste freie Nummer: ADR-0055.
 
 ## Index
 
@@ -43,6 +43,7 @@ Nächste freie Nummer: ADR-0054.
 | ADR-0051 | QR-Verlagerung in manuellen Dialog + RAM-Byte-Cache (PdfByteCache, Prefetch) |
 | ADR-0052 | Treeview-Klick-Sortierung + Live-Textsuche im Hauptfenster |
 | ADR-0053 | Durchlauf-Abbruch in der Lesephase (cancel_event-Mechanik, Button-Umwandlung, Teilergebnis) |
+| ADR-0054 | Beta-Self-Update — volle Pre-Release-Version im Build + numerischer betaN-Vergleich |
 
 ## Abgrenzung
 

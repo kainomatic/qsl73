@@ -109,17 +109,26 @@ jobs:
         run: python tools/make_icon.py
 
       # ------------------------------------------------------------------
-      # 7. CHANNEL für Beta-Build in __version__.py patchen
-      #    (ephemere Änderung nur in diesem CI-Lauf — kein Commit)
+      # 7. CHANNEL und __version__ für Beta-Build patchen (ADR-0054)
+      #    Beide Patches sind ephemer — nur in diesem CI-Lauf, kein Commit.
+      #    Der Versions-Sync-Check (Schritt 3) prüft nur X.Y.Z-Basis und
+      #    lief bereits vor diesem Schritt; er bleibt unverändert gültig.
       # ------------------------------------------------------------------
-      - name: CHANNEL auf beta setzen (nur Beta-Build)
+      - name: CHANNEL und Version für Beta-Build patchen (ephemer, kein Commit)
         if: env.CHANNEL == 'beta'
         shell: pwsh
         run: |
           $f = 'src\qsl73\__version__.py'
+          # CHANNEL ephemer auf "beta" setzen
           (Get-Content $f) -replace 'CHANNEL = "stable"', 'CHANNEL = "beta"' |
             Set-Content $f -Encoding utf8
           Write-Host "CHANNEL in __version__.py auf 'beta' gesetzt."
+          # __version__ ephemer auf volle Tag-Version setzen (z. B. "0.3.0" → "0.3.0-beta2")
+          # Laufende Beta meldet dann current_version korrekt mit -betaN-Suffix.
+          $fullVer = "${{ github.ref_name }}".TrimStart('v')
+          (Get-Content $f) -replace '__version__ = "[^"]+"', "__version__ = `"$fullVer`"" |
+            Set-Content $f -Encoding utf8
+          Write-Host "__version__ in __version__.py ephemer auf '$fullVer' gesetzt."
 
       # ------------------------------------------------------------------
       # 8. PyInstaller-Bundle bauen

@@ -539,6 +539,11 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Live-Textsuche im Hauptfenster über call/date/band; UND-verknüpft mit
   Kategorie-Filter; ×-Schaltfläche zum Leeren. Tooltips gemäß ADR-0047.
 
+### ✅ Bug Fix — Self-Update Beta-Erkennung (Issue #27, ADR-0054)
+
+- BUG 1: Release-Workflow patcht `__version__` ephemer auf die volle Tag-Version (z. B. `"0.3.0"` → `"0.3.0-beta2"`) beim Beta-Build (Option A, kein Commit); Versions-Sync-Check (Schritt 3) bleibt unverändert gültig (prüft nur X.Y.Z-Basis).
+- BUG 2: `semver_gt` und `_find_best_release._sort_key` in `updater.py` vergleichen `betaN`-Suffixe jetzt numerisch (`beta10 > beta2`); neue Hilfsfunktion `_pre_sort_key` (DRY). Robuster Fallback für unbekannte Suffixe (`rc1` u. ä.). ADR-0054.
+
 ### ✅ UX-Verbesserung — Durchlauf abbrechbar (Issue #31, ADR-0053)
 
 - Button-Umwandlung (V1): „Durchlauf starten" → „Durchlauf abbrechen" während Lauf,
