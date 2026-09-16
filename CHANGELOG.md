@@ -8,6 +8,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Log-Level (INFO/WARNING/DEBUG) im Einstellungen-Dialog wählbar (neues Config-Feld `app.log_level`); wirkt sofort nach dem Speichern. `QSL73_DEBUG=1` bleibt als Entwickler-Override wirksam und kann das gewählte Level nur anheben, nie absenken (ADR-0055, Fixes #26)
 
 ### Changed
 

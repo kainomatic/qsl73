@@ -154,6 +154,11 @@ def run_app() -> None:
             if config is None:
                 sys.exit(0)
 
+        # Config steht in allen drei Zweigen (normal/Wizard/Fehlerdialog) fest und ist
+        # gültig — jetzt das konfigurierte Log-Level nachträglich anwenden (ADR-0055).
+        from qsl73.logging_setup import apply_log_level
+        apply_log_level(config.app.log_level)
+
         # Hauptfenster
         app = MainWindow(config, crypto=crypto)
         if CHANNEL == "beta":

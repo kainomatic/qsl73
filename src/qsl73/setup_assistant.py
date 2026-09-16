@@ -62,6 +62,7 @@ _OVERRIDE_MAP = {
     "app.backup_count": lambda cfg, v: setattr(cfg.app, "backup_count", v),
     "app.update_check": lambda cfg, v: setattr(cfg.app, "update_check", v),
     "app.manual_match_limit": lambda cfg, v: setattr(cfg.app, "manual_match_limit", v),
+    "app.log_level": lambda cfg, v: setattr(cfg.app, "log_level", v),
 }
 
 

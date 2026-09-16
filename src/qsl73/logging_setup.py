@@ -14,6 +14,53 @@ import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+_LEVEL_NAMES = {"INFO": logging.INFO, "WARNING": logging.WARNING, "DEBUG": logging.DEBUG}
+
+
+def _level_from_name(name: str | None) -> int:
+    """Wandelt einen Config-Level-Namen in ein logging-Level um. Unbekannt → INFO."""
+    if isinstance(name, str) and name.strip().upper() in _LEVEL_NAMES:
+        return _LEVEL_NAMES[name.strip().upper()]
+    return logging.INFO
+
+
+def effective_level(env_debug: str | None, config_level_name: str) -> int:
+    """Bestimmt das effektive Log-Level aus QSL73_DEBUG und app.log_level (ADR-0055).
+
+    QSL73_DEBUG kann das Level nur ANHEBEN (gesprächiger machen), nie absenken:
+    gesetzt und nicht ""/"0" → mindestens DEBUG. Sonst gilt exakt config_level_name.
+    Unbekannter config_level_name → Fallback INFO.
+    """
+    config_level = _level_from_name(config_level_name)
+    env_active = env_debug is not None and env_debug.strip() not in ("", "0")
+    if env_active:
+        return min(logging.DEBUG, config_level)
+    return config_level
+
+
+def apply_log_level(level_name: str) -> None:
+    """Setzt das effektive Log-Level (ADR-0055) auf den 'qsl73'-Logger und seine Handler.
+
+    Wird NACH dem Config-Laden aufgerufen (nachträgliches Anheben/Senken, kein Umbau
+    der frühen setup_logging()-Initialisierung). Hebt QSL73_DEBUG das konfigurierte
+    Level an, wird ein Hinweis ins Log geschrieben (V2) — sonst rätselt der Nutzer,
+    warum trotz gewähltem Level DEBUG-Zeilen erscheinen.
+    """
+    env_debug = os.environ.get("QSL73_DEBUG")
+    config_level = _level_from_name(level_name)
+    eff = effective_level(env_debug, level_name)
+
+    logger = logging.getLogger("qsl73")
+    logger.setLevel(eff)
+    for handler in logger.handlers:
+        handler.setLevel(eff)
+
+    if eff < config_level:
+        logger.info(
+            "Log-Level durch QSL73_DEBUG auf DEBUG angehoben (Config: %s)",
+            logging.getLevelName(config_level),
+        )
+
 
 def get_log_dir() -> Path:
     """Gibt Log-Verzeichnis zurück — Stable: QSL73, Beta: QSL73-Beta."""

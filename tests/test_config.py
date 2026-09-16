@@ -334,3 +334,72 @@ def test_manual_match_limit_migrate_preserves_existing():
     data = {"config_version": 1, "app": {"language": "de", "manual_match_limit": 50}}
     result = migrate_config(data)
     assert result["app"]["manual_match_limit"] == 50
+
+
+# ---------------------------------------------------------------------------
+# log_level — Config-Tests (Issue #26, ADR-0055)
+# ---------------------------------------------------------------------------
+
+
+def test_log_level_default():
+    from qsl73.config import AppConfig
+    assert AppConfig().log_level == "INFO"
+
+
+def test_log_level_round_trip(config_path):
+    from qsl73.config import Config, save_config, load_config
+    for level in ("INFO", "WARNING", "DEBUG"):
+        cfg = Config()
+        cfg.app.log_level = level
+        save_config(cfg, config_path)
+        loaded = load_config(config_path)
+        assert loaded.app.log_level == level
+
+
+def test_log_level_invalid_value_raises(config_path):
+    import yaml
+    from qsl73.config import ConfigError, load_config
+    config_path.write_text(
+        yaml.dump({"config_version": 1, "app": {"log_level": "TRACE"}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="log_level"):
+        load_config(config_path)
+
+
+def test_log_level_invalid_validation_error():
+    from qsl73.config import validate_config
+    errors = validate_config({"app": {"log_level": "VERBOSE"}})
+    assert any("log_level" in e for e in errors)
+
+
+def test_log_level_valid_values_no_errors():
+    from qsl73.config import validate_config
+    for level in ("INFO", "WARNING", "DEBUG"):
+        assert validate_config({"app": {"log_level": level}}) == []
+
+
+def test_log_level_migrate_adds_default():
+    from qsl73.config import migrate_config
+    data = {"config_version": 1, "app": {"language": "de"}}
+    result = migrate_config(data)
+    assert result["app"]["log_level"] == "INFO"
+
+
+def test_log_level_migrate_preserves_existing():
+    from qsl73.config import migrate_config
+    data = {"config_version": 1, "app": {"language": "de", "log_level": "WARNING"}}
+    result = migrate_config(data)
+    assert result["app"]["log_level"] == "WARNING"
+
+
+def test_log_level_missing_field_loads_as_info(config_path):
+    """Additive Migration: fehlendes app.log_level lädt ohne Fehler → INFO."""
+    import yaml
+    from qsl73.config import load_config
+    config_path.write_text(
+        yaml.dump({"config_version": 1, "app": {"language": "de"}}),
+        encoding="utf-8",
+    )
+    cfg = load_config(config_path)
+    assert cfg.app.log_level == "INFO"

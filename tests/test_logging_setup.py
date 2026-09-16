@@ -158,6 +158,132 @@ class TestSetupLogging:
         assert "logs" in str(log_dir).lower()
 
 
+class TestEffectiveLevel:
+    """effective_level() — reine max-Verbosität-Logik (V1, Issue #26)."""
+
+    def test_env_off_config_info(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level(None, "INFO") == logging.INFO
+
+    def test_env_off_config_warning(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level(None, "WARNING") == logging.WARNING
+
+    def test_env_off_config_debug(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level(None, "DEBUG") == logging.DEBUG
+
+    def test_env_on_raises_info_to_debug(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level("1", "INFO") == logging.DEBUG
+
+    def test_env_on_raises_warning_to_debug(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level("1", "WARNING") == logging.DEBUG
+
+    def test_env_on_config_debug_stays_debug(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level("1", "DEBUG") == logging.DEBUG
+
+    def test_env_empty_string_counts_as_off(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level("", "WARNING") == logging.WARNING
+
+    def test_env_zero_counts_as_off(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level("0", "WARNING") == logging.WARNING
+
+    def test_unknown_config_value_falls_back_to_info(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level(None, "TRACE") == logging.INFO
+
+    def test_env_none_counts_as_off(self):
+        from qsl73.logging_setup import effective_level
+        assert effective_level(None, "INFO") == logging.INFO
+
+
+class TestApplyLogLevel:
+    """apply_log_level() — setzt Level auf Logger + Handler (V1-V2, Issue #26)."""
+
+    def test_sets_logger_level(self, tmp_path):
+        from qsl73.logging_setup import apply_log_level, setup_logging
+
+        setup_logging(tmp_path / "logs")
+        apply_log_level("WARNING")
+
+        assert logging.getLogger("qsl73").level == logging.WARNING
+
+    def test_sets_handler_level(self, tmp_path):
+        from qsl73.logging_setup import apply_log_level, setup_logging
+
+        setup_logging(tmp_path / "logs")
+        apply_log_level("DEBUG")
+
+        logger = logging.getLogger("qsl73")
+        for h in logger.handlers:
+            assert h.level == logging.DEBUG
+
+    def test_unknown_level_falls_back_to_info(self, tmp_path):
+        from qsl73.logging_setup import apply_log_level, setup_logging
+
+        setup_logging(tmp_path / "logs")
+        apply_log_level("TRACE")
+
+        assert logging.getLogger("qsl73").level == logging.INFO
+
+    def test_env_raises_config_warning_to_debug(self, tmp_path, monkeypatch):
+        from qsl73.logging_setup import apply_log_level, setup_logging
+
+        monkeypatch.setenv("QSL73_DEBUG", "1")
+        setup_logging(tmp_path / "logs")
+        apply_log_level("WARNING")
+
+        assert logging.getLogger("qsl73").level == logging.DEBUG
+
+    def test_hint_logged_when_env_raises_level(self, tmp_path, monkeypatch):
+        from qsl73.logging_setup import apply_log_level, setup_logging
+
+        monkeypatch.setenv("QSL73_DEBUG", "1")
+        log_dir = tmp_path / "logs"
+        setup_logging(log_dir)
+        apply_log_level("WARNING")
+
+        logger = logging.getLogger("qsl73")
+        for h in logger.handlers:
+            h.flush()
+        content = (log_dir / "qsl73.log").read_text(encoding="utf-8")
+        assert "QSL73_DEBUG" in content
+        assert "WARNING" in content
+
+    def test_no_hint_when_env_off(self, tmp_path, monkeypatch):
+        from qsl73.logging_setup import apply_log_level, setup_logging
+
+        monkeypatch.delenv("QSL73_DEBUG", raising=False)
+        log_dir = tmp_path / "logs"
+        setup_logging(log_dir)
+        apply_log_level("INFO")
+
+        logger = logging.getLogger("qsl73")
+        for h in logger.handlers:
+            h.flush()
+        content = (log_dir / "qsl73.log").read_text(encoding="utf-8")
+        assert "angehoben" not in content
+
+    def test_no_hint_when_env_matches_config_already_debug(self, tmp_path, monkeypatch):
+        from qsl73.logging_setup import apply_log_level, setup_logging
+
+        monkeypatch.setenv("QSL73_DEBUG", "1")
+        log_dir = tmp_path / "logs"
+        setup_logging(log_dir)
+        apply_log_level("DEBUG")
+
+        logger = logging.getLogger("qsl73")
+        for h in logger.handlers:
+            h.flush()
+        content = (log_dir / "qsl73.log").read_text(encoding="utf-8")
+        assert "angehoben" not in content
+
+
 class TestQrBackendStatus:
     def test_returns_dict_with_bool_values(self):
         from qsl73.qr import qr_backend_status

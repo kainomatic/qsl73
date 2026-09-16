@@ -569,6 +569,20 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Alle fünf Issues enthalten: #30 (Performance), #28 (Treeview-Sortierung),
   #29 (Live-Textsuche), #31 (Durchlauf abbrechbar), #27 (Self-Update Beta-Fix).
 
+### ✅ UX-Verbesserung — Log-Level im Einstellungen-Dialog (Issue #26, ADR-0055)
+
+- Neues Config-Feld `app.log_level` (INFO/WARNING/DEBUG) als Combobox im
+  Einstellungen-Dialog; additive Migration (fehlendes Feld → INFO, kein Versions-Bump).
+- `logging_setup.py`: reine Funktion `effective_level(env_debug, config_level_name)`
+  (max-Verbosität-Regel — `QSL73_DEBUG` kann nur anheben, nie absenken) + `apply_log_level()`
+  (setzt Logger + alle Handler, loggt Hinweis wenn `QSL73_DEBUG` das Config-Level anhebt).
+  `setup_logging()` unverändert, weiterhin erste Aktion in `run_app()`.
+- `gui/app.py`: `apply_log_level(config.app.log_level)` nach Config-Laden (nach allen drei
+  Zweigen: normal/Wizard/Fehlerdialog) — kein Umbau der Startreihenfolge.
+- `gui/setup_wizard.py`: ruft `apply_log_level()` direkt nach dem Speichern auf — Level
+  wirkt sofort, kein Neustart nötig (konsistent mit ADR-0036 §7). Tooltip gemäß ADR-0047.
+- ADR-0055 angelegt. 1278 Tests grün (3 erwartete Skips).
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

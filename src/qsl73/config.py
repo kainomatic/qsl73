@@ -12,6 +12,7 @@ CURRENT_VERSION = 1
 VALID_AUTH_MODES = {"token", "password"}
 VALID_LANGUAGES = {"de", "en"}
 VALID_QSL_ROUTES = {"undefined", "bureau", "direct"}
+VALID_LOG_LEVELS = {"INFO", "WARNING", "DEBUG"}
 
 
 class ConfigError(Exception):
@@ -55,6 +56,7 @@ class AppConfig:
     backup_count: int = 5
     update_check: bool = True
     manual_match_limit: int = 100
+    log_level: str = "INFO"
 
 
 @dataclass
@@ -138,6 +140,12 @@ def validate_config(data: dict) -> list[str]:
         limit = app.get("manual_match_limit", 100)
         if not isinstance(limit, int) or limit < 0:
             errors.append("app.manual_match_limit: muss eine nicht-negative ganze Zahl sein (0 = kein Limit)")
+        log_level = app.get("log_level", "INFO")
+        if log_level not in VALID_LOG_LEVELS:
+            errors.append(
+                f"app.log_level: ungültiger Wert '{log_level}' "
+                f"(erlaubt: {', '.join(sorted(VALID_LOG_LEVELS))})"
+            )
 
     return errors
 
@@ -154,6 +162,8 @@ def migrate_config(data: dict) -> dict:
     app = data.setdefault("app", {})
     if "manual_match_limit" not in app:
         app["manual_match_limit"] = 100
+    if "log_level" not in app:
+        app["log_level"] = "INFO"
 
     # Künftige Migrationen: elif version < 2: ... hier einfügen
 
@@ -196,6 +206,7 @@ def _dict_to_config(data: dict) -> Config:
             backup_count=a.get("backup_count", 5),
             update_check=a.get("update_check", True),
             manual_match_limit=a.get("manual_match_limit", 100),
+            log_level=a.get("log_level", "INFO"),
         ),
     )
 
@@ -229,6 +240,7 @@ def _config_to_dict(config: Config) -> dict:
             "backup_count": config.app.backup_count,
             "update_check": config.app.update_check,
             "manual_match_limit": config.app.manual_match_limit,
+            "log_level": config.app.log_level,
         },
     }
 
