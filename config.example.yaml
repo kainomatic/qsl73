@@ -63,3 +63,6 @@ app:
   backup_count: 5
   # Automatische Update-Prüfung beim Programmstart (abschaltbar)
   update_check: true
+  # Log-Genauigkeit: "INFO" (normal), "WARNING" (nur Warnungen/Fehler), "DEBUG" (ausführlich).
+  # Die Umgebungsvariable QSL73_DEBUG=1 hebt das effektive Level unabhängig davon auf DEBUG an.
+  log_level: "INFO"

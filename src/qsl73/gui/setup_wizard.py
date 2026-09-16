@@ -36,6 +36,10 @@ _TT_QSL_ROUTE = (
 _TT_BACKUP_COUNT = "Wie viele Log4OM-Datenbank-Backups QSL73 aufbewahrt (älteste werden automatisch gelöscht)"
 _TT_UPDATE_CHECK = "QSL73 prüft beim Start automatisch, ob eine neue Version verfügbar ist"
 _TT_MATCH_LIMIT = "Maximale Kandidaten im manuellen Zuordnungs-Dialog — 0 bedeutet kein Limit"
+_TT_LOG_LEVEL = (
+    "INFO = normal, WARNING = nur Warnungen/Fehler, DEBUG = ausführlich für Fehlersuche. "
+    "QSL73_DEBUG=1 erzwingt DEBUG."
+)
 
 from qsl73.config import Config
 from qsl73.crypto import CryptoBackend, get_default_backend
@@ -337,6 +341,9 @@ class SetupWizard(tk.Toplevel):
         attach_tooltip(limit_combo, _TT_MATCH_LIMIT)
         row += 1
 
+        combo_field("app.log_level", "Log-Level", ["INFO", "WARNING", "DEBUG"], "INFO",
+                    tooltip=_TT_LOG_LEVEL)
+
         # Buttons
         btn_frame = ttk.Frame(self, padding=(12, 0, 12, 12))
         btn_frame.pack(fill="x")
@@ -458,6 +465,10 @@ class SetupWizard(tk.Toplevel):
                     crypto=self._crypto,
                     overrides=overrides,
                 )
+
+            from qsl73.logging_setup import apply_log_level
+            apply_log_level(cfg.app.log_level)
+
             self.result = cfg
             self._unbind_mousewheel()
             self._cleanup_attention()

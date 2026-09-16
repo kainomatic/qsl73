@@ -84,6 +84,7 @@ def test_override_map_covers_all_expected_keys():
         "app.language",
         "app.backup_count",
         "app.update_check",
+        "app.log_level",
     }
     assert expected.issubset(set(_OVERRIDE_MAP.keys()))
 
@@ -119,9 +120,14 @@ class TestConfigToFieldDefaults:
             "tags.input", "tags.confirmed", "tags.uncertain",
             "matching.fuzzy_enabled", "confirm.qsl_route_default",
             "app.language", "app.backup_count", "app.update_check",
-            "app.manual_match_limit",
+            "app.manual_match_limit", "app.log_level",
         }
         assert expected == set(d.keys())
+
+    def test_log_level_mapped(self):
+        cfg = Config()
+        cfg.app.log_level = "WARNING"
+        assert config_to_field_defaults(cfg)["app.log_level"] == "WARNING"
 
     def test_backup_count_as_string(self):
         cfg = Config()

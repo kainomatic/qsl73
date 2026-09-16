@@ -135,6 +135,7 @@ def config_to_field_defaults(config: "Config") -> dict:
         "app.backup_count": str(config.app.backup_count),
         "app.update_check": config.app.update_check,
         "app.manual_match_limit": str(config.app.manual_match_limit),
+        "app.log_level": config.app.log_level,
     }
 
 
