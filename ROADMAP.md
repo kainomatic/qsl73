@@ -583,6 +583,19 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   wirkt sofort, kein Neustart nötig (konsistent mit ADR-0036 §7). Tooltip gemäß ADR-0047.
 - ADR-0055 angelegt. 1278 Tests grün (3 erwartete Skips).
 
+### ✅ Doku-Klarstellung — Issue #4 (QSOs ohne CT="QSL"-Eintrag) aufgelöst, kein Code-Fix
+
+- Randfall aus Discovery-Frage #3 (`docs/discovery.md §6`, seit Schritt 0 offen) war bereits
+  durch ADR-0019 (`QslEntryNotFoundError` statt stillem Neuanlegen) + vorgelagerte
+  `validate_schema`-Prüfung + Transaktions-Rollback sicher abgedeckt.
+  Entscheidung (DF1DS): nur dokumentieren und schließen, keine neue Schreiblogik.
+- `docs/discovery.md §6.1` neu: Auflösung + bewusst akzeptierte Stichproben-Einschränkung
+  von `validate_schema` (prüft nur die ersten 30 Zeilen mit `qsoconfirmations` — bei einer
+  gemischten DB fällt eine einzelne betroffene Karte ggf. erst als Transaktions-Rollback auf,
+  nicht als vorab spezifische Meldung; sicher, aber technischer formuliert). Optionaler
+  künftiger Feinschliff bei Bedarf als separates Issue.
+- Kein neues ADR (ADR-0019 bleibt maßgeblich); keine Änderung an `log4om_write.py`/`log4om_db.py`.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
