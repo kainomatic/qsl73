@@ -631,14 +631,30 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   fiktiven Rufzeichen (ADR-0050) ergänzt. 1296 Tests grün (3 erwartete Skips).
   Issue #33 vollständig geschlossen (Teil 1 + Teil 2).
 
-### 🔧 Beta-Release v0.5.0-beta1 — in Vorbereitung
+### ✅ Beta-Release v0.5.0-beta1 — veröffentlicht, Release PAUSIERT (Anzeige-Bug gefunden)
 
 - Erste Beta nach Stable v0.4.0; enthält Log-Level-Einstellung #26, CT=QSL-Randfall-
   Doku #4, Matching-Umbau mehrere Fremdcalls + Fuzzy erzwingt UNSICHER #33 (ADR-0056).
 - `__version__.py` auf `0.5.0` gesetzt (ADR-0046 §1), `CHANNEL` bleibt `"stable"`.
-  CHANGELOG `[Unreleased]` bewusst nicht eingefroren (ADR-0046 §3).
-- Tag `v0.5.0-beta1` auf `dev`-HEAD; Self-Update-Test (ältere Beta erkennt v0.5.0-beta1)
-  macht DF1DS manuell.
+- Tag `v0.5.0-beta1` gepusht, Pre-Release + Asset `QSL73-Beta-Setup-v0.5.0.exe` veröffentlicht.
+- **Im Beta-Test gefunden:** CERTAIN-Karte zeigte „–" statt gematchtem Rufzeichen/Datum
+  bei mehreren erkannten Fremdcalls (Issue #34) — siehe nächster Eintrag. Release der
+  Stable-Version bis Fix + erneutem Beta-Test **pausiert**.
+
+### ✅ Anzeige-Fix — CERTAIN zeigt gematchtes Rufzeichen statt „–" (Issue #34)
+
+- Ursache untersucht und code-belegt: reiner Anzeige-Bug, Matching (ADR-0056 R2) korrekt.
+  `card_fields.call_from` bleibt bei mehreren erkannten Fremdcalls `None` (ADR-0056 §1);
+  `gui/main_window._refresh_tree` nutzte im Basis-/CERTAIN-Zweig bislang nur die rohen
+  `card_fields` statt des bereits bekannten `outcome.matched_qso`.
+- Neue Hilfsfunktion `gui/filter_util.py::resolve_display_values(card)`: zeigt bei
+  gesetztem `outcome.matched_qso` dessen Werte (`qso_display_values`), sonst unverändert
+  die rohen `card_fields`. `matching.py`/`run.py` (Matching-Logik) nicht angefasst.
+  „Bestätigt"/„manuell zugeordnet"-Zweige unverändert.
+- 1300 Tests grün (3 erwartete Skips), neue Regressionstests in `test_filter_util.py`.
+  CHANGELOG-Eintrag ergänzt (kein neues ADR — Anzeige-Korrektur im Rahmen ADR-0052/0056).
+- **Nächster Schritt:** neue Beta `v0.5.0-beta2` bauen und erneut testen, bevor der
+  Stable-Release fortgesetzt wird.
 
 ## V2 — Vorgemerkte Features
 

@@ -8,6 +8,7 @@ from qsl73.gui.filter_util import (
     format_progress_text,
     merge_selections,
     qso_by_id,
+    resolve_display_values,
     select_range,
     qso_display_values,
     sort_cards_written_last,
@@ -281,6 +282,84 @@ def test_qso_display_values_partial_fields():
     cand = QsoCandidate(qsoid="Q1", callsign="OE3XYZ", date="", band=None, mode="")
     call, date, band, mode = qso_display_values(cand)
     assert call == "OE3XYZ"
+    assert date == "–"
+    assert band == "–"
+    assert mode == "–"
+
+
+# ---------------------------------------------------------------------------
+# Tests für resolve_display_values (Anzeige-Fix: CERTAIN mit matched_qso
+# statt "–" bei mehreren Fremdcalls, ADR-0056)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_display_values_uses_matched_qso_when_set():
+    """matched_qso gesetzt (CERTAIN) → dessen Werte, nicht die rohen card_fields."""
+    matched = QsoCandidate(qsoid="Q1", callsign="DL1AAA", date="2025-03-15", band="20m", mode="SSB")
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to=None, date=None, band="20m", mode="SSB"),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.CERTAIN, matched_qso=matched),
+        existing_confirmations=[],
+    )
+    call, date, band, mode = resolve_display_values(card)
+    assert call == "DL1AAA"
+    assert date == "2025-03-15"
+    assert band == "20m"
+    assert mode == "SSB"
+
+
+def test_resolve_display_values_certain_multiple_foreign_calls_not_dash():
+    """Regressionstest für den Beta-Bug: call_from=None (mehrere Fremdcalls,
+    ADR-0056 §1) darf bei CERTAIN nicht mehr zu '–' führen."""
+    matched = QsoCandidate(qsoid="Q1", callsign="DL0AAA", date="2025-06-01", band="40m", mode="CW")
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(
+            call_from=None,
+            call_to=None,
+            date=None,
+            band="40m",
+            mode="CW",
+            call_from_candidates=["DL0AAA", "UX5UO"],
+        ),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.CERTAIN, matched_qso=matched),
+        existing_confirmations=[],
+    )
+    call, _, _, _ = resolve_display_values(card)
+    assert call == "DL0AAA"
+    assert call != "–"
+
+
+def test_resolve_display_values_no_matched_qso_falls_back_to_card_fields():
+    """UNCERTAIN/NO_MATCH ohne matched_qso → unverändertes Rückfallverhalten."""
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from="DL1AAA", call_to=None, date="2025-01-01", band="80m", mode="SSB"),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        existing_confirmations=[],
+    )
+    call, date, band, mode = resolve_display_values(card)
+    assert call == "DL1AAA"
+    assert date == "2025-01-01"
+    assert band == "80m"
+    assert mode == "SSB"
+
+
+def test_resolve_display_values_no_matched_qso_missing_fields_become_dash():
+    """Ohne matched_qso und ohne call_from → '–' wie bisher (kein Verhaltensbruch)."""
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to=None, date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.NO_MATCH, matched_qso=None),
+        existing_confirmations=[],
+    )
+    call, date, band, mode = resolve_display_values(card)
+    assert call == "–"
     assert date == "–"
     assert band == "–"
     assert mode == "–"

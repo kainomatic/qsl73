@@ -29,6 +29,14 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   3-von-4-Regel) — nur ein exakter Treffer erlaubt Automatik; Fuzzy oder Mehrdeutigkeit
   erzwingt den manuellen Pfad (ADR-0056, verschärft ADR-0016). Teil 2/2 von Issue #33,
   Fixes #33.
+- Trefferliste zeigte bei sicheren (CERTAIN) Karten mit mehreren erkannten Fremd-
+  Rufzeichen „–" statt des tatsächlich gematchten Rufzeichens (und Datums), weil
+  `card_fields.call_from` bei >1 Kandidat `None` bleibt (ADR-0056 §1) und die Anzeige
+  bislang nur die rohen `card_fields` statt des bereits bekannten `outcome.matched_qso`
+  zeigte — reiner Anzeige-Bug, Matching (ADR-0056 R2) war korrekt. Neue Hilfsfunktion
+  `resolve_display_values()` in `gui/filter_util.py` zeigt bei gesetztem `matched_qso`
+  dessen Werte; ohne `matched_qso` (UNCERTAIN/NO_MATCH) unverändertes Verhalten.
+  Fixes #34.
 
 ## [0.4.0] - 2026-06-24
 

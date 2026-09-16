@@ -28,13 +28,13 @@ from qsl73.gui.filter_util import (
     FILTER_MODES,
     build_workflow_sequence,
     build_write_selections,
-    card_display_callsign,
     filter_results,
     format_progress_text,
     is_batch_writable,
     merge_selections,
     qso_by_id,
     qso_display_values,
+    resolve_display_values,
     select_range,
     sort_cards_written_last_then_by_column,
     text_filter_cards,
@@ -473,10 +473,7 @@ class MainWindow(tk.Tk):
         self._tree.delete(*self._tree.get_children())
         for card in sorted_cards:
             iid = str(card.doc_id)
-            call = card_display_callsign(card.card_fields) or "–"
-            date = card.card_fields.date or "–"
-            band = card.card_fields.band or "–"
-            mode_val = card.card_fields.mode or "–"
+            call, date, band, mode_val = resolve_display_values(card)
             source = card.source
             match_result = card.outcome.result
             status_label = _RESULT_LABELS.get(match_result, "?")

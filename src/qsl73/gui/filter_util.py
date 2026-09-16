@@ -129,6 +129,25 @@ def qso_display_values(matched) -> tuple:
     return call, date, band, mode
 
 
+def resolve_display_values(card) -> tuple:
+    """Gibt (call, date, band, mode) für die Basis-Anzeige einer Karte zurück.
+
+    Ist card.outcome.matched_qso gesetzt (bei CERTAIN immer der Fall, ADR-0056
+    R2), werden dessen Werte gezeigt (qso_display_values) — der tatsächlich
+    gematchte Treffer, auch wenn card_fields.call_from wegen mehrerer erkannter
+    Fremdcalls None ist (ADR-0056 §1) und die Anzeige sonst "–" zeigen würde.
+    Ohne matched_qso (UNCERTAIN/NO_MATCH) Rückfall auf die rohen OCR-Felder.
+    """
+    matched = card.outcome.matched_qso
+    if matched is not None:
+        return qso_display_values(matched)
+    call = card_display_callsign(card.card_fields) or "–"
+    date = card.card_fields.date or "–"
+    band = card.card_fields.band or "–"
+    mode = card.card_fields.mode or "–"
+    return call, date, band, mode
+
+
 def sort_cards_written_last(cards: list, written: set) -> list:
     """Sortiert geschriebene Karten ans Ende; erhält Reihenfolge innerhalb der Gruppen (stabil).
 
