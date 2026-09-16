@@ -881,6 +881,15 @@ def test_ocr_fixture_oe6xxx_all_fields():
     assert card.time_utc == "12:23"
 
 
+def test_ocr_hyphen_date_ddmmyyyy():
+    """Bindestrich-Datum TT-MM-JJJJ ('14-09-2024') wird token-basiert erkannt (ADR-0057)."""
+    text = "14-09-2024 13:04 40m SSB DK8XX DL0AAA"
+    card, source = _ocr(text)
+    assert source == "ocr"
+    assert card.date == "2024-09-14"
+    assert card.time_utc == "13:04"
+
+
 def test_ocr_fixture_dg5xxx_frequency_to_band():
     """DG5XXX: Frequenz 5,3570 MHz → Band 60m; Pipe-Trennzeichen korrekt tokenisiert."""
     card, source = _ocr(OCR_DG5XXX)

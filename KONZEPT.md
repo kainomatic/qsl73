@@ -220,9 +220,13 @@ der einzig gangbare Weg für ältere oder handschriftliche Karten.
 | US-getrennte Spalten | Month=`06` Day=`21` Year=`2024` | aus getrennten Tabellenfeldern zusammensetzen |
 | `MM/DD/YYYY` | `06/21/2024` | US-Langform |
 | `MM/DD/YY` | `06/21/24` | US-Kurzform |
+| `TT-MM-JJJJ` | `14-09-2024` | Bindestrich-Variante der Kurzform (ADR-0057) |
+| `TT-MM-JJ` | `14-09-24` | Bindestrich-Variante, 2-stelliges Jahr (ADR-0057) |
 
 - Zweistellige Jahreszahl: `>= 30` → 19xx, `< 30` → 20xx (Heuristik, kann falsch sein).
 - Mehrdeutige Formate (z. B. `03/04/25` — Tag/Monat oder Monat/Tag?) → **unsicher**.
+  Gleiche Regel bei Bindestrich (z. B. `03-04-2025`): erstes Feld `> 12` → Tag-Monat-Jahr;
+  zweites Feld `> 12` → Monat-Tag-Jahr; beide `<= 12` → mehrdeutig → **unsicher** (ADR-0057).
 - Unbekannte/exotische Formate (z. B. römische Monatsziffern `17-XI-93`) werden **nicht**
   per Sonderregel erschlossen — Grundsatz: lieber „Datum nicht normalisierbar" → **unsicher**
   als ein Rategespräch über undokumentierte Formate. Manuelle Zuordnung (§9) fängt das auf.

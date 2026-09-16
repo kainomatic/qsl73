@@ -682,6 +682,19 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Tag `v0.5.0-beta2` auf `dev`-HEAD; Self-Update-Test + Anzeige-Prüfung (CERTAIN zeigt
   Rufzeichen, kein „–") macht DF1DS manuell nach dem Build.
 
+### ✅ Bugfix — Bindestrich-Datumsformate TT-MM-JJJJ/TT-MM-JJ (Beta-Test-Befund, ADR-0057)
+
+- Im Beta-Test v0.5.0-beta2 gefunden: gedrucktes OCR-Datum `"14-09-2024"` (Bindestrich)
+  endete ohne erkanntes Datum als „Unsicher" — `normalize_date()` kannte das Format nicht.
+  Ergänzt um `TT-MM-JJJJ`/`TT-MM-JJ` mit derselben `>12`-Disambiguierungsregel wie beim
+  bestehenden Schrägstrich-2-stellig-Fall (ADR-0007/ADR-0014). `_STRIP_CHARS` in
+  `run._tokenize` unverändert (Bindestrich bleibt bewusst kein Trennzeichen); per Test
+  belegt, dass das Token unverändert ankommt. KONZEPT.md §6.3 aktualisiert; ADR-0057
+  angelegt.
+- Zwei weitere Befunde derselben Karte als Issues festgehalten, nicht umgesetzt:
+  #35 (Sonderrufzeichen mit zwei Ziffern nicht erkannt), #36 (OCR-Zeichenverwechslung
+  O/0 und I/1 bei Rufzeichen, kein Neutralisierer). Entscheidung jeweils offen.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

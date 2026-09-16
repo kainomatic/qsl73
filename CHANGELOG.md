@@ -37,6 +37,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `resolve_display_values()` in `gui/filter_util.py` zeigt bei gesetztem `matched_qso`
   dessen Werte; ohne `matched_qso` (UNCERTAIN/NO_MATCH) unverändertes Verhalten.
   Fixes #34.
+- Gedrucktes OCR-Datum im Bindestrich-Format `TT-MM-JJJJ`/`TT-MM-JJ` (z. B. `14-09-2024`)
+  wurde nicht erkannt und endete ohne Datum als „Unsicher". `normalize_date()` um dieses
+  Format ergänzt, mit derselben `>12`-Disambiguierungsregel wie beim bestehenden
+  Schrägstrich-2-stellig-Fall (ADR-0057). Im selben Beta-Befund gefundene, aber nicht
+  umgesetzte Punkte als Issues #35 und #36 festgehalten (Sonderrufzeichen mit zwei
+  Ziffern / OCR-Verwechslung O-0 und I-1 bei Rufzeichen).
 
 ## [0.4.0] - 2026-06-24
 
