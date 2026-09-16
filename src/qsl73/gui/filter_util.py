@@ -373,7 +373,7 @@ def text_filter_cards(cards: list, query: str) -> list:
     """Filtert CardResult-Liste per Teilstring über call/date/band (V5, ADR-0052).
 
     case-insensitiv, Teilstring. Leerer Query → Kopie aller Karten unverändert.
-    Durchsuchbare Felder: call_from/call_to, date, band. mode/source/status NICHT.
+    Durchsuchbare Felder: call_from, date, band. mode/source/status NICHT.
     """
     q = query.strip().lower() if query else ""
     if not q:

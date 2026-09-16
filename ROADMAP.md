@@ -605,10 +605,31 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Funktion → Anzeige, Sortierung und Textsuche konsistent (ADR-0052 unverändert gültig).
 - `gui/main_window.py::_refresh_tree`: Basis-Fall `call = ...` umgestellt; QSO-Werte
   bei manuell zugeordneten/geschriebenen Karten (`qso_display_values`) unverändert.
-- **Teil 2 (nicht hier):** Matching-Umbau — mehrere Fremd-Call-Kandidaten ans Matching
-  durchreichen + kontextabhängiges Fuzzy (Positions-Heuristik vs. DB-Abgleich) — folgt
-  als separater Auftrag mit eigenem ADR. Issue #33 bleibt daher offen.
 - 1282 Tests grün (4 erwartete Skips).
+
+### ✅ Matching-Umbau — mehrere Fremdcalls + Fuzzy erzwingt UNSICHER (Issue #33, Teil 2/2, ADR-0056)
+
+- `matching.CardFields`: neues additives Feld `call_from_candidates: list[str]`.
+  `call_from` bleibt für Abwärtskompatibilität erhalten; ist `call_from_candidates`
+  nicht leer, nutzt `match_card` die Liste statt des einzelnen `call_from`.
+- `run._extract_token_based`: `unique_foreign` wird jetzt IMMER (auch bei >1 Kandidat)
+  als `call_from_candidates` durchgereicht — vorher kollabierte >1 Fremdcall hart auf
+  `call_from=None` und löschte damit den echten Absender neben einem Druckvermerk-/
+  Werbe-Call. `call_from` bleibt zusätzlich gesetzt, wenn genau ein Kandidat existiert.
+- `matching.match_card`: matcht jeden Fremdcall-Kandidaten unabhängig (Zerlegung,
+  Widerspruchs-Ausschluss, Zeit-Tie-Breaker je Call) und führt die getroffenen DB-QSOs
+  zusammen (Wahrheitstabelle R1–R5, ADR-0056). **Verschärfung:** ein fuzzy
+  (Levenshtein-1) Rufzeichen-Treffer erzwingt jetzt immer UNSICHER — nie mehr
+  automatisches CERTAIN, auch bei erfüllter 3-von-4-Regel (verschärft ADR-0016).
+  Neue Hilfsfunktionen `_rufzeichen_kind`, `_filter_candidates_for_call`,
+  `_resolve_time_tiebreaker`, `_fields_rule_certain`, `_dedup_by_qsoid`.
+- `gui/filter_util.py::text_filter_cards`: veralteten Docstring korrigiert
+  (durchsuchbar ist nur `call_from`, nicht mehr `call_to`).
+- ADR-0056 angelegt (verschärft ADR-0016 — Rückverweis dort ergänzt); KONZEPT.md §6.4
+  präzisiert. 21 bestehende Tests bewusst von fuzzy→CERTAIN auf fuzzy→UNCERTAIN
+  angepasst (im Bericht einzeln benannt); vollständige R1–R5-Testabdeckung mit
+  fiktiven Rufzeichen (ADR-0050) ergänzt. 1296 Tests grün (3 erwartete Skips).
+  Issue #33 vollständig geschlossen (Teil 1 + Teil 2).
 
 ## V2 — Vorgemerkte Features
 

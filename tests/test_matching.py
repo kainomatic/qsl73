@@ -100,9 +100,12 @@ def test_exact_match_is_certain():
     assert result.matched_qso is not None
     assert result.matched_qso.qsoid == "20250402194200000"
 
-def test_fuzzy_callsign_on_is_certain():
+def test_fuzzy_callsign_on_is_uncertain():
+    # ADR-0056 (Verschärfung von ADR-0016): Fuzzy-Rufzeichen darf NIE automatisch
+    # bestätigen — auch bei nur einem Treffer und 3-von-4 → UNSICHER, nicht SICHER.
     result = _match(_card(call_from="DK8XX"), [_candidate(callsign="DK8XY")], fuzzy=True)
-    assert result.result == MatchResult.CERTAIN
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.matched_qso is None
 
 def test_fuzzy_callsign_off_is_no_match():
     result = _match(_card(call_from="DK8XX"), [_candidate(callsign="DK8XY")], fuzzy=False)
@@ -205,14 +208,15 @@ def test_tiebreaker_candidates_without_time_excluded():
 
 @pytest.mark.parametrize("card_call,cand_call,fuzzy,expected", [
     ("DK8XX", "DK8XX", True, MatchResult.CERTAIN),
-    ("DK3XX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔3
+    # ADR-0056: Fuzzy-Treffer (Distanz 1) erzwingen UNSICHER, nie mehr SICHER.
+    ("DK3XX", "DK8XX", True, MatchResult.UNCERTAIN),   # 8↔3
     ("DK3XX", "DK8XX", False, MatchResult.NO_MATCH),   # fuzzy aus
-    ("DK0XX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔0
-    ("DKBXX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔B
-    ("DK8IX", "DK8XX", True, MatchResult.CERTAIN),     # X↔I
-    ("DK8LX", "DK8XX", True, MatchResult.CERTAIN),     # X↔L
-    ("DK5XX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔5
-    ("DK6XX", "DK8XX", True, MatchResult.CERTAIN),     # 8↔6
+    ("DK0XX", "DK8XX", True, MatchResult.UNCERTAIN),   # 8↔0
+    ("DKBXX", "DK8XX", True, MatchResult.UNCERTAIN),   # 8↔B
+    ("DK8IX", "DK8XX", True, MatchResult.UNCERTAIN),   # X↔I
+    ("DK8LX", "DK8XX", True, MatchResult.UNCERTAIN),   # X↔L
+    ("DK5XX", "DK8XX", True, MatchResult.UNCERTAIN),   # 8↔5
+    ("DK6XX", "DK8XX", True, MatchResult.UNCERTAIN),   # 8↔6
     ("DK00X", "DK8XX", True, MatchResult.NO_MATCH),    # Distanz 2
 ])
 def test_ocr_callsign_errors_matrix(card_call, cand_call, fuzzy, expected):
@@ -287,9 +291,11 @@ class TestNeverFalsePositive:
         assert _match(_card(call_to="DL1ABC"), [_candidate()]).result == MatchResult.NO_MATCH
 
     def test_fuzzy_callsign_spec_behavior(self):
+        # ADR-0056: Fuzzy-Treffer erzwingt UNSICHER (nicht mehr SICHER) — nur
+        # exakte Rufzeichen dürfen automatisch bestätigen.
         card = _card(call_from="DK8XX")
         cand = _candidate(callsign="DK8XY")
-        assert _match(card, [cand], fuzzy=True).result == MatchResult.CERTAIN
+        assert _match(card, [cand], fuzzy=True).result == MatchResult.UNCERTAIN
         assert _match(card, [cand], fuzzy=False).result == MatchResult.NO_MATCH
 
     def test_distance_2_callsign_is_never_certain(self):
@@ -305,8 +311,9 @@ class TestNeverFalsePositive:
 def test_spec_exact_match_is_certain():
     assert _match(_card(), [_candidate()]).result == MatchResult.CERTAIN
 
-def test_spec_fuzzy_callsign_on_is_certain():
-    assert _match(_card(call_from="DK8XX"), [_candidate(callsign="DK8XY")], fuzzy=True).result == MatchResult.CERTAIN
+def test_spec_fuzzy_callsign_on_is_uncertain():
+    # ADR-0056 verschärft ADR-0016/§6.4: Fuzzy-Rufzeichen führt nie mehr zu SICHER.
+    assert _match(_card(call_from="DK8XX"), [_candidate(callsign="DK8XY")], fuzzy=True).result == MatchResult.UNCERTAIN
 
 def test_spec_fuzzy_callsign_off_is_no_match():
     assert _match(_card(call_from="DK8XX"), [_candidate(callsign="DK8XY")], fuzzy=False).result == MatchResult.NO_MATCH
@@ -408,14 +415,14 @@ def test_double_ocr_error_callsign_is_never_certain(card_call, cand_call):
 @pytest.mark.parametrize("card_call,card_band,card_mode,expected", [
     # Rufzeichen exakt, alle Felder vorhanden → sicher
     ("DK8XX", "6m",  "FT8", MatchResult.CERTAIN),
-    # Rufzeichen 1 Verleser (Dist 1), alle Felder vorhanden → sicher (fuzzy on)
-    ("DK8XY", "6m",  "FT8", MatchResult.CERTAIN),
+    # Rufzeichen 1 Verleser (Dist 1) → UNSICHER, egal wie viele Felder sonst passen (ADR-0056)
+    ("DK8XY", "6m",  "FT8", MatchResult.UNCERTAIN),
     # Rufzeichen 2 Verleser (Dist 2), alle Felder → kein Match
     ("DKBX3", "6m",  "FT8", MatchResult.NO_MATCH),
     # Rufzeichen exakt, Band fehlt; call+date+mode = 3/4 → sicher (ADR-0016)
     ("DK8XX", None,  "FT8", MatchResult.CERTAIN),
-    # Rufzeichen 1 Verleser, Band fehlt; call+date+mode = 3/4 → sicher (ADR-0016)
-    ("DK8XY", None,  "FT8", MatchResult.CERTAIN),
+    # Rufzeichen 1 Verleser, Band fehlt → UNSICHER (Fuzzy erzwingt UNSICHER, ADR-0056)
+    ("DK8XY", None,  "FT8", MatchResult.UNCERTAIN),
     # Rufzeichen 2 Verleser, Band fehlt → kein Match (Kandidat kommt nicht durch Rufzeichenfilter)
     ("DKBX3", None,  "FT8", MatchResult.NO_MATCH),
 ])
@@ -743,3 +750,102 @@ def test_db_date_with_time_suffix_different_day_is_no_match():
     card = _card(date="2025-04-02")
     cand = _candidate(date="2025-04-03 19:42:00Z")
     assert _match(card, [cand]).result == MatchResult.NO_MATCH
+
+
+# ===========================================================================
+# ADR-0056: Mehrere Fremdcall-Kandidaten (call_from_candidates) + Fuzzy
+# erzwingt UNSICHER — vollständige Wahrheitstabelle R1-R5 (Issue #33 Teil 2)
+# ===========================================================================
+# Ausschließlich fiktive Rufzeichen (ADR-0050). Fixture-Konvention: DL1AAA =
+# "echter Absender", DL9ZZZ = "Druckvermerk/Werbe-Call ohne DB-Treffer".
+
+
+def test_card_fields_call_from_candidates_defaults_to_empty_list():
+    c = CardFields(call_from="DK8XX", call_to="DL0AAA", date=None, band=None, mode=None)
+    assert c.call_from_candidates == []
+
+
+def test_call_from_candidates_takes_precedence_over_call_from():
+    # Additive Erweiterung: ist call_from_candidates gesetzt, wird sie genutzt —
+    # auch wenn call_from (Abwärtskompatibilitätsfeld) einen anderen Wert trägt.
+    card = _card(call_from="DL9ZZZ", call_from_candidates=["DK8XX"])
+    result = _match(card, [_candidate(callsign="DK8XX")])
+    assert result.result == MatchResult.CERTAIN
+
+
+# --- R1: kein Kandidat matcht ein DB-QSO → NO_MATCH ------------------------
+
+def test_r1_no_candidate_matches_is_no_match():
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL9ZZZ"])
+    result = _match(card, [_candidate(callsign="DL5CCC")])
+    assert result.result == MatchResult.NO_MATCH
+    assert result.matched_qso is None
+
+
+# --- R2: ein Fremdcall exakt + 3-von-4 trifft genau 1 DB-QSO,
+#         der andere trifft nichts → CERTAIN ------------------------------
+
+def test_r2_one_exact_hit_other_call_no_hit_is_certain():
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL9ZZZ"])
+    cand = _candidate(callsign="DL1AAA", qsoid="real")
+    result = _match(card, [cand])
+    assert result.result == MatchResult.CERTAIN
+    assert result.matched_qso is not None
+    assert result.matched_qso.qsoid == "real"
+
+
+# --- R3: der einzige Treffer ist fuzzy → UNCERTAIN, aber zur Vorbefüllung
+#         in candidates verfügbar -------------------------------------------
+
+def test_r3_single_fuzzy_hit_is_uncertain_but_prefilled():
+    card = _card(call_from=None, call_from_candidates=["DL1AAB", "DL9ZZZ"])  # DL1AAB ~ DL1AAA (Dist 1)
+    cand = _candidate(callsign="DL1AAA", qsoid="fuzzy_hit")
+    result = _match(card, [cand], fuzzy=True)
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.matched_qso is None
+    assert any(c.qsoid == "fuzzy_hit" for c in result.candidates)
+
+
+# --- R4: zwei Fremdcalls treffen zwei VERSCHIEDENE DB-QSOs → UNCERTAIN -----
+
+def test_r4_two_calls_hit_two_different_qsos_is_uncertain():
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL2BBB"])
+    cand1 = _candidate(callsign="DL1AAA", qsoid="q1")
+    cand2 = _candidate(callsign="DL2BBB", qsoid="q2")
+    result = _match(card, [cand1, cand2])
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.matched_qso is None
+    hit_ids = {c.qsoid for c in result.candidates}
+    assert hit_ids == {"q1", "q2"}
+
+
+# --- R5: Suffix-Unterschied-Regel bleibt bei Mehrfach-Calls unverändert ----
+
+def test_r5_suffix_differ_rule_unaffected_by_multiple_calls():
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL9ZZZ"],
+                 date="2025-04-02", band="6m", mode="FT8")
+    cand = _candidate(callsign="DL1AAA/P", qsoid="suffix_ok", date="2025-04-02", band="6m", mode="FT8")
+    result = _match(card, [cand])
+    assert result.result == MatchResult.CERTAIN
+    assert result.matched_qso.qsoid == "suffix_ok"
+
+
+def test_r5_suffix_differ_rule_uncertain_with_missing_field_and_multiple_calls():
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL9ZZZ"], mode=None)
+    cand = _candidate(callsign="DL1AAA/P", qsoid="suffix_incomplete")
+    result = _match(card, [cand])
+    assert result.result == MatchResult.UNCERTAIN
+
+
+# --- Der reale #33-Fall (Referenz im Issue): OCR-Werbe-Call verdrängt den
+#     echten Absender nicht mehr — Struktur nachgebildet mit fiktiven Calls --
+
+def test_second_foreign_call_no_longer_blanks_out_real_sender():
+    # Vorher: run._extract_token_based kollabierte >1 Fremdcall zu call_from=None
+    # → match_card bekam None → UNCERTAIN ohne Vorschlag. Jetzt: der Druckvermerk
+    # ("DL9ZZZ", kein DB-Treffer) verdrängt den echten Absender ("DL1AAA") nicht.
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL9ZZZ"])
+    cand = _candidate(callsign="DL1AAA", qsoid="real_sender")
+    result = _match(card, [cand])
+    assert result.result == MatchResult.CERTAIN
+    assert result.matched_qso.qsoid == "real_sender"

@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0056.
+Nächste freie Nummer: ADR-0057.
 
 ## Index
 
@@ -45,6 +45,7 @@ Nächste freie Nummer: ADR-0056.
 | ADR-0053 | Durchlauf-Abbruch in der Lesephase (cancel_event-Mechanik, Button-Umwandlung, Teilergebnis) |
 | ADR-0054 | Beta-Self-Update — volle Pre-Release-Version im Build + numerischer betaN-Vergleich |
 | ADR-0055 | Log-Level im Einstellungen-Dialog (app.log_level) |
+| ADR-0056 | Matching bei mehreren Fremdcalls + Fuzzy erzwingt UNSICHER (Issue #33 Teil 2, verschärft ADR-0016) |
 
 ## Abgrenzung
 

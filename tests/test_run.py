@@ -1002,6 +1002,47 @@ def test_ocr_tokenize_strips_surrounding_punct():
 
 
 # ---------------------------------------------------------------------------
+# Mehrere Fremd-Rufzeichen (Issue #33 Teil 2, ADR-0056)
+# ---------------------------------------------------------------------------
+# _extract_token_based darf mehrere erkannte Fremdcalls nicht mehr hart zu
+# call_from=None kollabieren — sie werden vollständig als call_from_candidates
+# durchgereicht, damit ein Druckvermerk/Werbe-Call den echten Absender nicht
+# auslöscht. Fiktive Calls (ADR-0050).
+
+
+def test_two_foreign_calls_call_from_none_but_candidates_both():
+    """Zwei Fremdcalls: call_from bleibt None (Abwärtskomp.), beide in candidates."""
+    text = "From DL1AAA and DL9ZZZ To DL0AAA 20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from is None
+    assert card.call_from_candidates == ["DL1AAA", "DL9ZZZ"]
+
+
+def test_single_foreign_call_sets_both_call_from_and_candidates():
+    """Ein Fremdcall: call_from UND call_from_candidates gesetzt (additiv)."""
+    text = "From DL1AAA To DL0AAA 20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from == "DL1AAA"
+    assert card.call_from_candidates == ["DL1AAA"]
+
+
+def test_no_foreign_call_candidates_stays_empty():
+    """Kein Fremdcall erkannt → call_from None, call_from_candidates leer."""
+    text = "20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from is None
+    assert card.call_from_candidates == []
+
+
+def test_duplicate_foreign_call_tokens_deduplicated_in_candidates():
+    """Dasselbe Fremdcall mehrfach im Text → nur einmal in call_from_candidates."""
+    text = "DL1AAA ... DL1AAA To DL0AAA 20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from == "DL1AAA"
+    assert card.call_from_candidates == ["DL1AAA"]
+
+
+# ---------------------------------------------------------------------------
 # Audit-Logging in write_selected
 # ---------------------------------------------------------------------------
 

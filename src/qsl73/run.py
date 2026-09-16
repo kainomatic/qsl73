@@ -189,20 +189,25 @@ def _extract_token_based(
     date = date_candidates[0] if len(set(date_candidates)) == 1 else None
     time_utc = time_candidates[0] if time_candidates else None
 
-    # call_from: genau ein eindeutiges Fremd-Rufzeichen → Absender.
+    # Fremd-Rufzeichen: dedupliziert, Reihenfolge erhalten. call_from bleibt aus
+    # Abwärtskompatibilität nur bei GENAU einem Kandidaten gesetzt; die vollständige
+    # Liste wird IMMER als call_from_candidates durchgereicht (ADR-0056) — match_card
+    # verarbeitet mehrere Fremdcalls unabhängig, statt sie bei >1 zu None zu kollabieren
+    # (Issue #33: ein Druckvermerk-/Werbe-Call löschte sonst den echten Absender).
     seen: set[str] = set()
     unique_foreign = [c for c in foreign_calls if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
     call_from = unique_foreign[0] if len(unique_foreign) == 1 else None
 
     _log.debug(
         "OCR token-scan: band_cands=%r mode_cands=%r date_cands=%r "
-        "time_cands=%r foreign_calls=%r call_to=%r",
+        "time_cands=%r call_from_candidates=%r call_to=%r",
         band_candidates, mode_candidates, date_candidates,
         time_candidates, unique_foreign, call_to,
     )
 
     return CardFields(
         call_from=call_from,
+        call_from_candidates=unique_foreign,
         call_to=call_to,
         date=date,
         band=band,

@@ -353,6 +353,15 @@ Kandidaten-QSO einer von drei Zuständen:
 **Rufzeichen:**
 - Fuzzy-Toleranz von 1 Zeichen (Levenshtein) bei `fuzzy_enabled=True`, um OCR-Verleser
   abzufangen. Fuzzy in den Einstellungen abschaltbar.
+- **Mehrere erkannte Fremd-Rufzeichen (ADR-0056):** Erkennt die OCR-Auswertung mehr als
+  ein Fremd-Rufzeichen auf einer Karte (z. B. echter Absender + Druckvermerk/Werbe-Call),
+  werden alle Kandidaten unabhängig gematcht und die getroffenen DB-QSOs zusammengeführt
+  (nicht mehr hart auf „kein Rufzeichen" kollabiert). **Fuzzy erzwingt UNSICHER:** Beruht
+  der (einzige) Treffer auf einem unscharfen Rufzeichen-Vergleich, ist das Ergebnis NIE
+  „sicher", sondern immer „unsicher" — auch wenn 3-von-4/Suffix-Regel sonst erfüllt wären.
+  Nur ein EXAKTER Rufzeichen-Treffer darf automatisch „sicher" werden. Treffen mehrere
+  Fremd-Rufzeichen-Kandidaten verschiedene DB-QSOs, ist das Ergebnis ebenfalls „unsicher"
+  (mehrdeutig). Details und vollständige Wahrheitstabelle: ADR-0056 (verschärft ADR-0016).
 
 **Band und Mode:**
 - Immer **exakt** verglichen (case-insensitiv), unabhängig von `fuzzy_enabled`.

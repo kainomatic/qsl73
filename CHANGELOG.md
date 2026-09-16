@@ -17,9 +17,18 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Trefferliste zeigte bei unsicheren Karten ohne erkennbares Gegencall das **eigene**
   Rufzeichen an statt „–" (Fallback auf `call_to`, das per Konstruktion das Eigencall
   ist); neue Hilfsfunktion `card_display_callsign()` in `gui/filter_util.py` sorgt für
-  konsistente Anzeige, Sortierung und Textsuche. Teilschritt 1/2 von Issue #33 — der
-  Matching-Umbau (mehrere Fremd-Call-Kandidaten, kontextabhängiges Fuzzy) folgt separat;
-  Issue #33 bleibt bis dahin offen.
+  konsistente Anzeige, Sortierung und Textsuche (Teil 1/2 von Issue #33).
+- Karten mit mehreren erkannten Fremd-Rufzeichen (z. B. echter Absender + Druckvermerk/
+  Werbe-Call) verloren ihren Gegencall vollständig, weil `run._extract_token_based` bei
+  mehr als einem Fremdcall hart auf `call_from=None` kollabierte → `match_card` bekam
+  keinen Kandidaten und stufte ohne Vorschlag als unsicher ein. Neues additives Feld
+  `CardFields.call_from_candidates` reicht alle erkannten Fremdcalls durch;
+  `matching.match_card` matcht jeden Kandidaten unabhängig und führt die getroffenen
+  DB-QSOs zusammen. Zusätzliche Verschärfung: ein fuzzy (Levenshtein-1) Rufzeichen-Treffer
+  darf jetzt NIE mehr automatisch „sicher" bestätigen (vorher möglich bei erfüllter
+  3-von-4-Regel) — nur ein exakter Treffer erlaubt Automatik; Fuzzy oder Mehrdeutigkeit
+  erzwingt den manuellen Pfad (ADR-0056, verschärft ADR-0016). Teil 2/2 von Issue #33,
+  Fixes #33.
 
 ## [0.4.0] - 2026-06-24
 
