@@ -631,6 +631,15 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   fiktiven Rufzeichen (ADR-0050) ergänzt. 1296 Tests grün (3 erwartete Skips).
   Issue #33 vollständig geschlossen (Teil 1 + Teil 2).
 
+### 🔧 Beta-Release v0.5.0-beta1 — in Vorbereitung
+
+- Erste Beta nach Stable v0.4.0; enthält Log-Level-Einstellung #26, CT=QSL-Randfall-
+  Doku #4, Matching-Umbau mehrere Fremdcalls + Fuzzy erzwingt UNSICHER #33 (ADR-0056).
+- `__version__.py` auf `0.5.0` gesetzt (ADR-0046 §1), `CHANNEL` bleibt `"stable"`.
+  CHANGELOG `[Unreleased]` bewusst nicht eingefroren (ADR-0046 §3).
+- Tag `v0.5.0-beta1` auf `dev`-HEAD; Self-Update-Test (ältere Beta erkennt v0.5.0-beta1)
+  macht DF1DS manuell.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
