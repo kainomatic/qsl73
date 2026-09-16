@@ -103,6 +103,18 @@ def build_write_selections(
     return selections, confirmed_doc_ids
 
 
+def card_display_callsign(card_fields) -> str:
+    """Gibt das anzuzeigende Karten-Rufzeichen zurück (Issue #33 Teil 1).
+
+    Nur call_from (Fremdcall) ist relevant für Anzeige/Sortierung/Suche.
+    call_to ist per Konstruktion das Eigencall (run._extract_token_based setzt es
+    nur nach is_own_call-Prüfung) und wird NICHT mehr als Rückfallwert genutzt —
+    sonst erscheint das eigene Rufzeichen verwirrend als "Karten-Rufzeichen".
+    Leer/None → "" (Aufrufer hängen "–"/upper()/lower() nach Bedarf an).
+    """
+    return card_fields.call_from or ""
+
+
 def qso_display_values(matched) -> tuple:
     """Gibt (call, date, band, mode) aus einem QsoCandidate für die Treeview-Anzeige zurück.
 
@@ -287,7 +299,7 @@ def _band_sort_key(band_str) -> tuple:
 def _card_sort_key(card, column: str) -> tuple:
     """Extrakt Sortierschlüssel aus CardResult nach Spaltenname."""
     if column == "call":
-        v = (card.card_fields.call_from or card.card_fields.call_to or "").upper()
+        v = card_display_callsign(card.card_fields).upper()
         return (0 if v else 1, v)
     if column == "date":
         return _date_sort_key(card.card_fields.date)
@@ -368,7 +380,7 @@ def text_filter_cards(cards: list, query: str) -> list:
         return list(cards)
 
     def matches(card) -> bool:
-        call = (card.card_fields.call_from or card.card_fields.call_to or "").lower()
+        call = card_display_callsign(card.card_fields).lower()
         date = (card.card_fields.date or "").lower()
         band = (card.card_fields.band or "").lower()
         return q in call or q in date or q in band

@@ -14,6 +14,12 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Randfall „QSO ohne CT=QSL-Eintrag" (Issue #4) als durch ADR-0019 + Schema-Validierung abgedeckt dokumentiert; `docs/discovery.md` Frage #3 aufgelöst. Fixes #4
 
 ### Fixed
+- Trefferliste zeigte bei unsicheren Karten ohne erkennbares Gegencall das **eigene**
+  Rufzeichen an statt „–" (Fallback auf `call_to`, das per Konstruktion das Eigencall
+  ist); neue Hilfsfunktion `card_display_callsign()` in `gui/filter_util.py` sorgt für
+  konsistente Anzeige, Sortierung und Textsuche. Teilschritt 1/2 von Issue #33 — der
+  Matching-Umbau (mehrere Fremd-Call-Kandidaten, kontextabhängiges Fuzzy) folgt separat;
+  Issue #33 bleibt bis dahin offen.
 
 ## [0.4.0] - 2026-06-24
 

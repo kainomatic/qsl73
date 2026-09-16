@@ -596,6 +596,20 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   künftiger Feinschliff bei Bedarf als separates Issue.
 - Kein neues ADR (ADR-0019 bleibt maßgeblich); keine Änderung an `log4om_write.py`/`log4om_db.py`.
 
+### ✅ Anzeige-Fix — Eigencall nicht mehr als Karten-Rufzeichen (Issue #33, Teil 1/2)
+
+- Neue Hilfsfunktion `gui/filter_util.py::card_display_callsign(card_fields)` (tk-frei):
+  liefert nur noch `call_from` — `call_to` (per Konstruktion das Eigencall, siehe
+  `run._extract_token_based`/ADR-0025) wird nicht mehr als Rückfallwert genutzt.
+- `_card_sort_key` (Spalte „call") und `text_filter_cards` nutzen jetzt dieselbe
+  Funktion → Anzeige, Sortierung und Textsuche konsistent (ADR-0052 unverändert gültig).
+- `gui/main_window.py::_refresh_tree`: Basis-Fall `call = ...` umgestellt; QSO-Werte
+  bei manuell zugeordneten/geschriebenen Karten (`qso_display_values`) unverändert.
+- **Teil 2 (nicht hier):** Matching-Umbau — mehrere Fremd-Call-Kandidaten ans Matching
+  durchreichen + kontextabhängiges Fuzzy (Positions-Heuristik vs. DB-Abgleich) — folgt
+  als separater Auftrag mit eigenem ADR. Issue #33 bleibt daher offen.
+- 1282 Tests grün (4 erwartete Skips).
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

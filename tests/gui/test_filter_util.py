@@ -512,6 +512,7 @@ class TestWorkflowCardContext:
 # ----- Klick-Sortierung (#28) und Textfilter (#29) -----
 
 from qsl73.gui.filter_util import (
+    card_display_callsign,
     sort_cards_by_column,
     sort_cards_written_last_then_by_column,
     sort_candidates_by_column,
@@ -547,6 +548,25 @@ def _make_candidate(
     qsoid: str = "q1",
 ) -> QsoCandidate:
     return QsoCandidate(qsoid=qsoid, callsign=callsign, date=date, band=band, mode=mode)
+
+
+# --- card_display_callsign (Issue #33 Teil 1: Eigencall nicht als Karten-Rufzeichen) ---
+
+
+def test_card_display_callsign_returns_call_from():
+    fields = CardFields(call_from="DL1AAA", call_to="DF1DS", date=None, band=None, mode=None)
+    assert card_display_callsign(fields) == "DL1AAA"
+
+
+def test_card_display_callsign_only_own_call_returns_empty():
+    """call_to ist per Konstruktion das Eigencall — kein Rückfall mehr darauf."""
+    fields = CardFields(call_from=None, call_to="DF1DS", date=None, band=None, mode=None)
+    assert card_display_callsign(fields) == ""
+
+
+def test_card_display_callsign_both_none_returns_empty():
+    fields = CardFields(call_from=None, call_to=None, date=None, band=None, mode=None)
+    assert card_display_callsign(fields) == ""
 
 
 # --- sort_cards_by_column ---
@@ -614,6 +634,20 @@ def test_sort_cards_stable_equal_keys():
     cards = [_make_card_full(1, band="40m"), _make_card_full(2, band="40m")]
     result = sort_cards_by_column(cards, "band", ascending=True)
     assert [c.doc_id for c in result] == [1, 2]
+
+
+def test_sort_cards_call_ignores_own_call_in_call_to():
+    """Karte mit nur Eigencall (call_to) sortiert wie leer, nicht als DF1DS (Issue #33 Teil 1)."""
+    own_call_only = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to="DF1DS", date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        existing_confirmations=[],
+    )
+    foreign_call = _make_card_full(2, call="DL1AAA")
+    result = sort_cards_by_column([own_call_only, foreign_call], "call", ascending=True)
+    assert [c.doc_id for c in result] == [2, 1]
 
 
 # --- sort_cards_written_last_then_by_column (V4) ---
@@ -726,6 +760,18 @@ def test_text_filter_empty_query_returns_all():
 def test_text_filter_no_match_returns_empty():
     cards = [_make_card_full(1, call="DF1DS")]
     assert text_filter_cards(cards, "DK8XX") == []
+
+
+def test_text_filter_does_not_match_own_call_in_call_to():
+    """Suche nach dem Eigencall darf eine Karte mit nur call_to=Eigencall nicht finden (Issue #33 Teil 1)."""
+    own_call_only = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to="DF1DS", date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        existing_confirmations=[],
+    )
+    assert text_filter_cards([own_call_only], "df1ds") == []
 
 
 def test_text_filter_mode_not_searchable():
