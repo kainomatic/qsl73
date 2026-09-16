@@ -4,6 +4,23 @@
 > Spezifikation (→ KONZEPT.md). Lebendes Dokument: erledigte Schritte abhaken,
 > Reihenfolge bei Bedarf anpassen.
 
+---
+
+## 🔧 AKTUELLER STAND (Release)
+
+**v0.5.0-beta2** veröffentlicht und in Test durch DF1DS. **v0.5.0 STABLE noch
+NICHT released** — `dev`→`main`-Release ist **pausiert** bis DF1DS-Freigabe
+nach abgeschlossenem Beta-Test (`main` steht aktuell auf `v0.4.0`).
+
+Enthaltene Änderungen seit v0.4.0: #26 (Log-Level-Einstellung), #4
+(CT=QSL-Randfälle dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau
+mehrere Fremdcalls/Fuzzy, ADR-0056), #34 (Anzeige-Fix CERTAIN-Rufzeichen —
+bereits als gut bestätigt).
+
+`origin/dev = 1049cdf`.
+
+---
+
 ## Zusammenarbeit (Rollen)
 - **Claude Desktop:** Architekt + Reviewer. Schreibt/aktualisiert KONZEPT.md & Prompts,
   liest nach jedem Schritt den Repo-Stand (Filesystem, nur lesend) und prüft gegen die
