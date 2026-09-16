@@ -695,6 +695,17 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   #35 (Sonderrufzeichen mit zwei Ziffern nicht erkannt), #36 (OCR-Zeichenverwechslung
   O/0 und I/1 bei Rufzeichen, kein Neutralisierer). Entscheidung jeweils offen.
 
+### 🔧 Beta-Release v0.5.0-beta3 — in Vorbereitung
+
+- Erneute Beta nach Bindestrich-Datumsfix (ADR-0057) — zum erneuten Test der PA80OMG-
+  Karte vor dem Stable-Release. `__version__.py` bleibt `0.5.0`/`stable` (unverändert
+  seit beta1, ADR-0046 §1); CHANGELOG `[Unreleased]` weiterhin offen (ADR-0046 §3),
+  enthält jetzt zusätzlich den ADR-0057-Datumsfix.
+  Issues #35 (Sonderrufzeichen zwei Ziffern) und #36 (OCR O/0, I/1) bleiben offen —
+  nicht Teil dieser Beta.
+- Tag `v0.5.0-beta3`; Test der PA80OMG-Karte (Datum jetzt erkannt) macht DF1DS
+  manuell nach dem Build.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
