@@ -656,6 +656,15 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Nächster Schritt:** neue Beta `v0.5.0-beta2` bauen und erneut testen, bevor der
   Stable-Release fortgesetzt wird.
 
+### 🔧 Beta-Release v0.5.0-beta2 — in Vorbereitung
+
+- Erneute Beta nach Anzeige-Fix #34 (`origin/dev` = `afe883d`); zum erneuten Test vor
+  dem Stable-Release. `__version__.py` bleibt `0.5.0`/`stable` (unverändert seit beta1,
+  ADR-0046 §1); CHANGELOG `[Unreleased]` weiterhin offen (ADR-0046 §3), enthält jetzt
+  zusätzlich #34.
+- Tag `v0.5.0-beta2` auf `dev`-HEAD; Self-Update-Test + Anzeige-Prüfung (CERTAIN zeigt
+  Rufzeichen, kein „–") macht DF1DS manuell nach dem Build.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
