@@ -28,6 +28,7 @@ from qsl73.gui.filter_util import (
     FILTER_MODES,
     build_workflow_sequence,
     build_write_selections,
+    card_display_callsign,
     filter_results,
     format_progress_text,
     is_batch_writable,
@@ -472,7 +473,7 @@ class MainWindow(tk.Tk):
         self._tree.delete(*self._tree.get_children())
         for card in sorted_cards:
             iid = str(card.doc_id)
-            call = card.card_fields.call_from or card.card_fields.call_to or "–"
+            call = card_display_callsign(card.card_fields) or "–"
             date = card.card_fields.date or "–"
             band = card.card_fields.band or "–"
             mode_val = card.card_fields.mode or "–"
