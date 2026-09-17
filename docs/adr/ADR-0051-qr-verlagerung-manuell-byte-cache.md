@@ -55,6 +55,29 @@ der Nutzer manuell getippt hat, werden nie überschrieben.
 gestoppt in `_on_close`). Stop setzt ein `threading.Event` — laufende Threads beenden
 sich nach Erkennung des Events. Daemon-Threads blockieren das Beenden nicht.
 
+### 4. Rufzeichen-Vorbefüllung aus Engine-Treffer (Nachtrag, Beta4-Befund 2026-09-17)
+
+Trägt eine Karte mehrere erkannte Fremdcall-Kandidaten (`call_from_candidates`,
+ADR-0056), bleibt `card_fields.call_from` `None` — auch wenn `match_card` bereits
+genau EIN DB-QSO getroffen hat (z. B. R2 `TOO_FEW_FIELDS`: exakter Treffer, aber
+Datum/Band fehlen; R3 `FUZZY_CALL`: unscharfer Treffer). Bisher blieb das
+Rufzeichen-Suchfeld dann leer, und die Trefferliste zeigte alle QSOs statt des
+einen bereits von der Engine gefundenen.
+
+`card_fields_to_query` (Nachtrag) nimmt zusätzlich das `MatchOutcome` entgegen:
+ist `call_from` leer, aber `outcome.candidates` enthält GENAU EIN QSO, wird das
+dafür verantwortliche Karten-Rufzeichen aus `outcome.reason.details` (ADR-0058:
+`TOO_FEW_FIELDS` → Schlüssel `"call"`; `FUZZY_CALL` → Schlüssel `"read"`)
+vorbefüllt. Bei mehreren getroffenen QSOs (`MULTI_QSO`) bleibt das Feld leer —
+kein Raten (ADR-0007). Es handelt sich weiterhin nur um eine **Vorbefüllung des
+Suchfelds**, keine Vorauswahl eines Kandidaten in der Trefferliste — der Grundsatz
+aus Abschnitt 2 (menschengeführter manueller Schritt, ADR-0028) bleibt unverändert.
+
+Reihenfolge der Vorbefüll-Quellen für das Rufzeichen-Suchfeld, höchste Priorität
+zuerst: **QR-Wert** (überschreibt bei Bildladen, siehe Abschnitt 2) > **OCR
+`call_from`** (falls eindeutig gelesen) > **Engine-Treffer-Rufzeichen** (nur bei
+genau einem DB-Treffer trotz mehrdeutiger OCR-Calls) > leer.
+
 ---
 
 ## Verhältnis zu ADR-0007

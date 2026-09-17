@@ -44,6 +44,21 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Schrägstrich-2-stellig-Fall (ADR-0057). Im selben Beta-Befund gefundene, aber nicht
   umgesetzte Punkte als Issues #35 und #36 festgehalten (Sonderrufzeichen mit zwei
   Ziffern / OCR-Verwechslung O-0 und I-1 bei Rufzeichen).
+- Manueller Zuordnungs-Dialog befüllte das Rufzeichen-Suchfeld nicht, wenn eine Karte
+  mehrere erkannte Fremdcall-Kandidaten hatte (`card_fields.call_from` = `None`,
+  ADR-0056 §1) — auch wenn die Matching-Engine bereits genau EIN passendes DB-QSO
+  gefunden hatte (UNCERTAIN/`TOO_FEW_FIELDS` oder `FUZZY_CALL`): Feld blieb leer,
+  Trefferliste zeigte alle QSOs statt des einen bekannten Treffers. `card_fields_to_query`
+  nutzt jetzt zusätzlich `outcome.candidates`/`outcome.reason.details` (ADR-0058), um in
+  diesem Fall das dafür verantwortliche Karten-Rufzeichen vorzubefüllen — bei mehreren
+  getroffenen QSOs (`MULTI_QSO`) bleibt das Feld weiterhin leer (kein Raten). Keine
+  Vorauswahl eines Kandidaten in der Trefferliste (ADR-0028/ADR-0051 unverändert).
+  ADR-0051 um diesen Nachtrag ergänzt.
+- DateEntry im manuellen Zuordnungs-Dialog zeigte das heutige Datum an, obwohl kein
+  Datum gelesen wurde (Filter blieb zwar korrekt inaktiv, aber die Anzeige wirkte
+  neben „Gelesen: Datum –" wie ein echter Wert). Feld bleibt jetzt leer, solange kein
+  Datum explizit gesetzt wurde (OCR/QR/Nutzerauswahl) — auch nach Klick auf den
+  Datum-Löschen-Button (`✕`), der die Anzeige bisher unverändert ließ.
 
 ## [0.4.0] - 2026-06-24
 

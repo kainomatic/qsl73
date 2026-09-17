@@ -2,7 +2,9 @@
 """Manueller Zuordnungs-Dialog (Schritt 6c-2/6c-UX, ADR-0037).
 
 Öffentliche API (tk-frei, vollständig ohne Display testbar):
-  card_fields_to_query   — CardFields → ManualQuery (OCR-Vorbefüllung)
+  card_fields_to_query   — CardFields (+ optional MatchOutcome) → ManualQuery
+                           (OCR-Vorbefüllung; nutzt bei mehreren Fremdcall-
+                           Kandidaten den Engine-Treffer, Beta4-Befund)
   field_values_to_query  — Eingabefeld-Strings → ManualQuery
   render_pdf_pages       — PDF-Bytes → list[PIL.Image] (alle Seiten, 150 DPI, Issue #19)
   render_pdf_first_page  — PDF-Bytes → PIL.Image | None (Seite 1; Abwärtskomp.)
@@ -72,14 +74,45 @@ _TT_BTN_CANCEL = "Dialog schließen ohne Zuordnung"
 # ---------------------------------------------------------------------------
 
 
-def card_fields_to_query(card_fields: CardFields) -> ManualQuery:
+def _prefill_call_from_outcome(outcome) -> Optional[str]:
+    """Ermittelt ein Vorbefüll-Rufzeichen aus dem Engine-Treffer (Beta4-Befund, ADR-0051).
+
+    Trägt eine Karte mehrere erkannte Fremdcall-Kandidaten (ADR-0056),
+    bleibt card_fields.call_from None — auch wenn match_card bereits genau
+    EIN DB-QSO getroffen hat (R2 TOO_FEW_FIELDS oder R3 FUZZY_CALL). Ohne
+    diese Funktion blieb das Rufzeichen-Suchfeld dann leer und die
+    Trefferliste zeigte alle QSOs statt des einen bereits bekannten Treffers.
+
+    Nur wenn outcome.candidates GENAU EIN QSO enthält UND der Grund
+    (reason.details) das dafür verantwortliche Karten-Rufzeichen nennt
+    (TOO_FEW_FIELDS: "call"; FUZZY_CALL: "read"), wird dieses zurückgegeben.
+    Bei mehreren getroffenen QSOs (MULTI_QSO) oder ohne Grunddaten: None —
+    kein Raten (ADR-0007). Wählt NUR das Suchfeld vor, keine Vorauswahl in
+    der Trefferliste (ADR-0028: Vorbefüllung ja, Auto-Select nein).
+    """
+    candidates = getattr(outcome, "candidates", None) or []
+    if len(candidates) != 1:
+        return None
+    reason = getattr(outcome, "reason", None)
+    if reason is None:
+        return None
+    details = reason.details or {}
+    return details.get("call") or details.get("read")
+
+
+def card_fields_to_query(card_fields: CardFields, outcome=None) -> ManualQuery:
     """Befüllt ManualQuery aus OCR/QR-extrahierten CardFields.
 
     call_from (Absender der Karte) wird als Rufzeichen-Suchfeld verwendet.
-    Leere Strings und None bleiben None (kein Filter).
+    Ist call_from None (mehrere erkannte Fremdcall-Kandidaten, ADR-0056), aber
+    match_card hat bereits genau EIN DB-QSO getroffen (outcome, optional),
+    wird ersatzweise das dafür verantwortliche Karten-Rufzeichen vorbefüllt
+    (_prefill_call_from_outcome, Beta4-Befund). Leere Strings und None bleiben
+    None (kein Filter).
     """
+    call = card_fields.call_from or _prefill_call_from_outcome(outcome)
     return ManualQuery(
-        call=card_fields.call_from or None,
+        call=call or None,
         date=card_fields.date or None,
         band=card_fields.band or None,
         mode=card_fields.mode or None,
@@ -388,7 +421,7 @@ if _TK_OK:
             self._var_mode = tk.StringVar()
 
             # OCR-Vorbefüllung
-            q = card_fields_to_query(self._card.card_fields)
+            q = card_fields_to_query(self._card.card_fields, self._card.outcome)
             if q.call:
                 self._var_call.set(q.call)
             if q.band:
@@ -417,6 +450,7 @@ if _TK_OK:
                 self._date_entry = DateEntry(
                     fld_frame, width=18, date_pattern="yyyy-MM-dd"
                 )
+                self._use_datepicker = True
                 if q.date:
                     try:
                         from datetime import datetime as _dt
@@ -425,14 +459,18 @@ if _TK_OK:
                         )
                         self._date_explicit = True
                     except Exception:
-                        pass
+                        self._blank_date_display()
+                else:
+                    # Kein gelesenes Datum (OCR/QR) — DateEntry würde sonst das
+                    # heutige Datum zeigen und wie ein gelesener Wert wirken,
+                    # direkt neben "Gelesen: Datum –" (Beta4-Befund).
+                    self._blank_date_display()
                 self._date_entry.bind(
                     "<<DateEntrySelected>>", self._on_date_changed
                 )
                 self._date_entry.bind(
                     "<KeyRelease>", self._on_date_changed
                 )
-                self._use_datepicker = True
             except ImportError:
                 _log.warning(
                     "tkcalendar nicht verfügbar — Datum als Textfeld (Format: YYYY-MM-DD)"
@@ -583,13 +621,31 @@ if _TK_OK:
             self._update_search()
 
         def _on_clear_date(self) -> None:
-            """Datum-Löschen-Button: Filter aufheben; DateEntry bleibt sichtbar."""
+            """Datum-Löschen-Button: Filter aufheben, DateEntry-Anzeige leeren (Beta4-Befund)."""
             self._date_explicit = False
-            if not self._use_datepicker:
+            if self._use_datepicker:
+                self._blank_date_display()
+            else:
                 self._var_date.set("")
-            # Bei DateEntry: Anzeige bleibt (zeigt "heute"), aber _date_explicit=False
-            # → _get_date_str() liefert "" → kein Datumsfilter greift.
             self._update_search()
+
+        def _blank_date_display(self) -> None:
+            """Zeigt das DateEntry-Feld leer statt mit dem heutigen Datum (Beta4-Befund).
+
+            tkcalendar validiert den Entry-Text beim Fokusverlust
+            (validate='focusout') und setzt ihn sonst automatisch auf den
+            zuletzt gültigen Wert zurück (Default: heute) — das würde ein
+            geleertes Feld sofort wieder mit "heute" überschreiben.
+            validate='none' unterbindet diese automatische Korrektur; eine
+            echte Auswahl über den Kalender-Dropdown bleibt unberührt, weil
+            _select() den Text direkt setzt, unabhängig von der
+            validate-Option. Kein Effekt, wenn kein DateEntry verfügbar ist
+            (Textfeld-Fallback ohne tkcalendar).
+            """
+            if not self._use_datepicker:
+                return
+            self._date_entry.configure(validate="none")
+            self._date_entry.delete(0, "end")
 
         def _on_tree_select(self, _event=None) -> None:
             has_sel = bool(self._tree.selection())

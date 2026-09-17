@@ -118,6 +118,81 @@ def test_card_fields_to_query_empty_string_becomes_none():
 
 
 # ---------------------------------------------------------------------------
+# 1b. card_fields_to_query mit outcome — Vorbefüllung aus Engine-Treffer
+# (Beta4-Befund: mehrere Fremdcall-Kandidaten, ein exakter DB-Treffer)
+# ---------------------------------------------------------------------------
+
+
+def test_prefill_uses_call_from_when_set():
+    """(a) card_fields.call_from gesetzt → dieses gewinnt, outcome wird ignoriert."""
+    from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult, QsoCandidate
+
+    cf = _make_card_fields(call_from="DK1AA", mode="FT8")
+    cand = QsoCandidate(qsoid="q1", callsign="DL1AAA", date="2025-04-02", band="6m", mode="FT8")
+    reason = MatchReason(MatchReasonCode.TOO_FEW_FIELDS, "…", {"call": "DL1AAA"})
+    outcome = MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None, candidates=[cand], reason=reason)
+    q = card_fields_to_query(cf, outcome)
+    assert q.call == "DK1AA"
+
+
+def test_prefill_uses_engine_hit_too_few_fields():
+    """(b) call_from=None, genau EIN Treffer (TOO_FEW_FIELDS) → Treffer-Call vorbefüllt."""
+    from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult, QsoCandidate
+
+    cf = _make_card_fields(call_from=None, mode="FT8")
+    cand = QsoCandidate(qsoid="q1", callsign="DL1AAA", date="2025-04-02", band="6m", mode="FT8")
+    reason = MatchReason(MatchReasonCode.TOO_FEW_FIELDS, "…", {"call": "DL1AAA", "missing": ["Datum", "Band"]})
+    outcome = MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None, candidates=[cand], reason=reason)
+    q = card_fields_to_query(cf, outcome)
+    assert q.call == "DL1AAA"
+
+
+def test_prefill_uses_engine_hit_fuzzy_call():
+    """(b) genau EIN fuzzy Treffer (FUZZY_CALL) → gelesenes Karten-Rufzeichen vorbefüllt."""
+    from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult, QsoCandidate
+
+    cf = _make_card_fields(call_from=None)
+    cand = QsoCandidate(qsoid="q1", callsign="DK8XX", date="2025-04-02", band="6m", mode="FT8")
+    reason = MatchReason(MatchReasonCode.FUZZY_CALL, "…", {"read": "DK3XX", "matched": "DK8XX"})
+    outcome = MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None, candidates=[cand], reason=reason)
+    q = card_fields_to_query(cf, outcome)
+    assert q.call == "DK3XX"
+
+
+def test_prefill_empty_on_multi_qso():
+    """(c) mehrere getroffene QSOs (MULTI_QSO) → kein Raten, Rufzeichen bleibt leer."""
+    from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult, QsoCandidate
+
+    cf = _make_card_fields(call_from=None)
+    cand1 = QsoCandidate(qsoid="q1", callsign="DL1AAA", date="2025-04-02", band="6m", mode="FT8")
+    cand2 = QsoCandidate(qsoid="q2", callsign="DL2BBB", date="2025-04-02", band="6m", mode="FT8")
+    reason = MatchReason(MatchReasonCode.MULTI_QSO, "…", {"calls": ["DL1AAA", "DL2BBB"]})
+    outcome = MatchOutcome(
+        result=MatchResult.UNCERTAIN, matched_qso=None, candidates=[cand1, cand2], reason=reason
+    )
+    q = card_fields_to_query(cf, outcome)
+    assert q.call is None
+
+
+def test_prefill_certain_unchanged():
+    """(d) CERTAIN (reason=None) → unverändertes Verhalten, kein Absturz."""
+    from qsl73.matching import MatchOutcome, MatchResult, QsoCandidate
+
+    cf = _make_card_fields(call_from=None)
+    cand = QsoCandidate(qsoid="q1", callsign="DL0AAA", date="2025-04-02", band="6m", mode="FT8")
+    outcome = MatchOutcome(result=MatchResult.CERTAIN, matched_qso=cand, candidates=[cand], reason=None)
+    q = card_fields_to_query(cf, outcome)
+    assert q.call is None
+
+
+def test_prefill_no_outcome_unchanged():
+    """Ohne outcome (None, Default) → unverändertes Verhalten wie zuvor."""
+    cf = _make_card_fields(call_from=None)
+    q = card_fields_to_query(cf)
+    assert q.call is None
+
+
+# ---------------------------------------------------------------------------
 # 2. Reine Helfer — field_values_to_query
 # ---------------------------------------------------------------------------
 
@@ -587,6 +662,36 @@ def test_dialog_hides_reason_block_for_certain():
 
     assert dlg._reason_label is None
     assert dlg._fields_label is None
+    root.destroy()
+
+
+@_tk_skip
+def test_dialog_date_field_blank_when_no_date_read():
+    """Kein gelesenes Datum (OCR/QR) → DateEntry zeigt NICHT das heutige Datum (Beta4-Befund)."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    root = tk.Tk()
+    root.withdraw()
+    card = _make_card_result()  # date=None per _make_card_fields-Default
+
+    captured: dict = {}
+
+    def _capture_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            captured["date_text"] = dlg_win._date_entry.get()
+            captured["date_explicit"] = dlg_win._date_explicit
+            dlg_win._on_cancel()
+
+    root.after(80, _capture_and_cancel)
+    ManualAssignmentDialog(root, card, [], "bureau")
+
+    from datetime import date as _date
+    today_str = _date.today().strftime("%Y-%m-%d")
+    assert captured.get("date_text") == ""
+    assert captured.get("date_text") != today_str
+    assert captured.get("date_explicit") is False
     root.destroy()
 
 

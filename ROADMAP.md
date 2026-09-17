@@ -741,6 +741,33 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Zuordnungs-Dialog macht DF1DS manuell nach dem Build. Stable-Release weiterhin
   nicht durch DF1DS bestätigt.
 
+### ✅ Bugfix — Rufzeichen-Vorbefüllung bei Engine-Treffer + leeres Datumsfeld ohne gelesenes Datum (Beta4-Befund, ADR-0051-Nachtrag)
+
+- Beta4-Befund 1: Karte mit zwei OCR-Rufzeichen-Kandidaten (echter Absender +
+  Verleser); Engine trifft mit dem echten Call exakt EIN DB-QSO
+  (UNCERTAIN/`TOO_FEW_FIELDS`, `outcome.candidates` = `[dieses QSO]`). Der manuelle
+  Dialog befüllte das Rufzeichen-Suchfeld bisher nur aus `card_fields.call_from`
+  (bei >1 Kandidat `None`, ADR-0056 §1) → Feld leer, Trefferliste zeigte alle QSOs
+  statt des einen bekannten Treffers.
+- `manual_assignment.card_fields_to_query` nimmt jetzt zusätzlich das `MatchOutcome`
+  entgegen: ist `call_from` leer, aber `outcome.candidates` enthält genau EIN QSO,
+  wird das dafür verantwortliche Karten-Rufzeichen aus `outcome.reason.details`
+  (ADR-0058: `TOO_FEW_FIELDS` → `"call"`; `FUZZY_CALL` → `"read"`) vorbefüllt. Bei
+  mehreren getroffenen QSOs (`MULTI_QSO`) bleibt das Feld leer (kein Raten, ADR-0007).
+  Keine Vorauswahl eines Kandidaten in der Trefferliste (ADR-0028/ADR-0051
+  unverändert) — reine Zusatz-Vorbefüllung, QR-Überschreibregel (`compute_qr_prefill`)
+  unverändert. ADR-0051 um Abschnitt 4 (Vorbefüll-Prioritätskette) ergänzt statt
+  eigenes ADR — Erweiterung der dort bereits getroffenen Entscheidung, keine neue
+  Grundsatzentscheidung.
+- Beta4-Befund 2: DateEntry zeigte das heutige Datum, wenn kein Datum gelesen wurde
+  (Filter blieb korrekt inaktiv, aber Anzeige wirkte neben „Gelesen: Datum –" wie ein
+  echter Wert) — auch nach Klick auf den Datum-Löschen-Button (`✕`), der die Anzeige
+  bisher unverändert ließ. Neue Methode `_blank_date_display()` (tkcalendar
+  `validate='none'` + Text leeren) sorgt in beiden Fällen für ein wirklich leeres
+  Feld; echte Nutzerauswahl über den Kalender-Dropdown bleibt unberührt.
+- 7 neue Tests (Vorbefüllung a–d + kein-outcome-Fall, DateEntry-Leerdarstellung
+  nach simuliertem Fokusverlust). 1333 Tests grün (3 erwartete Skips).
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
