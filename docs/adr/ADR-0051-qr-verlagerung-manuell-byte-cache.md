@@ -78,6 +78,17 @@ zuerst: **QR-Wert** (überschreibt bei Bildladen, siehe Abschnitt 2) > **OCR
 `call_from`** (falls eindeutig gelesen) > **Engine-Treffer-Rufzeichen** (nur bei
 genau einem DB-Treffer trotz mehrdeutiger OCR-Calls) > leer.
 
+**Nachtrag (Beta4-Review):** Der Vergleichswert für „hat der Nutzer das Feld schon
+geändert?" (`compute_qr_prefill`s `ocr_call`) muss denselben Wert tragen wie die
+tatsächlich angezeigte Vorbefüllung — auch wenn diese aus dem Engine-Treffer statt
+aus `card_fields.call_from` stammt. Sonst blockiert ein Engine-vorbefülltes,
+verlesenes Rufzeichen (R3 `FUZZY_CALL`) die spätere QR-Korrektur fälschlich,
+weil `current_call != ocr_call` einen manuellen Nutzer-Edit vortäuscht. Der Dialog
+zeigt zusätzlich einen Hinweis („Suchfelder aus QR-Code vorbefüllt (im Durchlauf
+nicht ausgewertet)."), sobald `_apply_qr_prefill` tatsächlich mindestens ein Feld
+überschrieben hat — sonst könnte der Grund-Text (ADR-0058, beschreibt den
+OCR-Lauf) neben einem bereits QR-korrigierten Feld irreführend wirken.
+
 ---
 
 ## Verhältnis zu ADR-0007

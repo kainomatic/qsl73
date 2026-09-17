@@ -53,6 +53,7 @@ _BTN_CANCEL = "Abbrechen"
 _BTN_DATE_CLEAR = "✕"
 _LBL_REASON = "Grund:"
 _LBL_READ_FIELDS = "Gelesen:"
+_LBL_QR_HINT = "Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht ausgewertet)."
 _REASON_WRAPLENGTH = 320
 
 # Tooltip-Texte (i18n-Vorbereitung)
@@ -325,11 +326,17 @@ if _TK_OK:
             self.resizable(True, True)
             self.grab_set()
 
-            # OCR-Vorbefüllung merken für QR-Vergleich in _apply_qr_prefill
-            self._ocr_prefill_call = self._card.card_fields.call_from or ""
-            self._ocr_prefill_band = self._card.card_fields.band or ""
-            self._ocr_prefill_mode = self._card.card_fields.mode or ""
-            self._ocr_prefill_date = self._card.card_fields.date or ""
+            # OCR/Engine-Vorbefüllung EINMALIG berechnen (statt in _build_ui erneut)
+            # und für den QR-Vergleich in _apply_qr_prefill merken. Muss denselben
+            # Wert tragen wie die tatsächliche Feld-Vorbefüllung weiter unten —
+            # sonst blockiert ein Engine-Rufzeichen (ADR-0051 §4, aus outcome bei
+            # mehreren Fremdcall-Kandidaten) fälschlich die QR-Überschreibung, weil
+            # compute_qr_prefill nur bei current==ocr_prefill überschreibt.
+            self._prefill_query = card_fields_to_query(self._card.card_fields, self._card.outcome)
+            self._ocr_prefill_call = self._prefill_query.call or ""
+            self._ocr_prefill_band = self._prefill_query.band or ""
+            self._ocr_prefill_mode = self._prefill_query.mode or ""
+            self._ocr_prefill_date = self._prefill_query.date or ""
 
             self._build_ui()
             self._update_search()
@@ -421,7 +428,7 @@ if _TK_OK:
             self._var_mode = tk.StringVar()
 
             # OCR-Vorbefüllung
-            q = card_fields_to_query(self._card.card_fields, self._card.outcome)
+            q = self._prefill_query
             if q.call:
                 self._var_call.set(q.call)
             if q.band:
@@ -532,6 +539,7 @@ if _TK_OK:
             # UNCERTAIN/NO_MATCH, die Prüfung ist defensiv.
             self._reason_label: Optional[tk.Label] = None
             self._fields_label: Optional[tk.Label] = None
+            self._qr_hint_label: Optional[tk.Label] = None
             if self._card.outcome.result != MatchResult.CERTAIN:
                 reason_line = f"{_LBL_REASON} {describe_reason(self._card.outcome)}"
                 fields_line = f"{_LBL_READ_FIELDS} {describe_read_fields(self._card.card_fields)}"
@@ -545,6 +553,16 @@ if _TK_OK:
                     wraplength=_REASON_WRAPLENGTH,
                 )
                 self._fields_label.grid(row=5, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=(2, 0))
+                # Dritte Zeile: nur sichtbar, sobald _apply_qr_prefill tatsächlich
+                # mindestens ein Feld aus dem QR übernommen hat (sonst wirkt der
+                # Grund-Text, der den OCR-Lauf beschreibt, irreführend — DF1DS-
+                # Entscheidung, Beta4-Review). Grund-/Gelesen-Text selbst unverändert.
+                self._qr_hint_label = tk.Label(
+                    fld_frame, text=_LBL_QR_HINT, justify="left", anchor="w",
+                    wraplength=_REASON_WRAPLENGTH, foreground="#0a5aa8",
+                )
+                self._qr_hint_label.grid(row=6, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=(2, 0))
+                self._qr_hint_label.grid_remove()
 
             fld_frame.columnconfigure(1, weight=1)
 
@@ -921,6 +939,8 @@ if _TK_OK:
             )
             if not overrides:
                 return
+            if self._qr_hint_label is not None:
+                self._qr_hint_label.grid()
             self._applying_prefill = True
             try:
                 if "call" in overrides:

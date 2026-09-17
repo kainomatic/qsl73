@@ -10,6 +10,7 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - Log-Level (INFO/WARNING/DEBUG) im Einstellungen-Dialog wählbar (neues Config-Feld `app.log_level`); wirkt sofort nach dem Speichern. `QSL73_DEBUG=1` bleibt als Entwickler-Override wirksam und kann das gewählte Level nur anheben, nie absenken (ADR-0055, Fixes #26)
 - Manueller Zuordnungs-Dialog zeigt jetzt Grund der Einstufung + gelesene Rohfelder: unterhalb der Suchfelder erscheinen zwei Zeilen „Grund:" (Klartext mit konkreten Werten, z. B. welches Feld widerspricht oder welche Rufzeichen-Kandidaten gelesen wurden) und „Gelesen:" (Rufzeichen/Datum/Band/Mode/Zeit, fehlend = „–"). `MatchOutcome.reason` (additiv, `None` bei CERTAIN) liefert den Grund aus der Matching-Engine als strukturierte `MatchReason` (Code + Klartext + Details); `gui/filter_util.describe_reason()`/`describe_read_fields()` rendern ihn tk-frei (ADR-0058, Fixes #37). Hauptfenster-Zeilen-Tooltip mit demselben Text zurückgestellt (Issue #38 — bestehende Tooltip-Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
+- Manueller Zuordnungs-Dialog zeigt eine dritte Zeile „Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht ausgewertet)." unter „Gelesen:", sobald ein QR-Code tatsächlich mindestens ein Suchfeld überschrieben hat — damit der Grund-Text (ADR-0058, beschreibt den OCR-Lauf) daneben nicht irreführend wirkt. Erscheint nicht ohne QR-Übernahme; Grund-/Gelesen-Text selbst unverändert.
 
 ### Changed
 - Randfall „QSO ohne CT=QSL-Eintrag" (Issue #4) als durch ADR-0019 + Schema-Validierung abgedeckt dokumentiert; `docs/discovery.md` Frage #3 aufgelöst. Fixes #4
@@ -59,6 +60,15 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   neben „Gelesen: Datum –" wie ein echter Wert). Feld bleibt jetzt leer, solange kein
   Datum explizit gesetzt wurde (OCR/QR/Nutzerauswahl) — auch nach Klick auf den
   Datum-Löschen-Button (`✕`), der die Anzeige bisher unverändert ließ.
+- War das Rufzeichen-Suchfeld durch den neuen Engine-Treffer vorbefüllt (siehe
+  vorheriger Punkt), blockierte das eine spätere QR-Korrektur: `compute_qr_prefill`
+  vergleicht den aktuellen Feldwert mit dem OCR-Vorbefüllungswert, um „Nutzer hat
+  nichts geändert" zu erkennen — dieser Vergleichswert wurde bisher weiterhin aus
+  `card_fields.call_from` (leer) statt aus der tatsächlichen Vorbefüllung berechnet.
+  Bei einem unscharf gelesenen Rufzeichen (`FUZZY_CALL`) blieb dadurch der verlesene
+  Wert stehen, obwohl ein QR-Code den korrekten Call lieferte. `_ocr_prefill_call`
+  (und konsistent `_band`/`_mode`/`_date`) wird jetzt aus demselben Ergebnis wie die
+  tatsächliche Feld-Vorbefüllung berechnet. ADR-0051 um diesen Punkt ergänzt.
 
 ## [0.4.0] - 2026-06-24
 

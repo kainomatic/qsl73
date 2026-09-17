@@ -768,6 +768,34 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - 7 neue Tests (Vorbefüllung a–d + kein-outcome-Fall, DateEntry-Leerdarstellung
   nach simuliertem Fokusverlust). 1333 Tests grün (3 erwartete Skips).
 
+### ✅ Review-Nachbesserung 4cb171a — QR darf Engine-Vorbefüllung überschreiben + QR-Hinweiszeile (ADR-0051-Nachtrag)
+
+- Review-Befund zu 4cb171a: Die neue Engine-Vorbefüllung (voriger Punkt) war
+  korrekt, aber `ManualAssignmentDialog` berechnete `_ocr_prefill_call` weiterhin
+  direkt aus `card_fields.call_from` (leer bei mehreren Kandidaten), während das
+  Suchfeld selbst bereits den Engine-Call trug. `compute_qr_prefill` überschreibt
+  ein Feld nur, wenn es leer ist oder noch dem OCR-Vorbefüllungswert entspricht —
+  dieser Vergleich schlug dadurch fehl, ein per QR gelesenes korrektes Rufzeichen
+  konnte einen unscharf erkannten Engine-Treffer (`FUZZY_CALL`) nicht mehr
+  korrigieren. Verletzte die in ADR-0051 §4 festgelegte Priorität QR > OCR > Engine.
+- Fix: `_ocr_prefill_call`/`_band`/`_mode`/`_date` werden jetzt EINMALIG aus
+  demselben `card_fields_to_query(card_fields, outcome)`-Ergebnis berechnet, das
+  auch die tatsächliche Feld-Vorbefüllung liefert (`self._prefill_query`,
+  in `__init__` vor `_build_ui()`, dort wiederverwendet statt neu berechnet).
+  `band`/`mode`/`date` waren bereits identisch zu `card_fields` — nur konsistent
+  auf dieselbe Quelle umgestellt, kein Verhaltensunterschied dort.
+- Neue Hinweiszeile (DF1DS-Entscheidung): sobald `_apply_qr_prefill` tatsächlich
+  mindestens ein Feld überschrieben hat, erscheint unter „Gelesen:" eine dritte
+  Zeile „Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht
+  ausgewertet)." (`_LBL_QR_HINT`) — sonst könnte der Grund-Text (beschreibt den
+  OCR-Lauf) neben einem QR-korrigierten Feld irreführend wirken. Zeile fehlt ohne
+  QR-Übernahme; Grund-/Gelesen-Text selbst unverändert.
+- ADR-0051 §4 um den Beta4-Review-Nachtrag ergänzt.
+- 5 neue Tests (reiner `compute_qr_prefill`-Test für den Engine-Vorbefüllungsfall,
+  3 tk-Tests: QR überschreibt Engine-Vorbefüllung, Hinweiszeile sichtbar nach
+  QR-Übernahme, Hinweiszeile bleibt ausgeblendet ohne QR-Übernahme). 1337 Tests
+  grün (3 erwartete Skips).
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

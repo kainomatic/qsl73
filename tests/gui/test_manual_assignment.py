@@ -696,6 +696,112 @@ def test_dialog_date_field_blank_when_no_date_read():
 
 
 @_tk_skip
+def test_dialog_qr_overrides_engine_prefilled_fuzzy_call():
+    """Beta4-Review: FUZZY_CALL-Vorbefüllung (verlesener Call) muss von einem
+    späteren QR-Rufzeichen überschrieben werden können — vorher blockierte die
+    Engine-Vorbefüllung die QR-Übernahme, weil _ocr_prefill_call nicht denselben
+    Wert trug wie das tatsächlich angezeigte Feld."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+    from qsl73.matching import CardFields, MatchOutcome, MatchReason, MatchReasonCode, MatchResult, QsoCandidate
+    from qsl73.run import CardResult
+
+    root = tk.Tk()
+    root.withdraw()
+    cand = QsoCandidate(qsoid="q1", callsign="DL1AAA", date="2025-04-02", band="6m", mode="FT8")
+    reason = MatchReason(MatchReasonCode.FUZZY_CALL, "…", {"read": "DLIAAA", "matched": "DL1AAA"})
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to=None, date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None, candidates=[cand], reason=reason),
+        existing_confirmations=[],
+    )
+
+    captured: dict = {}
+
+    def _check_and_apply_qr():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is None:
+            return
+        captured["before_qr"] = dlg_win._var_call.get()
+        qr_fields = CardFields(call_from="DL1AAA", call_to=None, date=None, band=None, mode=None)
+        dlg_win._apply_qr_prefill(qr_fields)
+        captured["after_qr"] = dlg_win._var_call.get()
+        dlg_win._on_cancel()
+
+    root.after(80, _check_and_apply_qr)
+    ManualAssignmentDialog(root, card, [cand], "bureau")
+
+    assert captured.get("before_qr") == "DLIAAA"
+    assert captured.get("after_qr") == "DL1AAA"
+    root.destroy()
+
+
+@_tk_skip
+def test_dialog_qr_hint_visible_after_prefill_not_before():
+    """QR-Hinweiszeile erscheint erst NACH tatsächlicher QR-Übernahme, nicht vorher."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+    from qsl73.matching import CardFields, MatchOutcome, MatchResult
+    from qsl73.run import CardResult
+
+    root = tk.Tk()
+    root.withdraw()
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from="DK1AA", call_to=None, date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        existing_confirmations=[],
+    )
+
+    captured: dict = {}
+
+    def _check_before_and_after_qr():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is None:
+            return
+        captured["hint_before"] = bool(dlg_win._qr_hint_label.grid_info())
+        qr_fields = CardFields(call_from="DK1AA", call_to=None, date=None, band="20m", mode=None)
+        dlg_win._apply_qr_prefill(qr_fields)
+        captured["hint_after"] = bool(dlg_win._qr_hint_label.grid_info())
+        dlg_win._on_cancel()
+
+    root.after(80, _check_before_and_after_qr)
+    ManualAssignmentDialog(root, card, [], "bureau")
+
+    assert captured.get("hint_before") is False
+    assert captured.get("hint_after") is True
+    root.destroy()
+
+
+@_tk_skip
+def test_dialog_qr_hint_absent_without_qr_prefill():
+    """Ohne jegliche QR-Übernahme bleibt die Hinweiszeile dauerhaft ausgeblendet."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    root = tk.Tk()
+    root.withdraw()
+    card = _make_card_result()
+
+    captured: dict = {}
+
+    def _capture_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            captured["hint_visible"] = bool(dlg_win._qr_hint_label.grid_info())
+            dlg_win._on_cancel()
+
+    root.after(80, _capture_and_cancel)
+    ManualAssignmentDialog(root, card, [], "bureau")
+
+    assert captured.get("hint_visible") is False
+    root.destroy()
+
+
+@_tk_skip
 def test_dialog_image_loader_failure_no_crash():
     """Fehler beim Bildladen → Platzhaltertext, kein Absturz."""
     import tkinter as tk
@@ -831,6 +937,23 @@ def test_compute_qr_prefill_no_overwrite_user_modified_call():
         date_explicit=False,
     )
     assert "call" not in result  # kein Überschreiben
+
+
+def test_compute_qr_prefill_overwrites_engine_prefilled_call():
+    """Beta4-Review: war das Feld durch einen Engine-Treffer vorbefüllt (nicht
+    direkt durch card_fields.call_from, ADR-0051 §4), muss ocr_call denselben
+    Wert tragen wie current_call — sonst blockiert current_call != ocr_call die
+    QR-Überschreibung fälschlich, obwohl der Nutzer nichts geändert hat."""
+    qr = _make_qr_fields(call_from="DL1AAA")
+    result = compute_qr_prefill(
+        qr,
+        current_call="DLIAAA",  # Engine-Vorbefüllung: verlesenes Rufzeichen (FUZZY_CALL)
+        current_band="", current_mode="",
+        ocr_call="DLIAAA",      # korrekt nachgezogen — identisch mit current_call
+        ocr_band="", ocr_mode="",
+        date_explicit=False,
+    )
+    assert result.get("call") == "DL1AAA"
 
 
 def test_compute_qr_prefill_overwrites_empty_field():
