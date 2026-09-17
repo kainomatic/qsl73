@@ -849,3 +849,121 @@ def test_second_foreign_call_no_longer_blanks_out_real_sender():
     result = _match(card, [cand])
     assert result.result == MatchResult.CERTAIN
     assert result.matched_qso.qsoid == "real_sender"
+
+
+# ===========================================================================
+# MatchReason (ADR-0058, Issue #37) — Erklärbarkeit der Matching-Entscheidung
+# ===========================================================================
+# CERTAIN trägt nie einen Grund; jeder UNCERTAIN/NO_MATCH-Code wird einzeln
+# per Test belegt, inkl. konkreter Werte im Klartext.
+
+from qsl73.matching import MatchReasonCode  # noqa: E402
+
+
+def test_certain_match_has_no_reason():
+    result = _match(_card(), [_candidate()])
+    assert result.result == MatchResult.CERTAIN
+    assert result.reason is None
+
+
+def test_reason_not_own_call():
+    card = _card(call_to="DL5XXX")
+    result = _match(card, [_candidate()])
+    assert result.result == MatchResult.NO_MATCH
+    assert result.reason.code == MatchReasonCode.NOT_OWN_CALL
+    assert "DL5XXX" in result.reason.text
+
+
+def test_reason_no_call():
+    result = _match(_card(call_from=None), [_candidate()])
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.reason.code == MatchReasonCode.NO_CALL
+    assert result.reason.text == "Kein Rufzeichen im OCR-Text erkannt."
+
+
+def test_reason_call_not_decomposable_single_call():
+    card = _card(call_from="DL0AAA/IF9")
+    result = _match(card, [_candidate(callsign="DL0AAA")])
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.reason.code == MatchReasonCode.CALL_NOT_DECOMPOSABLE
+    assert "DL0AAA/IF9" in result.reason.text
+
+
+def test_reason_call_not_decomposable_mixed_calls():
+    # Ein zerlegbarer Call ohne Treffer + ein nicht zerlegbarer Call → UNSICHER,
+    # Grundtext nennt gezielt den nicht zerlegbaren Call.
+    card = _card(call_from=None, call_from_candidates=["DL5CCC", "DL0AAA/IF9"])
+    result = _match(card, [_candidate(callsign="DL9ZZZ")])
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.reason.code == MatchReasonCode.CALL_NOT_DECOMPOSABLE
+    assert "DL0AAA/IF9" in result.reason.text
+    assert "übrigen" in result.reason.text
+
+
+def test_reason_no_candidate():
+    card = _card(call_from="DL5CCC")
+    result = _match(card, [_candidate(callsign="DL9ZZZ")])
+    assert result.result == MatchResult.NO_MATCH
+    assert result.reason.code == MatchReasonCode.NO_CANDIDATE
+    assert "DL5CCC" in result.reason.text
+
+
+def test_reason_multi_call():
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL9ZZZ"])
+    result = _match(card, [_candidate(callsign="DL5CCC")])
+    assert result.result == MatchResult.NO_MATCH
+    assert result.reason.code == MatchReasonCode.MULTI_CALL
+    assert "DL1AAA" in result.reason.text
+    assert "DL9ZZZ" in result.reason.text
+
+
+def test_reason_contradiction():
+    card = _card(call_from="DK8XX", band="20m")
+    cand = _candidate(callsign="DK8XX", band="6m")
+    result = _match(card, [cand])
+    assert result.result == MatchResult.NO_MATCH
+    assert result.reason.code == MatchReasonCode.CONTRADICTION
+    assert "DK8XX" in result.reason.text
+    assert "20m" in result.reason.text
+    assert "6m" in result.reason.text
+
+
+def test_reason_fuzzy_call():
+    card = _card(call_from="DK3XX")
+    cand = _candidate(callsign="DK8XX")
+    result = _match(card, [cand], fuzzy=True)
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.reason.code == MatchReasonCode.FUZZY_CALL
+    assert "DK3XX" in result.reason.text
+    assert "DK8XX" in result.reason.text
+
+
+def test_reason_too_few_fields():
+    card = _card(date=None, band=None, mode="FT8")
+    result = _match(card, [_candidate()])
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.reason.code == MatchReasonCode.TOO_FEW_FIELDS
+    assert "Datum" in result.reason.text
+    assert "Band" in result.reason.text
+
+
+def test_reason_multi_qso():
+    cand1 = _candidate(qsoid="id1", time_utc="10:00")
+    cand2 = _candidate(qsoid="id2", time_utc="11:00")
+    result = _match(_card(time_utc=None), [cand1, cand2])
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.reason.code == MatchReasonCode.MULTI_QSO
+    assert "DK8XX" in result.reason.text
+    assert "10:00" in result.reason.text
+    assert "11:00" in result.reason.text
+
+
+def test_reason_multi_qso_different_calls():
+    card = _card(call_from=None, call_from_candidates=["DL1AAA", "DL2BBB"])
+    cand1 = _candidate(callsign="DL1AAA", qsoid="q1")
+    cand2 = _candidate(callsign="DL2BBB", qsoid="q2")
+    result = _match(card, [cand1, cand2])
+    assert result.result == MatchResult.UNCERTAIN
+    assert result.reason.code == MatchReasonCode.MULTI_QSO
+    assert "DL1AAA" in result.reason.text
+    assert "DL2BBB" in result.reason.text

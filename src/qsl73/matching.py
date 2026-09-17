@@ -64,11 +64,41 @@ class MatchResult(Enum):
     NO_MATCH = "kein_match"
 
 
+class MatchReasonCode(Enum):
+    """Grund-Katalog für UNCERTAIN/NO_MATCH-Einstufungen (ADR-0058, Issue #37).
+
+    CERTAIN-Ergebnisse tragen keinen Grund (reason=None) — nur UNCERTAIN/NO_MATCH.
+    """
+    NOT_OWN_CALL = "not_own_call"
+    NO_CALL = "no_call"
+    CALL_NOT_DECOMPOSABLE = "call_not_decomposable"
+    NO_CANDIDATE = "no_candidate"
+    MULTI_CALL = "multi_call"
+    CONTRADICTION = "contradiction"
+    FUZZY_CALL = "fuzzy_call"
+    TOO_FEW_FIELDS = "too_few_fields"
+    MULTI_QSO = "multi_qso"
+
+
+@dataclass
+class MatchReason:
+    """Klartext-Erklärung einer UNCERTAIN/NO_MATCH-Einstufung (ADR-0058).
+
+    code: stabiler Reason-Code (Enum, für Logik/Tests).
+    text: fertiger deutscher Klartext mit konkreten Werten (für GUI-Anzeige).
+    details: strukturierte Rohdaten hinter dem Text (für spätere Auswertung/i18n).
+    """
+    code: MatchReasonCode
+    text: str
+    details: dict = field(default_factory=dict)
+
+
 @dataclass
 class MatchOutcome:
     result: MatchResult
     matched_qso: Optional[QsoCandidate]
     candidates: list = field(default_factory=list)
+    reason: Optional[MatchReason] = None
 
 
 def _rufzeichen_kind(a: str, b: str, fuzzy: bool) -> Optional[str]:
@@ -231,6 +261,176 @@ def _dedup_by_qsoid(cands: list[QsoCandidate]) -> list[QsoCandidate]:
     return result
 
 
+# ---------------------------------------------------------------------------
+# Grund-Erklärung (ADR-0058, Issue #37) — reine Textbausteine, kein Einfluss
+# auf die Matching-Entscheidung selbst. Werden ausschließlich an den Stellen
+# in match_card aufgerufen, an denen die Entscheidung bereits feststeht.
+# ---------------------------------------------------------------------------
+
+def _reason_not_own_call(call_to: str) -> MatchReason:
+    text = f"Karte adressiert an „{call_to}\" – das entspricht nicht dem eigenen Rufzeichen."
+    return MatchReason(MatchReasonCode.NOT_OWN_CALL, text, {"call_to": call_to})
+
+
+def _reason_no_call() -> MatchReason:
+    text = "Kein Rufzeichen im OCR-Text erkannt."
+    return MatchReason(MatchReasonCode.NO_CALL, text, {})
+
+
+def _reason_call_not_decomposable(all_calls: list[str], undecomposable_calls: list[str]) -> MatchReason:
+    if len(undecomposable_calls) == len(all_calls):
+        if len(all_calls) == 1:
+            text = f"Rufzeichen „{all_calls[0]}\" hat kein gültiges Rufzeichenformat und ist nicht durchsuchbar."
+        else:
+            joined = ", ".join(all_calls)
+            text = f"Keines der gelesenen Rufzeichen ({joined}) hat ein gültiges Rufzeichenformat."
+    else:
+        joined = ", ".join(undecomposable_calls)
+        text = (
+            f"Rufzeichen „{joined}\" hat kein gültiges Rufzeichenformat und ist nicht "
+            f"durchsuchbar — die übrigen gelesenen Rufzeichen fanden ebenfalls kein "
+            f"passendes offenes QSO."
+        )
+    return MatchReason(
+        MatchReasonCode.CALL_NOT_DECOMPOSABLE, text,
+        {"calls": all_calls, "undecomposable": undecomposable_calls},
+    )
+
+
+def _reason_no_candidate(call: str) -> MatchReason:
+    text = f"Kein offenes QSO mit „{call}\" in der Datenbank."
+    return MatchReason(MatchReasonCode.NO_CANDIDATE, text, {"call": call})
+
+
+def _reason_multi_call(calls: list[str]) -> MatchReason:
+    joined = ", ".join(calls)
+    text = (
+        f"{len(calls)} mögliche Rufzeichen gelesen ({joined}), keines passt exakt "
+        f"zu einem offenen QSO."
+    )
+    return MatchReason(MatchReasonCode.MULTI_CALL, text, {"calls": calls})
+
+
+def _reason_contradiction(card: CardFields, cand: QsoCandidate, call: str) -> MatchReason:
+    mismatches: list[tuple[str, str, str]] = []
+    if card.date is not None and card.date != _cand_date_day(cand.date):
+        mismatches.append(("Datum", card.date, _cand_date_day(cand.date)))
+    if card.band is not None and not _norm_bands_equal(card.band, cand.band):
+        mismatches.append(("Band", card.band, cand.band))
+    if card.mode is not None and not _norm_modes_equal(card.mode, cand.mode):
+        mismatches.append(("Mode", card.mode, cand.mode))
+    if mismatches:
+        field_name, card_val, db_val = mismatches[0]
+        text = (
+            f"Rufzeichen „{call}\" passt zu einem offenen QSO, aber {field_name} "
+            f"widerspricht (Karte {card_val}, QSO {db_val})."
+        )
+    else:
+        # Praktisch nicht erreichbar (Filter hätte sonst einen Treffer erzeugt) —
+        # defensiver Fallback, kein Absturz.
+        text = f"Rufzeichen „{call}\" passt zu einem offenen QSO, aber weitere Felder passen nicht."
+    return MatchReason(
+        MatchReasonCode.CONTRADICTION, text,
+        {"call": call, "mismatches": mismatches},
+    )
+
+
+def _diagnose_no_hits(
+    card: CardFields,
+    candidates: list[QsoCandidate],
+    calls: list[str],
+    fuzzy_enabled: bool,
+    portable_suffixes: list[str],
+) -> MatchReason:
+    """Erklärt eine NO_MATCH-Entscheidung bei leerer Trefferliste (R1, ADR-0056).
+
+    Reine Diagnose — beeinflusst die Matching-Entscheidung nicht. Prüft, ob
+    mindestens ein gelesener Fremdcall überhaupt ein DB-Rufzeichen trifft
+    (unabhängig von Datum/Band/Mode): wenn ja, ist der Grund ein widersprechendes
+    Feld (CONTRADICTION); sonst gab es entweder mehrere gelesene Rufzeichen, für
+    die keines matchte (MULTI_CALL), oder nur eines (NO_CANDIDATE).
+    """
+    for call in calls:
+        from_base = decompose_callsign(call, portable_suffixes)
+        if from_base is None:
+            continue
+        for cand in candidates:
+            cand_base = decompose_callsign(cand.callsign, portable_suffixes) or cand.callsign.upper()
+            kind = _rufzeichen_kind(from_base, cand_base, fuzzy_enabled)
+            if kind is not None:
+                return _reason_contradiction(card, cand, call)
+    if len(calls) > 1:
+        return _reason_multi_call(calls)
+    return _reason_no_candidate(calls[0])
+
+
+def _reason_fuzzy_call(call: str, matched_callsign: str) -> MatchReason:
+    text = (
+        f"Rufzeichen nur unscharf erkannt („{call}\" ≈ „{matched_callsign}\") – "
+        f"unscharfe Treffer werden nie automatisch bestätigt (ADR-0056)."
+    )
+    return MatchReason(
+        MatchReasonCode.FUZZY_CALL, text,
+        {"read": call, "matched": matched_callsign},
+    )
+
+
+def _reason_too_few_fields(
+    card: CardFields,
+    cand: QsoCandidate,
+    call: str,
+    from_base: str,
+    portable_suffixes: list[str],
+) -> MatchReason:
+    cand_base = decompose_callsign(cand.callsign, portable_suffixes) or cand.callsign.upper()
+    suffix_differs = (
+        call.upper() != cand.callsign.upper()
+        and from_base.upper() == cand_base.upper()
+    )
+    missing = [
+        name for name, val in (("Datum", card.date), ("Band", card.band), ("Mode", card.mode))
+        if val is None
+    ]
+    missing_txt = " und ".join(missing) if missing else "keine weiteren Felder"
+    if suffix_differs:
+        text = (
+            f"Rufzeichen-Zusatz weicht ab (Karte „{call}\", QSO „{cand.callsign}\") – "
+            f"dafür müssen Datum, Band und Mode alle übereinstimmen. Fehlend: {missing_txt}."
+        )
+    else:
+        text = (
+            f"Zu wenig Felder lesbar — {missing_txt} fehlen (nötig: Rufzeichen + 2 weitere)."
+        )
+    return MatchReason(
+        MatchReasonCode.TOO_FEW_FIELDS, text,
+        {"call": call, "missing": missing, "suffix_differs": suffix_differs},
+    )
+
+
+def _reason_multi_qso(hits: dict[str, tuple[QsoCandidate, str, str, str]]) -> MatchReason:
+    calls_used = sorted({call for _cand, _kind, call, _from_base in hits.values()})
+    if len(calls_used) == 1:
+        times = sorted(
+            f"{_cand_date_day(cand.date)} {cand.time_utc or '?'}"
+            for cand, _kind, _call, _from_base in hits.values()
+        )
+        joined_times = " und ".join(times)
+        text = (
+            f"{len(hits)} offene QSOs passen zu „{calls_used[0]}\" ({joined_times}), "
+            f"Uhrzeit auf der Karte nicht eindeutig lesbar."
+        )
+    else:
+        joined_calls = ", ".join(calls_used)
+        text = (
+            f"Mehrere gelesene Rufzeichen ({joined_calls}) passen jeweils zu "
+            f"unterschiedlichen offenen QSOs — mehrdeutig."
+        )
+    return MatchReason(
+        MatchReasonCode.MULTI_QSO, text,
+        {"qso_count": len(hits), "calls": calls_used},
+    )
+
+
 def match_card(
     card: CardFields,
     candidates: list[QsoCandidate],
@@ -243,7 +443,7 @@ def match_card(
     # 1. Zugehörigkeitsprüfung
     if card.call_to is not None:
         if not is_own_call(card.call_to, own_callsign, station_callsigns, portable_suffixes):
-            return MatchOutcome(MatchResult.NO_MATCH, None, [])
+            return MatchOutcome(MatchResult.NO_MATCH, None, [], _reason_not_own_call(card.call_to))
 
     # 2. Fremdcall-Kandidatenquelle bestimmen (ADR-0056): call_from_candidates
     #    hat Vorrang (mehrere erkannte Fremdcalls, z. B. echter Absender +
@@ -255,7 +455,7 @@ def match_card(
     else:
         calls = []
     if not calls:
-        return MatchOutcome(MatchResult.UNCERTAIN, None, [])
+        return MatchOutcome(MatchResult.UNCERTAIN, None, [], _reason_no_call())
 
     # 3. Für jeden Fremdcall-Kandidaten unabhängig matchen (Zerlegung, Filter,
     #    Zeit-Tie-Breaker innerhalb des Calls); Treffer über alle Calls nach
@@ -263,11 +463,13 @@ def match_card(
     hits: dict[str, tuple[QsoCandidate, str, str, str]] = {}  # qsoid -> (cand, kind, call, from_base)
     seen_candidates: list[QsoCandidate] = []
     any_undecomposable = False
+    undecomposable_calls: list[str] = []
 
     for call in calls:
         from_base = decompose_callsign(call, portable_suffixes)
         if from_base is None:
             any_undecomposable = True
+            undecomposable_calls.append(call)
             continue
 
         matched = _filter_candidates_for_call(card, candidates, from_base, fuzzy_enabled, portable_suffixes)
@@ -287,12 +489,16 @@ def match_card(
         if any_undecomposable:
             # Rufzeichen nicht zerlegbar (ADR-0013 Fall c) — nicht durchsuchbar;
             # das ist KEIN bestätigtes "kein Match", sondern UNSICHER (ADR-0007).
-            return MatchOutcome(MatchResult.UNCERTAIN, None, [])
-        return MatchOutcome(MatchResult.NO_MATCH, None, [])
+            reason = _reason_call_not_decomposable(calls, undecomposable_calls)
+            return MatchOutcome(MatchResult.UNCERTAIN, None, [], reason)
+        reason = _diagnose_no_hits(card, candidates, calls, fuzzy_enabled, portable_suffixes)
+        return MatchOutcome(MatchResult.NO_MATCH, None, [], reason)
 
     # R4: mehrere verschiedene DB-QSOs getroffen → mehrdeutig, kein Auto-Match.
     if len(hits) > 1:
-        return MatchOutcome(MatchResult.UNCERTAIN, None, _dedup_by_qsoid(seen_candidates))
+        return MatchOutcome(
+            MatchResult.UNCERTAIN, None, _dedup_by_qsoid(seen_candidates), _reason_multi_qso(hits)
+        )
 
     # Genau 1 getroffenes DB-QSO.
     cand, kind, call, from_base = next(iter(hits.values()))
@@ -300,9 +506,10 @@ def match_card(
     if kind == "fuzzy":
         # R3: Fuzzy-Rufzeichen erzwingt UNSICHER — nie automatische Bestätigung,
         # Kandidat bleibt zur Vorbefüllung im manuellen Dialog verfügbar.
-        return MatchOutcome(MatchResult.UNCERTAIN, None, [cand])
+        return MatchOutcome(MatchResult.UNCERTAIN, None, [cand], _reason_fuzzy_call(call, cand.callsign))
 
     # R2: exakter Rufzeichen-Treffer — 3-von-4-/Suffix-Regel entscheidet.
     if _fields_rule_certain(card, cand, call, from_base, portable_suffixes):
-        return MatchOutcome(MatchResult.CERTAIN, cand, [cand])
-    return MatchOutcome(MatchResult.UNCERTAIN, None, [cand])
+        return MatchOutcome(MatchResult.CERTAIN, cand, [cand], None)
+    reason = _reason_too_few_fields(card, cand, call, from_base, portable_suffixes)
+    return MatchOutcome(MatchResult.UNCERTAIN, None, [cand], reason)

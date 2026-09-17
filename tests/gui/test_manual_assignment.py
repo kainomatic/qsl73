@@ -516,6 +516,80 @@ def test_dialog_ok_without_selection_is_noop():
     root.destroy()
 
 
+# ---------------------------------------------------------------------------
+# Grund + gelesene Rohfelder (ADR-0058, Issue #37)
+# ---------------------------------------------------------------------------
+
+
+@_tk_skip
+def test_dialog_shows_reason_and_read_fields_for_uncertain():
+    """UNCERTAIN-Karte mit MatchReason → Grund- und Gelesen-Zeile zeigen den Text."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+    from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult
+    from qsl73.run import CardResult
+
+    root = tk.Tk()
+    root.withdraw()
+    reason = MatchReason(MatchReasonCode.FUZZY_CALL, "Rufzeichen nur unscharf erkannt.")
+    card = CardResult(
+        doc_id=1,
+        card_fields=_make_card_fields(call_from="DK1AA", band="20m"),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None, reason=reason),
+        existing_confirmations=[],
+    )
+
+    captured: dict = {}
+
+    def _capture_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            captured["reason"] = dlg_win._reason_label.cget("text") if dlg_win._reason_label else None
+            captured["fields"] = dlg_win._fields_label.cget("text") if dlg_win._fields_label else None
+            dlg_win._on_cancel()
+
+    root.after(80, _capture_and_cancel)
+    ManualAssignmentDialog(root, card, [], "bureau")
+
+    assert captured.get("reason") is not None
+    assert "Rufzeichen nur unscharf erkannt." in captured["reason"]
+    assert captured.get("fields") is not None
+    assert "DK1AA" in captured["fields"]
+    root.destroy()
+
+
+@_tk_skip
+def test_dialog_hides_reason_block_for_certain():
+    """CERTAIN-Karte (Dialog theoretisch geöffnet) → Grund-Block entfällt komplett."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+    from qsl73.matching import MatchOutcome, MatchResult
+    from qsl73.run import CardResult
+
+    root = tk.Tk()
+    root.withdraw()
+    card = CardResult(
+        doc_id=1,
+        card_fields=_make_card_fields(call_from="DK1AA", band="20m"),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.CERTAIN, matched_qso=None, reason=None),
+        existing_confirmations=[],
+    )
+
+    def _cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            dlg_win._on_cancel()
+
+    root.after(80, _cancel)
+    dlg = ManualAssignmentDialog(root, card, [], "bureau")
+
+    assert dlg._reason_label is None
+    assert dlg._fields_label is None
+    root.destroy()
+
+
 @_tk_skip
 def test_dialog_image_loader_failure_no_crash():
     """Fehler beim Bildladen → Platzhaltertext, kein Absturz."""

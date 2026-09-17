@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0058.
+Nächste freie Nummer: ADR-0059.
 
 ## Index
 
@@ -47,6 +47,7 @@ Nächste freie Nummer: ADR-0058.
 | ADR-0055 | Log-Level im Einstellungen-Dialog (app.log_level) |
 | ADR-0056 | Matching bei mehreren Fremdcalls + Fuzzy erzwingt UNSICHER (Issue #33 Teil 2, verschärft ADR-0016) |
 | ADR-0057 | Bindestrich-Datumsformate TT-MM-JJJJ/TT-MM-JJ mit >12-Disambiguierung |
+| ADR-0058 | Erklärbarkeit der Matching-Entscheidung (MatchReason) — Engine liefert Grund als Daten, GUI rendert ihn |
 
 ## Abgrenzung
 

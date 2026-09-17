@@ -706,6 +706,29 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Tag `v0.5.0-beta3`; Test der PA80OMG-Karte (Datum jetzt erkannt) macht DF1DS
   manuell nach dem Build.
 
+### ✅ Erklärbarkeit der Matching-Entscheidung — Grund + Rohfelder im manuellen Dialog (Issue #37, ADR-0058)
+
+- Beta-Test-Befund: im manuellen Zuordnungs-Dialog war nicht erkennbar, warum eine
+  Karte als „Unsicher"/„Kein Treffer" eingestuft wurde. `matching.match_card` kannte
+  den Grund intern, gab ihn aber nicht aus.
+- `MatchOutcome` um additives Feld `reason: Optional[MatchReason]` erweitert
+  (Default `None`, abwärtskompatibel); `match_card` setzt `reason` an jeder
+  UNCERTAIN/NO_MATCH-Entscheidungsstelle — Codes `NOT_OWN_CALL`, `NO_CALL`,
+  `CALL_NOT_DECOMPOSABLE`, `NO_CANDIDATE`, `MULTI_CALL`, `CONTRADICTION`,
+  `FUZZY_CALL`, `TOO_FEW_FIELDS`, `MULTI_QSO`. Klartext nennt konkrete Werte
+  (gelesene/gematchte Calls, widersprechendes Feld mit Karten-/DB-Wert, fehlende
+  Felder, konkurrierende QSO-Zeiten). Reine Zusatz-Diagnose — keine Änderung der
+  Matching-Regeln (ADR-0016/ADR-0056 unverändert); alle bestehenden Matching-Tests
+  unverändert grün.
+- `gui/filter_util.py`: `describe_reason(outcome)` + `describe_read_fields(card_fields)`
+  (tk-frei, testbar) rendern Grund und rohe OCR-Felder als Klartext.
+- `gui/manual_assignment.py`: unterhalb der Suchfelder zwei read-only, umbrechende
+  Zeilen „Grund:"/„Gelesen:"; bei CERTAIN (defensiv) ausgeblendet.
+- Hauptfenster-Zeilen-Tooltip zurückgestellt: bestehende Tooltip-Infrastruktur
+  (ADR-0047) bindet nur pro Widget, nicht pro Treeview-Zeile — Neubau nötig,
+  als Issue #38 festgehalten.
+- ADR-0058 angelegt. 1326 Tests grün (3 erwartete Skips).
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

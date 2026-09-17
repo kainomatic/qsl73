@@ -4,6 +4,8 @@ import pytest
 from qsl73.gui.filter_util import (
     FILTER_MODES,
     build_workflow_sequence,
+    describe_read_fields,
+    describe_reason,
     filter_results,
     format_progress_text,
     merge_selections,
@@ -16,7 +18,7 @@ from qsl73.gui.filter_util import (
     written_doc_ids,
 )
 from qsl73.run import RunResult, CardResult
-from qsl73.matching import MatchOutcome, MatchResult, CardFields, QsoCandidate
+from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult, CardFields, QsoCandidate
 
 
 def _make_card(doc_id: int, result: MatchResult) -> CardResult:
@@ -363,6 +365,49 @@ def test_resolve_display_values_no_matched_qso_missing_fields_become_dash():
     assert date == "–"
     assert band == "–"
     assert mode == "–"
+
+
+# ---------------------------------------------------------------------------
+# describe_reason() / describe_read_fields() — ADR-0058, Issue #37
+# ---------------------------------------------------------------------------
+
+
+def test_describe_reason_certain_returns_empty_string():
+    outcome = MatchOutcome(result=MatchResult.CERTAIN, matched_qso=None, reason=None)
+    assert describe_reason(outcome) == ""
+
+
+def test_describe_reason_uncertain_returns_reason_text():
+    reason = MatchReason(MatchReasonCode.FUZZY_CALL, "Rufzeichen nur unscharf erkannt.")
+    outcome = MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None, reason=reason)
+    assert describe_reason(outcome) == "Rufzeichen nur unscharf erkannt."
+
+
+def test_describe_read_fields_full():
+    card = CardFields(call_from="DL1AAA", call_to="DL0AAA", date="2025-04-02", band="6m", mode="FT8", time_utc="19:42")
+    text = describe_read_fields(card)
+    assert text == "Rufzeichen DL1AAA · Datum 2025-04-02 · Band 6m · Mode FT8 · Zeit 19:42"
+
+
+def test_describe_read_fields_all_empty_no_crash():
+    card = CardFields(call_from=None, call_to=None, date=None, band=None, mode=None)
+    text = describe_read_fields(card)
+    assert text == "Rufzeichen – · Datum – · Band – · Mode – · Zeit –"
+
+
+def test_describe_read_fields_partial():
+    card = CardFields(call_from="DK8XX", call_to=None, date="2025-04-02", band=None, mode=None)
+    text = describe_read_fields(card)
+    assert text == "Rufzeichen DK8XX · Datum 2025-04-02 · Band – · Mode – · Zeit –"
+
+
+def test_describe_read_fields_multiple_call_candidates():
+    card = CardFields(
+        call_from=None, call_to=None, date=None, band=None, mode=None,
+        call_from_candidates=["DL1AAA", "DL9ZZZ"],
+    )
+    text = describe_read_fields(card)
+    assert text.startswith("Rufzeichen DL1AAA, DL9ZZZ ·")
 
 
 class TestWrittenDocIds:

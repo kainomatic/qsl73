@@ -148,6 +148,40 @@ def resolve_display_values(card) -> tuple:
     return call, date, band, mode
 
 
+# ---------------------------------------------------------------------------
+# Grund-Anzeige (ADR-0058, Issue #37) — tk-frei, testbar
+# ---------------------------------------------------------------------------
+
+
+def describe_reason(outcome) -> str:
+    """Gibt den Klartext-Grund einer Matching-Entscheidung zurück.
+
+    CERTAIN-Karten tragen keinen Grund (``outcome.reason is None``) → leerer
+    String. Für UNCERTAIN/NO_MATCH liefert ``matching.match_card`` einen
+    ``MatchReason`` mit fertigem Klartext (konkrete Werte bereits eingesetzt).
+    """
+    reason = getattr(outcome, "reason", None)
+    return reason.text if reason is not None else ""
+
+
+def describe_read_fields(card_fields) -> str:
+    """Gibt die roh gelesenen Kartenfelder als Klartext zurück.
+
+    Format: "Rufzeichen X · Datum X · Band X · Mode X · Zeit X"; fehlende
+    Felder erscheinen als "–". Sind mehrere Fremdcall-Kandidaten erkannt
+    (``call_from_candidates``, ADR-0056), werden alle genannt statt nur
+    des (dann evtl. None) einzelnen ``call_from``. Kein Absturz bei
+    vollständig leeren CardFields.
+    """
+    candidates = getattr(card_fields, "call_from_candidates", None) or []
+    call = ", ".join(candidates) if candidates else (card_fields.call_from or "–")
+    date = card_fields.date or "–"
+    band = card_fields.band or "–"
+    mode = card_fields.mode or "–"
+    time_utc = card_fields.time_utc or "–"
+    return f"Rufzeichen {call} · Datum {date} · Band {band} · Mode {mode} · Zeit {time_utc}"
+
+
 def sort_cards_written_last(cards: list, written: set) -> list:
     """Sortiert geschriebene Karten ans Ende; erhält Reihenfolge innerhalb der Gruppen (stabil).
 

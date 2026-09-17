@@ -23,7 +23,12 @@ import io
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
-from qsl73.gui.filter_util import apply_display_limit, sort_candidates_by_column
+from qsl73.gui.filter_util import (
+    apply_display_limit,
+    describe_read_fields,
+    describe_reason,
+    sort_candidates_by_column,
+)
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
 from qsl73.gui.tooltip import attach_tooltip
 from qsl73.matching import CardFields, MatchResult, QsoCandidate
@@ -44,6 +49,9 @@ _BTN_SAVE_NEXT = "Speichern und nächste"
 _BTN_NEXT = "Nächste"
 _BTN_CANCEL = "Abbrechen"
 _BTN_DATE_CLEAR = "✕"
+_LBL_REASON = "Grund:"
+_LBL_READ_FIELDS = "Gelesen:"
+_REASON_WRAPLENGTH = 320
 
 # Tooltip-Texte (i18n-Vorbereitung)
 _TT_CALL_FIELD = "Rufzeichen der Gegenstation — aus QR-Code oder OCR vorbefüllt, bearbeitbar"
@@ -479,6 +487,26 @@ if _TK_OK:
             )
             _mode_combo.grid(row=3, column=1, sticky="ew", pady=2)
             attach_tooltip(_mode_combo, _TT_MODE_FIELD)
+
+            # Row 4/5 — Grund der Einstufung + gelesene Rohfelder (ADR-0058, Issue #37)
+            # CERTAIN trägt keinen Grund (match_card setzt reason=None) — Block
+            # entfällt dann; in der Praxis öffnet sich der Dialog nur für
+            # UNCERTAIN/NO_MATCH, die Prüfung ist defensiv.
+            self._reason_label: Optional[tk.Label] = None
+            self._fields_label: Optional[tk.Label] = None
+            if self._card.outcome.result != MatchResult.CERTAIN:
+                reason_line = f"{_LBL_REASON} {describe_reason(self._card.outcome)}"
+                fields_line = f"{_LBL_READ_FIELDS} {describe_read_fields(self._card.card_fields)}"
+                self._reason_label = tk.Label(
+                    fld_frame, text=reason_line, justify="left", anchor="w",
+                    wraplength=_REASON_WRAPLENGTH,
+                )
+                self._reason_label.grid(row=4, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=(8, 0))
+                self._fields_label = tk.Label(
+                    fld_frame, text=fields_line, justify="left", anchor="w",
+                    wraplength=_REASON_WRAPLENGTH,
+                )
+                self._fields_label.grid(row=5, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=(2, 0))
 
             fld_frame.columnconfigure(1, weight=1)
 
