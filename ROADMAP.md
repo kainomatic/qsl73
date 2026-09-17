@@ -796,6 +796,19 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   QR-Übernahme, Hinweiszeile bleibt ausgeblendet ohne QR-Übernahme). 1337 Tests
   grün (3 erwartete Skips).
 
+### 🔧 Beta-Release v0.5.0-beta5 — in Vorbereitung
+
+- Erneute Beta nach den Beta4-Befund-Fixes (Rufzeichen-Vorbefüllung aus Engine-
+  Treffer, leeres Datumsfeld ohne gelesenes Datum, QR darf Engine-Vorbefüllung
+  überschreiben, QR-Hinweiszeile — `origin/dev` = `9415a71`). `__version__.py`
+  bleibt `0.5.0`/`stable` (unverändert seit beta1, ADR-0046 §1); CHANGELOG
+  `[Unreleased]` weiterhin offen (ADR-0046 §3), enthält jetzt zusätzlich diese
+  Fixes. Issues #35 (Sonderrufzeichen zwei Ziffern), #36 (OCR O/0, I/1) und #38
+  (Hauptfenster-Zeilen-Tooltip) bleiben offen — nicht Teil dieser Beta.
+- Tag `v0.5.0-beta5`; Praxistest der Vorbefüllung + QR-Korrektur + Datumsfeld im
+  manuellen Zuordnungs-Dialog macht DF1DS manuell nach dem Build. Stable-Release
+  weiterhin nicht durch DF1DS bestätigt.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen
