@@ -21,7 +21,9 @@ Config v1→v2).
 Nicht enthalten (offen): #35 (Sonderrufzeichen zwei Ziffern), #36
 (OCR O/0, I/1 bei Rufzeichen), #38 (Hauptfenster-Zeilen-Tooltip), #40
 (Testsuite-Stabilität — Tcl-Cross-Thread-Absturz bei langen pytest-Läufen
-auf der Windows-Dev-Maschine). **Empfehlung:** #40 als nächster Auftrag.
+auf der Windows-Dev-Maschine), #42 (Werkzeug Bestätigungsübersicht — geplant,
+noch nicht spezifiziert, siehe „Geplant"-Eintrag unten). **Empfehlung:** #40
+als nächster Auftrag.
 
 ---
 
@@ -936,6 +938,29 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   (Bindestrich-Datumsformate).
 - Nicht enthalten (bleiben offen): #35, #36, #38, #40. **Empfehlung:** #40
   (Testsuite-Stabilität) als nächster Auftrag.
+
+### 🔧 Geplant — Werkzeug Bestätigungsübersicht (Issue #42)
+
+Neues, read-only Fenster „Werkzeuge → Bestätigungsübersicht": zeigt den
+Bestätigungsstatus aller QSOs der Log4OM-DB über alle Dienste (Papier/LoTW/eQSL/QRZ +
+Upload-Dienste), unabhängig vom Karten-Durchlauf und ohne Paperless-Bedarf. Stufung
+1 (MVP: Tabelle/Kennzahlen/Basisfilter) → 2 (Schnellansichten/erweiterte Filter/
+CSV-Export) → 3 (optional: Gruppierung/Aggregation). Voraussetzung vor der Umsetzung:
+Handtest durch DF1DS zu den exakten Log4OM-Strings (Requested/Queued/Invalid, siehe
+`docs/discovery.md` §6 Frage #6 / §7). Feature-ADR folgt erst mit dem ersten
+Umsetzungsauftrag (Regel: ADR-0060) — die konkrete ADR-Nummer steht erst dann fest.
+Reihenfolge gegenüber #40 noch nicht entschieden. Status: **geplant**, nicht in Arbeit.
+
+### ✅ ADR-0060 — ADR-Zeitpunkt bei nur vorgemerkten Features
+
+- Klärt (Anlass Issue #42), wann ein ADR bei einem nur vorgemerkten, nicht
+  priorisierten/spezifizierten Feature nötig ist: Entscheidungen zunächst im Issue
+  unter „Grundentscheidungen", ADR erst mit dem ersten Umsetzungsauftrag — außer die
+  Entscheidung wirkt über das Feature hinaus (dann ADR sofort). CLAUDE.md „ADR-Pflicht"
+  entsprechend ergänzt.
+- `docs/discovery.md` §7 (Log-Tabellen-/`qsoconfirmations`-Nachtrag zu Issue #42) sowie
+  Verweise in §2 und neue offene Frage #6 in §6 ergänzt — reine Discovery-Ergänzung,
+  kein Code-Bezug.
 
 ## V2 — Vorgemerkte Features
 

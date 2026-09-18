@@ -158,6 +158,14 @@ ADR-Erstellung ist **Standard**, nicht Ausnahme.
 
 **Nicht als ADR:** Tippfehler, Kosmetik, einzelne Aufgaben → das sind GitHub Issues.
 
+**Zeitpunkt bei vorgemerkten Features (ADR-0060):** Betrifft die Entscheidung etwas, das
+jetzt umgesetzt wird, oder ändert sie bestehendes Verhalten/Vorgehen → ADR wie oben, im
+zugehörigen oder nächsten Auftrag. Fällt die Entscheidung nur beim Planen eines Features,
+das lediglich als GitHub Issue vorgemerkt wird (nicht priorisiert/spezifiziert) → zunächst
+im Issue unter „Grundentscheidungen" festhalten; das ADR entsteht erst mit dem ersten
+Umsetzungsauftrag. Ausnahme: Wirkt die Entscheidung über das Feature hinaus (allgemeines
+Prinzip, Sicherheits-/Datenschutz-Leitplanke, Arbeitsvorgehen) → ADR sofort. → ADR-0060
+
 **ADR-Lebenszyklus:** Status `Accepted` beim Anlegen; bei Revision auf `Superseded by ADR-XXXX`
 setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
 

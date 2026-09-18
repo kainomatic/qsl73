@@ -71,8 +71,8 @@ ProgramName = 'LOG4OM2', ProgramVersion = '0.6', DBVersion = 1
 | Feld | Bedeutung |
 |------|-----------|
 | `CT` | Confirmation Type: `QSL`, `EQSL`, `LOTW`, `QRZCOM`, `HAMQTH`, `HRDLOG`, `CLUBLOG` |
-| `S` | Sent: `"Yes"` / `"No"` — QSL von DF1DS abgeschickt? |
-| `R` | Received: `"Yes"` / `"No"` — QSL von Gegenüber empfangen/bestätigt? |
+| `S` | Sent: `"Yes"` / `"No"` — QSL von DF1DS abgeschickt? (weitere Werte → §7) |
+| `R` | Received: `"Yes"` / `"No"` — QSL von Gegenüber empfangen/bestätigt? (weitere Werte → §7) |
 | `SV` | Sent Via: `"Electronic"` (Standardwert; auch `"Bureau"` / `"Direct"` möglich) |
 | `RV` | Received Via: `"Electronic"` (Standardwert) |
 | `SD` | Sent Date (ISO 8601 UTC) — nur wenn S="Yes" |
@@ -310,6 +310,7 @@ Analyse der echten Test-DB (428 QSOs, 403 eindeutige Gegenstationen):
 | 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | **Aufgelöst** (Issue #4, 2026-09-17) → siehe Absatz unten |
 | 4 | OCR-Qualität (Paperless-OCR) und Paperless-API-Details | **Erledigt** → §5.2/§5.3 (Schritt 3b) |
 | 5 | `R`-Wert `"V"` (DXCC-verifiziert) vs. `"Yes"`: setzt QSL73 „V"? | **Entschieden:** Nein — QSL73 setzt ausschließlich `"Yes"`. `"V"` vergibt der Nutzer selbst im Award-Checker. |
+| 6 | Exakte Strings für `Queued`/`Invalid`/`Requested` je Seite (S/R) + Verhalten beim tatsächlichen Upload zu einem Dienst (welche Felder ändern sich, wird `SD` gesetzt?) | **Offen** — Handtest durch DF1DS laut Issue #42 ausstehend; Befunde bisher in §7 |
 
 ### 6.1 Auflösung Frage #3 — QSOs ohne `CT="QSL"`-Eintrag (Issue #4)
 
@@ -339,3 +340,31 @@ die technische Rollback-Meldung statt einer kartenspezifischen Meldung vorab. Be
 belassen (DF1DS-Entscheidung, 2026-09-17), da der Fall bei normalen Log4OM-QSOs praktisch
 nicht auftritt (Issue-Priorität niedrig). Optionaler künftiger Feinschliff (kartenspezifische
 Nutzermeldung statt Rollback-Meldung) bei Bedarf als separates Issue.
+
+---
+
+## 7. Nachtrag 2026-09: weitere Log-Tabellen- und `qsoconfirmations`-Befunde (Anlass Issue #42)
+
+Read-only an einer Test-DB-Kopie erhoben, im Rahmen der Planung von Issue #42
+(Werkzeug „Bestätigungsübersicht"). Kein Code-Bezug — reine Discovery-Ergänzung.
+
+- **Log-Tabelle:** 97 Spalten. Voll gefüllt und filtertauglich: `dxcc`, `country`, `cont`,
+  `cqzone`, `ituzone`, `pfx`, `freq`, `distance`, `stationcallsign`. Teilweise gefüllt:
+  `gridsquare`, `contestid`, `qslvia`, `state`.
+- **`contactreferences`:** JSON-Array mit Award-Referenzen (Schlüssel `AC`; beobachtet u. a.
+  DXCC, WAZ, WPX, WAC, WAE, VUCC, IOTA, POTA, SOTA).
+- **`S` kennt zusätzlich `"Requested"`** (bei `CT="EQSL"` beobachtet). Laut Log4OM-Forum
+  bietet der QSL-Manager außerdem `"Queued"` und `"Invalid"` an — in der Test-DB **nicht**
+  vorgekommen, daher **offen**: exakte Schreibweise noch nicht per Handtest gesichert
+  (Handtest laut Issue #42 ausstehend, siehe Frage #6 unten).
+- **ADIF-Hintergrund der Werte** (Log4OM leitet sie davon ab): `RCVD=Requested` = die
+  loggende Station (DF1DS) hat eine QSL angefordert; `SENT=Requested` = die Gegenstation
+  hat eine QSL angefordert; `SENT=Queued` = zum Versand/Upload ausgewählt. Hinweis: Bei
+  elektronischen Diensten ist `"Requested"` in Log4OM oft nur der konfigurierte
+  Standardwert neuer QSOs, keine bewusste Nutzeraktion — die Bedeutung ist daher
+  kontextabhängig, nicht eindeutig interpretierbar.
+- **Zusatzschlüssel `EXT`** im `CT="HRDLOG"`-Eintrag: enthält ein ADIF-Schnipsel (u. a. mit
+  Rufzeichen) — Struktur notiert, Inhalt hier bewusst nicht wiedergegeben (ADR-0050, keine
+  echten fremden Rufzeichen im Repo).
+- **SD/RD:** bei elektronischen Diensten vorhanden; für Papier-QSL (`CT="QSL"`) schreibt
+  Log4OM kein `RD` (bestätigt konsistent mit §3).

@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0060.
+Nächste freie Nummer: ADR-0061.
 
 ## Index
 
@@ -49,6 +49,7 @@ Nächste freie Nummer: ADR-0060.
 | ADR-0057 | Bindestrich-Datumsformate TT-MM-JJJJ/TT-MM-JJ mit >12-Disambiguierung |
 | ADR-0058 | Erklärbarkeit der Matching-Entscheidung (MatchReason) — Engine liefert Grund als Daten, GUI rendert ihn |
 | ADR-0059 | Karten ignorieren — ersetzt den ungenutzten Unsicher-Tag (tags.ignored, sofortige Wirkung, kein DB-Zugriff) |
+| ADR-0060 | ADR-Zeitpunkt bei nur vorgemerkten Features — Entscheidungen zunächst im Issue, ADR erst mit dem ersten Umsetzungsauftrag |
 
 ## Abgrenzung
 
