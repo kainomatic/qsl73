@@ -9,8 +9,6 @@ from __future__ import annotations
 import time
 from unittest.mock import MagicMock
 
-import pytest
-
 from qsl73.gui.ignored_window import format_doc_row
 
 
@@ -63,24 +61,8 @@ def test_format_doc_row_missing_id_no_crash():
 
 
 # ---------------------------------------------------------------------------
-# tk-abhängige Tests — werden im CI übersprungen
+# tk-abhängige Tests — tk_child-Fixture aus conftest.py (ADR-0062)
 # ---------------------------------------------------------------------------
-
-
-def _tk_available() -> bool:
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.destroy()
-        return True
-    except Exception:
-        return False
-
-
-_tk_skip = pytest.mark.skipif(
-    not _tk_available(),
-    reason="kein Display / tk nicht verfügbar (CI-Umgebung)",
-)
 
 
 def _make_tags_config(input_="qsl-card", ignored="qsl-ignoriert"):
@@ -88,9 +70,7 @@ def _make_tags_config(input_="qsl-card", ignored="qsl-ignoriert"):
     return TagsConfig(input=input_, confirmed="qsl-bestätigt", ignored=ignored)
 
 
-@_tk_skip
-def test_populates_tree_from_client(monkeypatch):
-    import tkinter as tk
+def test_populates_tree_from_client(tk_child, monkeypatch):
     from qsl73.gui.ignored_window import IgnoredCardsWindow
 
     client = MagicMock()
@@ -99,40 +79,28 @@ def test_populates_tree_from_client(monkeypatch):
         {"id": 2, "title": "Karte 2", "created": "2026-01-02T00:00:00Z"},
     ]
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        win = IgnoredCardsWindow(root, client, _make_tags_config())
+    root = tk_child
+    win = IgnoredCardsWindow(root, client, _make_tags_config())
 
-        assert _pump(root, lambda: bool(win._tree.get_children()))
-        assert len(win._tree.get_children()) == 2
-        client.list_documents_with_all_tags.assert_called_once_with(["qsl-card", "qsl-ignoriert"])
-    finally:
-        root.destroy()
+    assert _pump(root, lambda: bool(win._tree.get_children()))
+    assert len(win._tree.get_children()) == 2
+    client.list_documents_with_all_tags.assert_called_once_with(["qsl-card", "qsl-ignoriert"])
 
 
-@_tk_skip
-def test_empty_list_shows_hint_no_error(monkeypatch):
-    import tkinter as tk
+def test_empty_list_shows_hint_no_error(tk_child, monkeypatch):
     from qsl73.gui.ignored_window import IgnoredCardsWindow
 
     client = MagicMock()
     client.list_documents_with_all_tags.return_value = []
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        win = IgnoredCardsWindow(root, client, _make_tags_config())
+    root = tk_child
+    win = IgnoredCardsWindow(root, client, _make_tags_config())
 
-        assert _pump(root, lambda: win._status_var.get() != "Lade…")
-        assert win._status_var.get() == "Keine ignorierten Karten."
-    finally:
-        root.destroy()
+    assert _pump(root, lambda: win._status_var.get() != "Lade…")
+    assert win._status_var.get() == "Keine ignorierten Karten."
 
 
-@_tk_skip
-def test_unignore_selected_removes_row_and_calls_unignore_card(monkeypatch):
-    import tkinter as tk
+def test_unignore_selected_removes_row_and_calls_unignore_card(tk_child, monkeypatch):
     from qsl73.gui.ignored_window import IgnoredCardsWindow
 
     client = MagicMock()
@@ -148,40 +116,30 @@ def test_unignore_selected_removes_row_and_calls_unignore_card(monkeypatch):
 
     monkeypatch.setattr("qsl73.ignore.unignore_card", _fake_unignore_card)
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        win = IgnoredCardsWindow(root, client, _make_tags_config())
+    root = tk_child
+    win = IgnoredCardsWindow(root, client, _make_tags_config())
 
-        assert _pump(root, lambda: bool(win._tree.get_children()))
+    assert _pump(root, lambda: bool(win._tree.get_children()))
 
-        win._tree.selection_set("1")
-        win._on_select()
-        assert str(win._btn_unignore.cget("state")) == "normal"
+    win._tree.selection_set("1")
+    win._on_select()
+    assert str(win._btn_unignore.cget("state")) == "normal"
 
-        win._on_unignore_selected()
+    win._on_unignore_selected()
 
-        assert _pump(root, lambda: not win._tree.exists("1"))
-        assert called == [1]
-        assert win._tree.exists("2")
-    finally:
-        root.destroy()
+    assert _pump(root, lambda: not win._tree.exists("1"))
+    assert called == [1]
+    assert win._tree.exists("2")
 
 
-@_tk_skip
-def test_load_error_shows_message_not_traceback():
-    import tkinter as tk
+def test_load_error_shows_message_not_traceback(tk_child):
     from qsl73.gui.ignored_window import IgnoredCardsWindow
 
     client = MagicMock()
     client.list_documents_with_all_tags.side_effect = RuntimeError("Verbindung fehlgeschlagen")
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        win = IgnoredCardsWindow(root, client, _make_tags_config())
+    root = tk_child
+    win = IgnoredCardsWindow(root, client, _make_tags_config())
 
-        assert _pump(root, lambda: win._status_var.get() != "Lade…")
-        assert "Verbindung fehlgeschlagen" in win._status_var.get()
-    finally:
-        root.destroy()
+    assert _pump(root, lambda: win._status_var.get() != "Lade…")
+    assert "Verbindung fehlgeschlagen" in win._status_var.get()

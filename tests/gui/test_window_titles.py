@@ -2,24 +2,6 @@
 """Stichproben-Tests: Alle tk-Fenster tragen "by DF1DS" im Titel."""
 from __future__ import annotations
 
-import pytest
-
-
-def _tk_available() -> bool:
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.destroy()
-        return True
-    except Exception:
-        return False
-
-
-_tk_skip = pytest.mark.skipif(
-    not _tk_available(),
-    reason="kein Display / tk nicht verfügbar (CI-Umgebung)",
-)
-
 
 # ---------------------------------------------------------------------------
 # Modul-Konstanten (keine tk nötig)
@@ -56,21 +38,15 @@ def test_setup_wizard_title_source_code_contains_by_df1ds():
     assert "by DF1DS" in src
 
 
-@_tk_skip
-def test_error_dialog_title_contains_by_df1ds():
+def test_error_dialog_title_contains_by_df1ds(tk_child):
     """show_error hängt 'by DF1DS' an den übergebenen Titel."""
-    import tkinter as tk
     from qsl73.gui.error_dialog import show_error
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        root.after(80, lambda: _close_toplevel(root))
-        show_error(root, "Fehler", "Test-Nachricht")
-        # Wenn wir hier ankommen ohne Exception, war der Aufruf erfolgreich.
-        # Der Titel-Check ist implizit über die Quellcode-Konstante.
-    finally:
-        root.destroy()
+    root = tk_child
+    root.after(80, lambda: _close_toplevel(root))
+    show_error(root, "Fehler", "Test-Nachricht")
+    # Wenn wir hier ankommen ohne Exception, war der Aufruf erfolgreich.
+    # Der Titel-Check ist implizit über die Quellcode-Konstante.
 
 
 def _close_toplevel(root: "tk.Tk") -> None:

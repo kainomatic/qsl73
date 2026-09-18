@@ -65,16 +65,6 @@ def _make_cand(
     )
 
 
-def _tk_available() -> bool:
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.destroy()
-        return True
-    except Exception:
-        return False
-
-
 # ---------------------------------------------------------------------------
 # 1. Reine Helfer — card_fields_to_query
 # ---------------------------------------------------------------------------
@@ -483,13 +473,8 @@ def test_empty_candidates_list_returns_empty():
 
 
 # ---------------------------------------------------------------------------
-# 5. tk-abhängige Tests — werden im CI übersprungen
+# 5. tk-abhängige Tests — tk_child-Fixture aus conftest.py (ADR-0062)
 # ---------------------------------------------------------------------------
-
-_tk_skip = pytest.mark.skipif(
-    not _tk_available(),
-    reason="kein Display / tk nicht verfügbar (CI-Umgebung)",
-)
 
 
 def _make_card_result(doc_id: int = 1, result=None) -> "object":
@@ -518,14 +503,11 @@ def _find_toplevel(root: "tk.Tk") -> "tk.Toplevel | None":
     return None
 
 
-@_tk_skip
-def test_dialog_cancel_returns_none():
+def test_dialog_cancel_returns_none(tk_child):
     """Abbrechen (_on_cancel) → result ist None."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()
     candidates = [_make_cand("Q001")]
 
@@ -540,17 +522,13 @@ def test_dialog_cancel_returns_none():
     dlg = ManualAssignmentDialog(root, card, candidates, "bureau")
 
     assert dlg.result is None
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_ok_with_selection_returns_pair():
+def test_dialog_ok_with_selection_returns_pair(tk_child):
     """Zeile auswählen + Speichern (_on_save) → result ist (qsoid, route)."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()
     candidates = [_make_cand("Q001", "DK1AA"), _make_cand("Q002", "OE3XYZ")]
 
@@ -570,17 +548,13 @@ def test_dialog_ok_with_selection_returns_pair():
     qsoid, route = dlg.result
     assert route == "bureau"
     assert qsoid in ("Q001", "Q002")
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_ok_without_selection_is_noop():
+def test_dialog_ok_without_selection_is_noop(tk_child):
     """Speichern ohne ausgewählte Zeile → result bleibt None, Dialog bleibt offen."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()
     candidates = [_make_cand("Q001")]
 
@@ -597,7 +571,6 @@ def test_dialog_ok_without_selection_is_noop():
     dlg = ManualAssignmentDialog(root, card, candidates, "bureau")
 
     assert dlg.result is None
-    root.destroy()
 
 
 # ---------------------------------------------------------------------------
@@ -605,16 +578,13 @@ def test_dialog_ok_without_selection_is_noop():
 # ---------------------------------------------------------------------------
 
 
-@_tk_skip
-def test_dialog_shows_reason_and_read_fields_for_uncertain():
+def test_dialog_shows_reason_and_read_fields_for_uncertain(tk_child):
     """UNCERTAIN-Karte mit MatchReason → Grund- und Gelesen-Zeile zeigen den Text."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
     from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult
     from qsl73.run import CardResult
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     reason = MatchReason(MatchReasonCode.FUZZY_CALL, "Rufzeichen nur unscharf erkannt.")
     card = CardResult(
         doc_id=1,
@@ -640,19 +610,15 @@ def test_dialog_shows_reason_and_read_fields_for_uncertain():
     assert "Rufzeichen nur unscharf erkannt." in captured["reason"]
     assert captured.get("fields") is not None
     assert "DK1AA" in captured["fields"]
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_hides_reason_block_for_certain():
+def test_dialog_hides_reason_block_for_certain(tk_child):
     """CERTAIN-Karte (Dialog theoretisch geöffnet) → Grund-Block entfällt komplett."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
     from qsl73.matching import MatchOutcome, MatchResult
     from qsl73.run import CardResult
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = CardResult(
         doc_id=1,
         card_fields=_make_card_fields(call_from="DK1AA", band="20m"),
@@ -671,17 +637,13 @@ def test_dialog_hides_reason_block_for_certain():
 
     assert dlg._reason_label is None
     assert dlg._fields_label is None
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_date_field_blank_when_no_date_read():
+def test_dialog_date_field_blank_when_no_date_read(tk_child):
     """Kein gelesenes Datum (OCR/QR) → DateEntry zeigt NICHT das heutige Datum (Beta4-Befund)."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()  # date=None per _make_card_fields-Default
 
     captured: dict = {}
@@ -701,22 +663,18 @@ def test_dialog_date_field_blank_when_no_date_read():
     assert captured.get("date_text") == ""
     assert captured.get("date_text") != today_str
     assert captured.get("date_explicit") is False
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_qr_overrides_engine_prefilled_fuzzy_call():
+def test_dialog_qr_overrides_engine_prefilled_fuzzy_call(tk_child):
     """Beta4-Review: FUZZY_CALL-Vorbefüllung (verlesener Call) muss von einem
     späteren QR-Rufzeichen überschrieben werden können — vorher blockierte die
     Engine-Vorbefüllung die QR-Übernahme, weil _ocr_prefill_call nicht denselben
     Wert trug wie das tatsächlich angezeigte Feld."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
     from qsl73.matching import CardFields, MatchOutcome, MatchReason, MatchReasonCode, MatchResult, QsoCandidate
     from qsl73.run import CardResult
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     cand = QsoCandidate(qsoid="q1", callsign="DL1AAA", date="2025-04-02", band="6m", mode="FT8")
     reason = MatchReason(MatchReasonCode.FUZZY_CALL, "…", {"read": "DLIAAA", "matched": "DL1AAA"})
     card = CardResult(
@@ -744,19 +702,15 @@ def test_dialog_qr_overrides_engine_prefilled_fuzzy_call():
 
     assert captured.get("before_qr") == "DLIAAA"
     assert captured.get("after_qr") == "DL1AAA"
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_qr_hint_visible_after_prefill_not_before():
+def test_dialog_qr_hint_visible_after_prefill_not_before(tk_child):
     """QR-Hinweiszeile erscheint erst NACH tatsächlicher QR-Übernahme, nicht vorher."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
     from qsl73.matching import CardFields, MatchOutcome, MatchResult
     from qsl73.run import CardResult
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = CardResult(
         doc_id=1,
         card_fields=CardFields(call_from="DK1AA", call_to=None, date=None, band=None, mode=None),
@@ -782,17 +736,13 @@ def test_dialog_qr_hint_visible_after_prefill_not_before():
 
     assert captured.get("hint_before") is False
     assert captured.get("hint_after") is True
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_qr_hint_absent_without_qr_prefill():
+def test_dialog_qr_hint_absent_without_qr_prefill(tk_child):
     """Ohne jegliche QR-Übernahme bleibt die Hinweiszeile dauerhaft ausgeblendet."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()
 
     captured: dict = {}
@@ -807,17 +757,13 @@ def test_dialog_qr_hint_absent_without_qr_prefill():
     ManualAssignmentDialog(root, card, [], "bureau")
 
     assert captured.get("hint_visible") is False
-    root.destroy()
 
 
-@_tk_skip
-def test_dialog_image_loader_failure_no_crash():
+def test_dialog_image_loader_failure_no_crash(tk_child):
     """Fehler beim Bildladen → Platzhaltertext, kein Absturz."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()
     candidates = [_make_cand("Q001")]
 
@@ -839,7 +785,6 @@ def test_dialog_image_loader_failure_no_crash():
         root, card, candidates, "bureau", image_loader=_bad_loader
     )
     assert dlg.result is None
-    root.destroy()
 
 
 # ---------------------------------------------------------------------------
@@ -1142,15 +1087,12 @@ def test_dialog_buttons_state_no_next_card():
 # ---------------------------------------------------------------------------
 
 
-@_tk_skip
-def test_ignore_button_absent_for_certain_card():
+def test_ignore_button_absent_for_certain_card(tk_child):
     """Button existiert nicht für CERTAIN-Karten (defensiv — Dialog öffnet sich dafür nie)."""
-    import tkinter as tk
     from qsl73.matching import MatchResult
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result(result=MatchResult.CERTAIN)
 
     def _check_and_cancel():
@@ -1161,17 +1103,13 @@ def test_ignore_button_absent_for_certain_card():
 
     root.after(80, _check_and_cancel)
     ManualAssignmentDialog(root, card, [], "bureau")
-    root.destroy()
 
 
-@_tk_skip
-def test_ignore_button_initial_label_already_ignored():
+def test_ignore_button_initial_label_already_ignored(tk_child):
     """already_ignored=True → Button zeigt direkt 'Nicht mehr ignorieren'."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()
 
     def _check_and_cancel():
@@ -1184,13 +1122,10 @@ def test_ignore_button_initial_label_already_ignored():
     root.after(80, _check_and_cancel)
     dlg = ManualAssignmentDialog(root, card, [], "bureau", already_ignored=True)
     assert dlg.ignored is True
-    root.destroy()
 
 
-@_tk_skip
-def test_ignore_button_click_success_locks_save_and_toggles_label(monkeypatch):
+def test_ignore_button_click_success_locks_save_and_toggles_label(tk_child, monkeypatch):
     """Klick → ignore_card wird aufgerufen, Label wechselt, Speichern gesperrt."""
-    import tkinter as tk
     from unittest.mock import MagicMock
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
@@ -1202,8 +1137,7 @@ def test_ignore_button_click_success_locks_save_and_toggles_label(monkeypatch):
 
     monkeypatch.setattr("qsl73.ignore.ignore_card", _fake_ignore_card)
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result(doc_id=77)
     candidates = [_make_cand("Q001")]
 
@@ -1230,13 +1164,10 @@ def test_ignore_button_click_success_locks_save_and_toggles_label(monkeypatch):
     )
     assert dlg.ignored is True
     assert called["doc_id"] == 77
-    root.destroy()
 
 
-@_tk_skip
-def test_ignore_button_click_missing_tag_shows_expected_error_no_traceback(monkeypatch):
+def test_ignore_button_click_missing_tag_shows_expected_error_no_traceback(tk_child, monkeypatch):
     """Fehlender Ignoriert-Tag → Hinweis ohne Traceback-Dialog; Zustand unverändert."""
-    import tkinter as tk
     from unittest.mock import MagicMock
     from qsl73.ignore import IgnoreTagMissingError
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
@@ -1254,8 +1185,7 @@ def test_ignore_button_click_missing_tag_shows_expected_error_no_traceback(monke
     monkeypatch.setattr("qsl73.ignore.ignore_card", _fake_ignore_card)
     monkeypatch.setattr("qsl73.gui.manual_assignment.show_error", _fake_show_error)
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result(doc_id=5)
 
     def _click_ignore():
@@ -1278,17 +1208,13 @@ def test_ignore_button_click_missing_tag_shows_expected_error_no_traceback(monke
     assert dlg.ignored is False
     assert "qsl-ignoriert" in shown["message"]
     assert shown["detail"] == ""  # kein Traceback
-    root.destroy()
 
 
-@_tk_skip
-def test_ignore_button_click_without_client_is_noop():
+def test_ignore_button_click_without_client_is_noop(tk_child):
     """Kein paperless_client konfiguriert → Klick ist ein no-op, kein Absturz."""
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     card = _make_card_result()
 
     def _click_and_cancel():
@@ -1301,11 +1227,9 @@ def test_ignore_button_click_without_client_is_noop():
     root.after(80, _click_and_cancel)
     dlg = ManualAssignmentDialog(root, card, [], "bureau")
     assert dlg.ignored is False
-    root.destroy()
 
 
-@_tk_skip
-def test_ignore_in_flight_locks_all_four_buttons_and_blocks_window_close():
+def test_ignore_in_flight_locks_all_four_buttons_and_blocks_window_close(tk_child):
     """Race-Schutz (ADR-0059-Nachtrag): während _in_flight sind alle vier
     Workflow-Buttons gesperrt und Fenster-X schließt den Dialog nicht; danach wird
     der korrekte Zustand wiederhergestellt.
@@ -1316,46 +1240,41 @@ def test_ignore_in_flight_locks_all_four_buttons_and_blocks_window_close():
     inkl. Hintergrund-Thread ist bereits durch
     test_ignore_button_click_success_locks_save_and_toggles_label abgedeckt.
     """
-    import tkinter as tk
     from qsl73.gui.manual_assignment import ManualAssignmentDialog
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     captured: dict = {}
-    try:
-        card = _make_card_result(doc_id=9)
-        candidates = [_make_cand("Q001")]
+    card = _make_card_result(doc_id=9)
+    candidates = [_make_cand("Q001")]
 
-        def _drive_race_check():
-            dlg_win = _find_toplevel(root)
-            if dlg_win is None:
-                return
-            # Zustand simulieren, wie ihn _on_toggle_ignore setzt, bevor die Antwort da ist.
-            dlg_win._in_flight = True
-            dlg_win._refresh_button_states()
+    def _drive_race_check():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is None:
+            return
+        # Zustand simulieren, wie ihn _on_toggle_ignore setzt, bevor die Antwort da ist.
+        dlg_win._in_flight = True
+        dlg_win._refresh_button_states()
 
-            captured["save_state"] = str(dlg_win._btn_save.cget("state"))
-            captured["save_next_state"] = str(dlg_win._btn_save_next.cget("state"))
-            captured["next_state"] = str(dlg_win._btn_next.cget("state"))
-            captured["cancel_state"] = str(dlg_win._btn_cancel.cget("state"))
+        captured["save_state"] = str(dlg_win._btn_save.cget("state"))
+        captured["save_next_state"] = str(dlg_win._btn_save_next.cget("state"))
+        captured["next_state"] = str(dlg_win._btn_next.cget("state"))
+        captured["cancel_state"] = str(dlg_win._btn_cancel.cget("state"))
 
-            dlg_win._on_delete_window()  # simuliert Fenster-X-Klick
-            captured["still_open_after_x"] = bool(dlg_win.winfo_exists())
+        dlg_win._on_delete_window()  # simuliert Fenster-X-Klick
+        captured["still_open_after_x"] = bool(dlg_win.winfo_exists())
 
-            # Antwort simulieren (wie _on_ignore_done es tun würde) und Zustand prüfen.
-            dlg_win._in_flight = False
-            dlg_win.ignored = True
-            dlg_win._refresh_button_states()
+        # Antwort simulieren (wie _on_ignore_done es tun würde) und Zustand prüfen.
+        dlg_win._in_flight = False
+        dlg_win.ignored = True
+        dlg_win._refresh_button_states()
 
-            captured["restored_cancel_state"] = str(dlg_win._btn_cancel.cget("state"))
-            captured["restored_next_state"] = str(dlg_win._btn_next.cget("state"))
-            dlg_win._on_cancel()
+        captured["restored_cancel_state"] = str(dlg_win._btn_cancel.cget("state"))
+        captured["restored_next_state"] = str(dlg_win._btn_next.cget("state"))
+        dlg_win._on_cancel()
 
-        root.after(80, _drive_race_check)
+    root.after(80, _drive_race_check)
 
-        ManualAssignmentDialog(root, card, candidates, "bureau")
-    finally:
-        root.destroy()
+    ManualAssignmentDialog(root, card, candidates, "bureau")
 
     assert captured["save_state"] == "disabled"
     assert captured["save_next_state"] == "disabled"
@@ -1366,10 +1285,8 @@ def test_ignore_in_flight_locks_all_four_buttons_and_blocks_window_close():
     assert captured["restored_next_state"] == "disabled"  # has_next=False in diesem Test
 
 
-@_tk_skip
-def test_ignore_button_tooltip_updates_with_state(monkeypatch):
+def test_ignore_button_tooltip_updates_with_state(tk_child, monkeypatch):
     """Tooltip-Text folgt dem Ignoriert-Zustand (ADR-0059-Nachtrag)."""
-    import tkinter as tk
     from unittest.mock import MagicMock
     from qsl73.gui.manual_assignment import ManualAssignmentDialog, ignore_button_tooltip
 
@@ -1378,31 +1295,27 @@ def test_ignore_button_tooltip_updates_with_state(monkeypatch):
 
     monkeypatch.setattr("qsl73.ignore.ignore_card", _fake_ignore_card)
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        card = _make_card_result(doc_id=3)
+    root = tk_child
+    card = _make_card_result(doc_id=3)
 
-        def _check_initial_tooltip():
-            dlg_win = _find_toplevel(root)
-            if dlg_win is not None:
-                assert dlg_win._ignore_tooltip._text == ignore_button_tooltip(False)
-                dlg_win._on_toggle_ignore()
+    def _check_initial_tooltip():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            assert dlg_win._ignore_tooltip._text == ignore_button_tooltip(False)
+            dlg_win._on_toggle_ignore()
 
-        def _check_updated_tooltip_and_cancel():
-            dlg_win = _find_toplevel(root)
-            if dlg_win is not None:
-                assert dlg_win.ignored is True
-                assert dlg_win._ignore_tooltip._text == ignore_button_tooltip(True)
-                dlg_win._on_cancel()
+    def _check_updated_tooltip_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            assert dlg_win.ignored is True
+            assert dlg_win._ignore_tooltip._text == ignore_button_tooltip(True)
+            dlg_win._on_cancel()
 
-        root.after(80, _check_initial_tooltip)
-        root.after(400, _check_updated_tooltip_and_cancel)
+    root.after(80, _check_initial_tooltip)
+    root.after(400, _check_updated_tooltip_and_cancel)
 
-        dlg = ManualAssignmentDialog(
-            root, card, [], "bureau",
-            paperless_client=MagicMock(), tags_config=MagicMock(),
-        )
-        assert dlg.ignored is True
-    finally:
-        root.destroy()
+    dlg = ManualAssignmentDialog(
+        root, card, [], "bureau",
+        paperless_client=MagicMock(), tags_config=MagicMock(),
+    )
+    assert dlg.ignored is True

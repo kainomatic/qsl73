@@ -142,26 +142,11 @@ class TestTryRestoreAndLoad:
 
 
 # ---------------------------------------------------------------------------
-# tk-Smoke-Test (skippt im CI)
+# tk-Smoke-Test — tk_root-Fixture aus conftest.py (ADR-0062)
 # ---------------------------------------------------------------------------
 
 
-def _has_display() -> bool:
-    try:
-        import tkinter as tk
-
-        root = tk.Tk()
-        root.destroy()
-        return True
-    except Exception:
-        return False
-
-
-_NO_DISPLAY = not _has_display()
-
-
-@pytest.mark.skipif(_NO_DISPLAY, reason="kein tk-Display verfügbar")
-def test_show_config_error_dialog_importable():
+def test_show_config_error_dialog_importable(tk_root):
     from qsl73.gui.config_error_dialog import show_config_error_dialog
 
     assert callable(show_config_error_dialog)

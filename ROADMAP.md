@@ -14,6 +14,11 @@
 `dev` läuft wie üblich mit weiteren Commits voraus; `main` wird erst zum nächsten
 Stable-Release wieder aktualisiert (danach Rückmerge main→dev, ADR-0046-Nachtrag).
 
+**Issue #40 (Tcl-Cross-Thread-Absturz im vollen Einzelprozess-Lauf) behoben** —
+`tests/gui/` nutzt jetzt einen session-weiten tk-Root statt hunderter einzelner
+`tk.Tk()`-Erzeugungen (ADR-0062). Voller `pytest -m "not slow"`-Lauf verifiziert
+3× hintereinander stabil, voller `pytest`-Lauf grün.
+
 Keine laufende Beta. Kein aktiver Bau-Auftrag.
 
 Es wird auf keinen bestimmten Praxistest gewartet — nächster Schritt ist einer der
@@ -26,19 +31,16 @@ in Abschnitt B priorisierten Punkte.
 Priorisierte Reihenfolge (DF1DS kann jederzeit umsortieren). Jede Nummer ist ein
 GitHub-Issue.
 
-1. **#40** — Testsuite-Stabilität (Tcl-Cross-Thread-Absturz bei vollem Einzelprozess-
-   Lauf). Voraussetzung für einen verlässlichen DoD-Nachweis (voller pytest-Lauf) bei
-   allen Folgeaufträgen.
-2. **#41** — Eingangs-Tag nach Bestätigen/Ignorieren entfernen. Fertig spezifiziert,
+1. **#41** — Eingangs-Tag nach Bestätigen/Ignorieren entfernen. Fertig spezifiziert,
    MINOR-Kandidat.
-3. **#35** / **#36** — Rufzeichen-Erkennung (Sonderrufzeichen zwei Ziffern; OCR O/0,
+2. **#35** / **#36** — Rufzeichen-Erkennung (Sonderrufzeichen zwei Ziffern; OCR O/0,
    I/1). Entscheidung DF1DS zum Falsch-Positiv-Risiko noch offen, erst ADR-Klärung.
-4. **#42** — Werkzeug Bestätigungsübersicht. Grundentscheidungen bereits im Issue
+3. **#42** — Werkzeug Bestätigungsübersicht. Grundentscheidungen bereits im Issue
    festgehalten (ADR-0060); Handtest DF1DS zu den exakten Log4OM-Strings noch
    ausstehend.
-5. **#38** — Hauptfenster-Zeilen-Tooltip. Komfort-Feature, braucht Tooltip-Infrastruktur-
+4. **#38** — Hauptfenster-Zeilen-Tooltip. Komfort-Feature, braucht Tooltip-Infrastruktur-
    Neubau (bestehende Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
-6. **#32** — Schutz gegen Direkt-Commits auf `main`. Prozess-/Doku-Thema, keine
+5. **#32** — Schutz gegen Direkt-Commits auf `main`. Prozess-/Doku-Thema, keine
    funktionale Abhängigkeit zu den übrigen Punkten.
 
 **V2** (bewusst zurückgestellt): #25 (Mehrsprachigkeit i18n), #43 (visueller

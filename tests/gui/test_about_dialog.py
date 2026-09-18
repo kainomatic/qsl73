@@ -173,29 +173,12 @@ def test_resolve_dialog_width_about_min_w():
 
 
 # ---------------------------------------------------------------------------
-# Tk-Test — benötigt echtes Display; skippt wenn nicht verfügbar
+# Tk-Tests — tk_root-Fixture aus conftest.py (ADR-0062); skippt automatisch
+# wenn kein Display verfügbar ist.
 # ---------------------------------------------------------------------------
 
-def _tk_available() -> bool:
-    """Prüft ob Tkinter ein Fenster öffnen kann (kein Headless-Fallback)."""
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.withdraw()
-        root.destroy()
-        return True
-    except Exception:
-        return False
 
-
-_SKIP_TK = pytest.mark.skipif(
-    not _tk_available(),
-    reason="Kein Display verfügbar — tk-Test übersprungen",
-)
-
-
-@_SKIP_TK
-def test_about_dialog_opens_at_minimum_size():
+def test_about_dialog_opens_at_minimum_size(tk_root):
     """Über-Dialog erreicht _ABOUT_MIN_W/H — auch ohne Logo (None) und mit Logo.
 
     Testet das reale tk-Verhalten: Dialog wird mit und ohne Logo geöffnet, Breite/Höhe
@@ -205,7 +188,7 @@ def test_about_dialog_opens_at_minimum_size():
     from tkinter import ttk
 
     def _open_dialog(with_logo: bool) -> dict:
-        root = tk.Tk()
+        root = tk.Toplevel(tk_root)
         root.geometry("900x700+50+50")
         root.update()
         root.deiconify()
@@ -313,8 +296,7 @@ def test_about_dialog_opens_at_minimum_size():
 # TEIL 1 — Diagnosetest: resizable(False,False) ignoriert geometry()
 # ---------------------------------------------------------------------------
 
-@_SKIP_TK
-def test_resizable_false_vs_true_geometry():
+def test_resizable_false_vs_true_geometry(tk_root):
     """Belegt die Wurzelursache: resizable(False,False) ignoriert explizite geometry()-Größe.
 
     Öffnet denselben minimalen Dialog einmal mit resizable(False,False) und einmal mit
@@ -332,7 +314,7 @@ def test_resizable_false_vs_true_geometry():
     GEOM = f"{TARGET_W}x{TARGET_H}+50+50"
 
     def _open_with(resizable: bool) -> dict:
-        root = tk.Tk()
+        root = tk.Toplevel(tk_root)
         root.withdraw()
         root.update_idletasks()
 
@@ -388,7 +370,7 @@ def test_resizable_false_vs_true_geometry():
 # ---------------------------------------------------------------------------
 
 
-def test_ttk_frame_logo_label_no_cget_crash():
+def test_ttk_frame_logo_label_no_cget_crash(tk_child):
     """ttk.Label auf ttk.Frame mit image-Arg darf keine Exception werfen.
 
     Sichert ab, dass der Fix (ttk.Label statt tk.Label mit bg=frame.cget("background"))
@@ -396,36 +378,22 @@ def test_ttk_frame_logo_label_no_cget_crash():
     auf Win10/Tk 8.6 einen TclError ("unknown option -background") — dieser Test hätte
     den Bug vor dem Release gefangen.
     """
-    import pytest
-    try:
-        import tkinter as tk
-        from tkinter import ttk
-    except ImportError:
-        pytest.skip("tkinter nicht verfügbar")
+    from tkinter import ttk
 
-    try:
-        root = tk.Tk()
-        root.withdraw()
-    except Exception:
-        pytest.skip("Kein Display verfügbar")
+    root = tk_child
+    frame = ttk.Frame(root)
+    frame.pack()
+    root.update_idletasks()
 
-    try:
-        frame = ttk.Frame(root)
-        frame.pack()
-        root.update_idletasks()
-
-        # ttk.Frame hat keine -background-Option → frame.cget("background") wirft TclError.
-        # Der Fix verwendet ttk.Label ohne bg-Argument; das darf nicht abstürzen.
-        lbl = ttk.Label(frame, text="Logo-Platzhalter")
-        lbl.pack()
-        root.update_idletasks()
-        # Kein Exception-Crash → Test bestanden
-    finally:
-        root.destroy()
+    # ttk.Frame hat keine -background-Option → frame.cget("background") wirft TclError.
+    # Der Fix verwendet ttk.Label ohne bg-Argument; das darf nicht abstürzen.
+    lbl = ttk.Label(frame, text="Logo-Platzhalter")
+    lbl.pack()
+    root.update_idletasks()
+    # Kein Exception-Crash → Test bestanden
 
 
-@_SKIP_TK
-def test_about_dialog_builds_completely_not_empty():
+def test_about_dialog_builds_completely_not_empty(tk_child):
     """Über-Dialog enthält nach dem Aufbau alle erwarteten Kind-Widgets (nicht leer).
 
     Regressionstest gegen den echten Bug: tk.Label(..., bg=frame.cget("background"))
@@ -439,8 +407,7 @@ def test_about_dialog_builds_completely_not_empty():
 
     built: dict = {}
 
-    root = tk.Tk()
-    root.withdraw()
+    root = tk_child
     root.update_idletasks()
 
     try:

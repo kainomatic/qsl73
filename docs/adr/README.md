@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0062.
+Nächste freie Nummer: ADR-0063.
 
 ## Index
 
@@ -51,6 +51,7 @@ Nächste freie Nummer: ADR-0062.
 | ADR-0059 | Karten ignorieren — ersetzt den ungenutzten Unsicher-Tag (tags.ignored, sofortige Wirkung, kein DB-Zugriff) |
 | ADR-0060 | ADR-Zeitpunkt bei nur vorgemerkten Features — Entscheidungen zunächst im Issue, ADR erst mit dem ersten Umsetzungsauftrag |
 | ADR-0061 | ROADMAP — Zweck und Struktur (nur Stand + priorisierte nächste Schritte, keine Issue-Liste, keine Änderungs-Historie) |
+| ADR-0062 | GUI-Tests nutzen einen session-weiten tk-Root (ein `tk.Tk()` pro Testprozess statt hunderter Einzel-Erzeugungen, Issue #40) |
 
 ## Abgrenzung
 

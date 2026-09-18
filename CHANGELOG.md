@@ -7,6 +7,16 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Testinfrastruktur: Voller `pytest -m "not slow"`-Lauf stürzte auf der Windows-Dev-
+  Maschine reproduzierbar mit `Tcl_AsyncDelete: async handler deleted by the wrong
+  thread` ab, verursacht durch hunderte einzelne `tk.Tk()`-Erzeugungen/-Zerstörungen
+  in einem Prozess über `tests/gui/`. Neue session-weite `tk_root`/`tk_child`-
+  Fixtures in `tests/gui/conftest.py` ersetzen die pro Testdatei duplizierten
+  `_tk_available()`/`_has_display()`-Prüfungen und das `tk.Tk()`-pro-Test-Muster
+  durch genau einen `tk.Tk()`-Root je Testprozess (ADR-0062, Fixes #40). Kein
+  Produktivcode betroffen; CI-Skip-Verhalten unverändert.
+
 ## [0.5.0] - 2026-09-18
 
 ### Added

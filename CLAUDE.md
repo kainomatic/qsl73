@@ -328,6 +328,12 @@ wäre ein echtes Problem. Stand Dev-Maschine: pywin32 installiert → 3 Skips er
 Timeout und kennt kein `tail`; pytest-Läufe > ~5 s brechen mit Exit 137 (OS-Kill) ab.
 Exit 137 in diesem Kontext ist ein Tool-Timeout, kein Test-Fehler.
 
+**Voller Einzelprozess-Lauf ist seit Issue #40 / ADR-0062 stabil.** Der frühere
+Tcl_AsyncDelete-Absturz bei hunderten `tk.Tk()`-Erzeugungen in einem Prozess entfällt,
+seit `tests/gui/` einen session-weiten tk-Root nutzt (→ ADR-0062). Ein früher hier
+dokumentierter Mehrfach-Lauf-Workaround ist damit **nicht mehr nötig** — ein einzelner
+`pytest`- bzw. `pytest -m "not slow"`-Lauf genügt für den DoD-Nachweis.
+
 | Lauf | Befehl | Wann |
 |------|--------|------|
 | Schnell (Zwischenlauf) | `pytest -m "not slow"` | Jederzeit während der Entwicklung |

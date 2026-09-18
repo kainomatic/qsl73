@@ -7,7 +7,6 @@ Aufbau:
 """
 from __future__ import annotations
 
-import pytest
 from qsl73.gui.tooltip import clamp_tooltip_position
 
 
@@ -69,129 +68,72 @@ def test_clamp_zero_position():
 
 
 # ---------------------------------------------------------------------------
-# 2. tk-abhängige Tests
+# 2. tk-abhängige Tests (tk_child-Fixture aus conftest.py, ADR-0062)
 # ---------------------------------------------------------------------------
 
-def _tk_available() -> bool:
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.destroy()
-        return True
-    except Exception:
-        return False
 
-
-_tk_skip = pytest.mark.skipif(
-    not _tk_available(),
-    reason="kein Display / tk nicht verfügbar (CI-Umgebung)",
-)
-
-
-@_tk_skip
-def test_attach_tooltip_returns_tooltip_object():
-    import tkinter as tk
+def test_attach_tooltip_returns_tooltip_object(tk_child):
     from tkinter import ttk
     from qsl73.gui.tooltip import attach_tooltip
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        btn = ttk.Button(root, text="Test")
-        btn.pack()
-        tip = attach_tooltip(btn, "Testtext")
-        assert tip is not None
-    finally:
-        root.destroy()
+    btn = ttk.Button(tk_child, text="Test")
+    btn.pack()
+    tip = attach_tooltip(btn, "Testtext")
+    assert tip is not None
 
 
-@_tk_skip
-def test_attach_tooltip_stores_on_widget():
-    import tkinter as tk
+def test_attach_tooltip_stores_on_widget(tk_child):
     from tkinter import ttk
     from qsl73.gui.tooltip import attach_tooltip
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        btn = ttk.Button(root, text="Test")
-        btn.pack()
-        tip = attach_tooltip(btn, "Hallo")
-        assert hasattr(btn, "_qsl73_tooltip")
-        assert btn._qsl73_tooltip is tip
-    finally:
-        root.destroy()
+    btn = ttk.Button(tk_child, text="Test")
+    btn.pack()
+    tip = attach_tooltip(btn, "Hallo")
+    assert hasattr(btn, "_qsl73_tooltip")
+    assert btn._qsl73_tooltip is tip
 
 
-@_tk_skip
-def test_tooltip_hide_before_show_no_crash():
+def test_tooltip_hide_before_show_no_crash(tk_child):
     """_hide() vor _show() darf nicht abstürzen."""
-    import tkinter as tk
     from tkinter import ttk
     from qsl73.gui.tooltip import _Tooltip
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        btn = ttk.Button(root, text="Test")
-        btn.pack()
-        tip = _Tooltip(btn, "Hallo")
-        tip._hide()
-    finally:
-        root.destroy()
+    btn = ttk.Button(tk_child, text="Test")
+    btn.pack()
+    tip = _Tooltip(btn, "Hallo")
+    tip._hide()
 
 
-@_tk_skip
-def test_tooltip_double_hide_no_crash():
+def test_tooltip_double_hide_no_crash(tk_child):
     """Doppeltes _hide() darf nicht abstürzen."""
-    import tkinter as tk
     from tkinter import ttk
     from qsl73.gui.tooltip import _Tooltip
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        btn = ttk.Button(root, text="Test")
-        btn.pack()
-        tip = _Tooltip(btn, "Hallo")
-        tip._hide()
-        tip._hide()
-    finally:
-        root.destroy()
+    btn = ttk.Button(tk_child, text="Test")
+    btn.pack()
+    tip = _Tooltip(btn, "Hallo")
+    tip._hide()
+    tip._hide()
 
 
-@_tk_skip
-def test_tooltip_set_text_updates_stored_text():
+def test_tooltip_set_text_updates_stored_text(tk_child):
     """set_text() ändert den gespeicherten Text (für Button-Zustandswechsel, ADR-0059)."""
-    import tkinter as tk
     from tkinter import ttk
     from qsl73.gui.tooltip import _Tooltip
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        btn = ttk.Button(root, text="Test")
-        btn.pack()
-        tip = _Tooltip(btn, "Alt")
-        tip.set_text("Neu")
-        assert tip._text == "Neu"
-    finally:
-        root.destroy()
+    btn = ttk.Button(tk_child, text="Test")
+    btn.pack()
+    tip = _Tooltip(btn, "Alt")
+    tip.set_text("Neu")
+    assert tip._text == "Neu"
 
 
-@_tk_skip
-def test_tooltip_cancel_timer_without_timer_no_crash():
+def test_tooltip_cancel_timer_without_timer_no_crash(tk_child):
     """_cancel_timer() ohne laufenden Timer darf nicht abstürzen."""
-    import tkinter as tk
     from tkinter import ttk
     from qsl73.gui.tooltip import _Tooltip
 
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        btn = ttk.Button(root, text="Test")
-        btn.pack()
-        tip = _Tooltip(btn, "Hallo")
-        tip._cancel_timer()
-    finally:
-        root.destroy()
+    btn = ttk.Button(tk_child, text="Test")
+    btn.pack()
+    tip = _Tooltip(btn, "Hallo")
+    tip._cancel_timer()
