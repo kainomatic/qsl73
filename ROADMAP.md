@@ -586,9 +586,16 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 
 ### ✅ Stable-Release v0.4.0 — VERÖFFENTLICHT (2026-06-24)
 
-- CHANGELOG [0.4.0] - 2026-06-24 eingefroren; dev → main Fast-Forward; Tag `v0.4.0` gesetzt.
+- CHANGELOG [0.4.0] - 2026-06-24 eingefroren; dev → main gemerged (Merge-Commit
+  `74cfaea` mit aufgelösten add/add-Konflikten in `pdf_cache.py`/
+  `test_pdf_cache.py` — **Korrektur:** entgegen ursprünglicher Notiz hier war
+  dies kein Fast-Forward; Tag `v0.4.0` gesetzt.
 - Alle fünf Issues enthalten: #30 (Performance), #28 (Treeview-Sortierung),
   #29 (Live-Textsuche), #31 (Durchlauf abbrechbar), #27 (Self-Update Beta-Fix).
+- **Nachtrag (v0.5.0-Release):** Der Merge-Commit `74cfaea` wurde nie nach
+  `dev` zurückgemergt → `main`/`dev` divergierten bis zum v0.5.0-Release
+  (ADR-0046-Nachtrag). Seit v0.5.0 wird nach jedem Stable-Release `main` per
+  Fast-Forward nach `dev` zurückgemergt, um das zu vermeiden.
 
 ### ✅ UX-Verbesserung — Log-Level im Einstellungen-Dialog (Issue #26, ADR-0055)
 
@@ -914,8 +921,14 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 
 - CHANGELOG [0.5.0] - 2026-09-18 eingefroren (inkl. Bereinigung: Review-Nachtrag
   zu ADR-0059 aus Fixed entfernt, nutzerrelevanter Kern in den Added-Eintrag
-  „Karten ignorieren" integriert; Update-Hinweis zum Ignoriert-Tag ergänzt);
-  dev → main Fast-Forward; Tag `v0.5.0` gesetzt.
+  „Karten ignorieren" integriert; Update-Hinweis zum Ignoriert-Tag ergänzt).
+- `dev`→`main`-Merge war **kein** Fast-Forward (main trug seit v0.4.0 einen
+  eigenen, nie zurückgemergten Merge-Commit `74cfaea`, siehe Nachtrag oben)
+  → stattdessen regulärer Merge-Commit `749eb2f` ("Release v0.5.0: merge dev
+  into main"), Inhaltsgleichheit vor dem Push geprüft (`git diff dev main`
+  leer). Tag `v0.5.0` auf `749eb2f` gesetzt. Anschließend `main` per
+  Fast-Forward nach `dev` zurückgemerged (ADR-0046-Nachtrag) — `dev` und
+  `main` stehen seither wieder auf demselben Commit.
 - Enthaltene Issues: #26 (Log-Level-Einstellung), #4 (CT=QSL-Randfälle
   dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau), #34
   (Anzeige-Fix CERTAIN-Rufzeichen), #37 (Grund der Einstufung, ADR-0058), #39

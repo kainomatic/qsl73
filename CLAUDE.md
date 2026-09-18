@@ -230,7 +230,7 @@ nicht bei Beta-Pre-Releases. → vollständiger Workflow: **ADR-0046**
    → Workflow baut Beta-Installer; Release-Notes aus `[Unreleased]`.
 4. Mehrere Runden: `-beta2`, `-beta3`, … bei Bedarf; `[Unreleased]` wächst weiter.
 
-#### Stable-Release (DF1DS manuell nach Desktop-Review)
+#### Stable-Release (Entscheidung DF1DS, Durchführung Claude Code — ADR-0049)
 
 1. **Version prüfen:** `__version__.py` muss `X.Y.Z` enthalten (aus Beta-Phase bereits gesetzt;
    bei Direktrelease ohne Beta jetzt setzen).
@@ -240,9 +240,18 @@ nicht bei Beta-Pre-Releases. → vollständiger Workflow: **ADR-0046**
    (Keep-a-Changelog-Standard); leere Kategorien weglassen; mehrere gleichnamige Blöcke zusammenführen.
 5. **Datenschutz-Check:** Sicherstellen, dass README und die generierte Doku (AENDERUNGEN/LIESMICH)
    den aktuellen Stand widerspiegeln und nur `DF1DS` / fiktive Calls enthalten (→ ADR-0050).
-6. **`dev → main` mergen:** `git checkout main && git merge dev && git push origin main`
+6. **`dev → main` mergen:** `git checkout main && git pull --ff-only && git merge --no-ff dev`
+   (Merge-Commit, kein `--ff-only` — `main` trägt seit dem letzten Release i. d. R. einen
+   eigenen Merge-Commit, siehe Schritt 8; ein `--ff-only`-Versuch schlägt daher normalerweise
+   fehl, das ist erwartet). **Vor dem Push:** `git diff dev main` muss leer sein (Baum von
+   `main` == Baum von `dev`) — ist er es nicht, nichts pushen, Diff berichten. Dann
+   `git push origin main`.
 7. **Tag setzen und pushen:** `git tag vX.Y.Z && git push origin vX.Y.Z`
    → Workflow baut Stable-Installer; Release-Notes aus `[X.Y.Z]`.
+8. **`main → dev` zurückmergen (ADR-0046 Nachtrag):** `git checkout dev && git merge --ff-only main
+   && git push origin dev`. Muss ein Fast-Forward sein (Merge-Commit aus Schritt 6 landet
+   dadurch auch auf `dev`) — schlägt `--ff-only` fehl: STOPP und berichten, nichts erzwingen.
+   Hält `dev`→`main` beim nächsten Release wieder fast-forward-fähig.
 
 ### Welche Stelle bei gemischten Änderungen? Wer entscheidet?
 

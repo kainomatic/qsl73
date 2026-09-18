@@ -90,9 +90,36 @@ Den `dev→main`-Merge und den Stable-Tag setzt ausschließlich DF1DS.
 2. CHANGELOG einfrieren: [Unreleased] → [X.Y.Z] - YYYY-MM-DD; neuer leerer [Unreleased].
 3. Kategorien-Reihenfolge prüfen: Added→Changed→Deprecated→Removed→Fixed→Security.
 4. git checkout main && git merge dev && git push origin main
+   (Merge-Commit statt --ff-only, `git diff dev main` muss vor dem Push leer
+   sein — siehe Nachtrag unten)
 5. git tag vX.Y.Z && git push origin vX.Y.Z
    → Workflow baut Stable-Installer; Notes aus [X.Y.Z].
+6. git checkout dev && git merge --ff-only main && git push origin dev
+   (Rück-Merge — siehe Nachtrag unten)
 ```
+
+## Nachtrag (v0.5.0-Release, 2026-09-18): main → dev zurückmergen
+
+**Befund:** Der v0.4.0-Release-Merge (`74cfaea`) enthielt Konfliktauflösungen
+(add/add in `pdf_cache.py`/`test_pdf_cache.py`) und wurde als expliziter
+Merge-Commit nur auf `main` erzeugt — nie zurück nach `dev` gemergt. Beim
+nächsten Stable-Release (v0.5.0) waren `main` und `dev` dadurch divergiert:
+`git merge dev --ff-only` auf `main` schlug fehl, obwohl inhaltlich kein
+echter Konflikt vorlag (`git diff main dev` zeigte nur die seit v0.4.0
+erwarteten Änderungen; ein Test-Merge lief konfliktfrei durch).
+
+**Entscheidung:** Nach jedem Stable-Release (und jedem Hotfix direkt auf
+`main`) wird `main` per Fast-Forward nach `dev` zurückgemergt
+(`git checkout dev && git merge --ff-only main && git push origin dev`).
+Damit landet ein etwaiger Merge-Commit von `main` immer auch auf `dev`, und
+der nächste `dev`→`main`-Merge bleibt (im git-historischen Sinn) wieder
+fast-forward-fähig bzw. zumindest konfliktfrei automatisch mergbar.
+
+**Ablauf ergänzt um Schritt 8** (→ CLAUDE.md „Stable-Release"): Zusätzlich
+wird vor dem Push von `main` in Schritt 6 geprüft, dass `git diff dev main`
+leer ist (Baumgleichheit) — das ersetzt die reine Reachability-Prüfung durch
+eine Inhaltsprüfung, die auch bei einem Merge-Commit statt echtem
+Fast-Forward zuverlässig funktioniert.
 
 ## Konsequenzen
 
