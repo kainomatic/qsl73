@@ -8,8 +8,11 @@
 
 ## ✅ AKTUELLER STAND (Release)
 
-**v0.5.0 STABLE veröffentlicht (2026-09-18).** `main` und `dev` stehen auf
-demselben Commit; Tag `v0.5.0` zeigt darauf.
+**v0.5.0 STABLE veröffentlicht (2026-09-18).** `main` steht auf dem
+Merge-Commit `749eb2f` (Tag `v0.5.0`). `dev` hatte zum Zeitpunkt des
+Rückmerges denselben Stand und läuft seither wie üblich mit weiteren
+Commits voraus (bislang rein dokumentarisch, beginnend mit `7bb9440`) —
+das ist normal; `main` wird erst zum nächsten Release wieder aktualisiert.
 
 Enthaltene Änderungen seit v0.4.0: #26 (Log-Level-Einstellung), #4
 (CT=QSL-Randfälle dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau
@@ -21,9 +24,21 @@ Config v1→v2).
 Nicht enthalten (offen): #35 (Sonderrufzeichen zwei Ziffern), #36
 (OCR O/0, I/1 bei Rufzeichen), #38 (Hauptfenster-Zeilen-Tooltip), #40
 (Testsuite-Stabilität — Tcl-Cross-Thread-Absturz bei langen pytest-Läufen
-auf der Windows-Dev-Maschine), #42 (Werkzeug Bestätigungsübersicht — geplant,
-noch nicht spezifiziert, siehe „Geplant"-Eintrag unten). **Empfehlung:** #40
-als nächster Auftrag.
+auf der Windows-Dev-Maschine).
+
+Weitere offene Issues (unabhängig von v0.5.0 entstanden):
+- **#32** (Prozess-/Doku-Thema): Direkt-Commits auf main (`cc64fcd`,
+  `7e1dd28`) — Ursache mittlerweile durch den ADR-0046-Nachtrag
+  (main→dev-Rückmerge nach jedem Stable-Release) dokumentiert; der im
+  Issue-Titel geforderte Schutz gegen künftige Direkt-Commits auf `main`
+  ist noch offen.
+- **#41** (Feature-Kandidat, nächste MINOR): Eingangs-Tag nach
+  Bestätigen/Ignorieren vom Paperless-Dokument entfernen.
+- **#42** (Feature-Kandidat, nächste MINOR): Werkzeug Bestätigungsübersicht
+  — geplant, noch nicht spezifiziert, Handtest durch DF1DS aussteht (siehe
+  „Geplant"-Eintrag unten, ADR-0060).
+
+**Empfehlung:** #40 als nächster Auftrag.
 
 ---
 
@@ -506,7 +521,10 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Reale OCR-Qualität bei „gemischt" (gedruckt + handschriftlich) bestimmt den Anteil
   des manuellen Pfads im Alltag — empirisch bestätigt: handschriftliche und ältere Karten
   dominieren oft; manueller Pfad wird häufig genutzt.
-- Bild-Auflösung für lesbare Handschrift (Preview vs. Original) — noch offen.
+- ~~Bild-Auflösung für lesbare Handschrift (Preview vs. Original) — noch offen.~~
+  **Erledigt** (Issue #19, geschlossen 2026-06-18): `render_pdf_pages` rendert seither
+  mit 150 DPI statt 100 — handschriftliche Karten deutlich besser lesbar. Dieser
+  Eintrag war ein stehengebliebener Alt-Stand aus der Zeit vor #19.
 - ~~pyzbar/libzbar-64.dll auf Windows~~ — **entschärft durch zxingcpp (ADR-0017)**; kein
   nativer DLL-Ballast mehr. ~~`zxing-cpp` + `pywin32` im PyInstaller-Bundle einbetten~~
   — **erledigt in Schritt 9a (ADR-0040, Issue #6 geschlossen)**.
@@ -906,18 +924,19 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Thread-Muster wie ursprünglich der Ignorieren-Dialog — Umstellung auf
   Queue-Polling (ADR-0023) dort zur Prüfung vorgemerkt.
 
-### 🔧 Beta-Release v0.5.0-beta6 — in Vorbereitung
+### ✅ Beta-Release v0.5.0-beta6 — VERÖFFENTLICHT, durch Stable v0.5.0 überholt
 
-- Enthält Karten ignorieren (#39, ADR-0059 + Race-Nachtrag, Config v1→v2) seit
-  beta5 (`origin/dev` = `8b2a833`). `__version__.py` bleibt `0.5.0`/`stable`
-  (unverändert seit beta1, ADR-0046 §1); CHANGELOG `[Unreleased]` weiterhin
-  offen (ADR-0046 §3). Issues #35 (Sonderrufzeichen zwei Ziffern), #36 (OCR
-  O/0, I/1) und #38 (Hauptfenster-Zeilen-Tooltip) bleiben offen — nicht Teil
-  dieser Beta.
-- Tag `v0.5.0-beta6`; Praxistest des Ignorieren-Features (Button im manuellen
-  Dialog, Listenfenster, Setup-Assistent-Tag-Feld, einmaliger Ignoriert-Tag-
-  Hinweis nach dem Update) macht DF1DS manuell nach dem Build. Stable-Release
-  weiterhin nicht durch DF1DS bestätigt.
+- Enthielt Karten ignorieren (#39, ADR-0059 + Race-Nachtrag, Config v1→v2) seit
+  beta5 (`origin/dev` = `8b2a833`). `__version__.py` blieb `0.5.0`/`stable`
+  (unverändert seit beta1, ADR-0046 §1); CHANGELOG `[Unreleased]` blieb bis
+  zum Stable-Release offen (ADR-0046 §3). Issues #35 (Sonderrufzeichen zwei
+  Ziffern), #36 (OCR O/0, I/1) und #38 (Hauptfenster-Zeilen-Tooltip) waren
+  nicht Teil dieser Beta.
+- Tag `v0.5.0-beta6` veröffentlicht (Pre-Release auf GitHub); Praxistest des
+  Ignorieren-Features durch DF1DS erfolgreich. Stable-Release v0.5.0 danach
+  von DF1DS freigegeben und veröffentlicht (siehe folgender Eintrag) — dieser
+  Beta-Eintrag ist damit erledigt/überholt, nur noch als Verlaufsnotiz von
+  Interesse.
 
 ### ✅ Stable-Release v0.5.0 — VERÖFFENTLICHT (2026-09-18)
 
