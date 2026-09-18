@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import queue
-import threading
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +20,7 @@ from qsl73.gui.controller import (
     ProgressEvent,
     RunController,
     RunDoneEvent,
+    UpdateCheckDoneEvent,
     WriteDoneEvent,
 )
 from qsl73.gui.error_dialog import show_error
@@ -439,6 +439,8 @@ class MainWindow(tk.Tk):
             if event.tag_warnings:
                 msg += "\n\n⚠ Tag-Warnungen:\n" + "\n".join(event.tag_warnings)
             messagebox.showinfo("Schreiben abgeschlossen", msg, parent=self)
+        elif isinstance(event, UpdateCheckDoneEvent):
+            self._handle_update_result(event.result, manual=event.manual)
         elif isinstance(event, ErrorEvent):
             self._status_var.set(event.status_message or f"Fehler: {event.exc}")
             _reset_progress(self._progress)
@@ -1231,18 +1233,19 @@ class MainWindow(tk.Tk):
         self.after(1500, self._start_update_check)
 
     def _start_update_check(self, manual: bool = False) -> None:
-        """Startet Update-Prüfung im Hintergrund-Thread."""
+        """Startet Update-Prüfung im Hintergrund-Thread (ADR-0063).
+
+        Kein direkter self.after(0, …)-Aufruf aus dem Thread: das Ergebnis läuft über
+        RunController.start_update_check() und die bestehende Event-Queue/_poll()-
+        Mechanik (ADR-0023-Muster) — _handle_update_result läuft dadurch garantiert
+        im UI-Thread.
+        """
         from qsl73.__version__ import CHANNEL, __version__
 
         if manual:
             self._status_var.set(_UPDATE_CHECKING)
 
-        def _check() -> None:
-            from qsl73.updater import check_for_update
-            result = check_for_update(__version__, CHANNEL)
-            self.after(0, lambda: self._handle_update_result(result, manual=manual))
-
-        threading.Thread(target=_check, daemon=True).start()
+        self._controller.start_update_check(__version__, CHANNEL, manual=manual)
 
     def _handle_update_result(self, result, *, manual: bool) -> None:
         """Verarbeitet das Update-Prüfungsergebnis im UI-Thread."""

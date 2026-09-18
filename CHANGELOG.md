@@ -7,6 +7,16 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Interne Robustheit: Die Update-Prüfung im Hauptfenster (`_start_update_check`)
+  ruft das Prüfergebnis nicht mehr per direktem `self.after(0, …)` aus dem
+  Hintergrund-Thread in den UI-Thread — stattdessen läuft es wie
+  Durchlauf/Schreiben über `RunController` und die bestehende Event-Queue/
+  `_poll()`-Mechanik (neues `UpdateCheckDoneEvent`, ADR-0063, ADR-0023-Muster).
+  Nutzersichtbares Verhalten (automatisch/manuell, Statusmeldungen, Update-Dialog,
+  „Später"/Opt-out) unverändert; betrifft den in Issue #40 zusätzlich vermerkten
+  Produktivcode-Punkt.
+
 ### Fixed
 - Testinfrastruktur: Voller `pytest -m "not slow"`-Lauf stürzte auf der Windows-Dev-
   Maschine reproduzierbar mit `Tcl_AsyncDelete: async handler deleted by the wrong

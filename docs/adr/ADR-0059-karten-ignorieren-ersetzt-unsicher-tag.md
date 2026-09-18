@@ -95,3 +95,11 @@ oder ignoriert" statt der veralteten Formulierung „bestätigt/unsicher markier
 
 Keine Änderung an den Entscheidungen 1–6 oben — reine Absicherung der bereits
 getroffenen Entscheidung 3 (Umschalt-Button ohne Bestätigungsdialog).
+
+## Querverweis — ADR-0063
+
+Das hier erstmals dokumentierte cross-thread-Tk-Zugriffsmuster (direkter
+`self.after(0, …)`-Aufruf aus einem Hintergrund-Thread) trat auch in
+`gui/main_window.py::_start_update_check` auf (Issue #40, Fundstelle beim
+Tcl-Absturz-Review). ADR-0063 stellt die Update-Prüfung aus demselben Grund auf das
+hier etablierte Queue-Polling-Muster (ADR-0023) um.

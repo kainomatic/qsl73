@@ -15,6 +15,7 @@ from qsl73.gui.error_messages import classify_error
 from qsl73.log4om_db import WriteResult
 from qsl73.paperless import PaperlessClient
 from qsl73.run import RunResult, run_pass, write_selected
+from qsl73.updater import UpdateCheckResult, check_for_update
 
 
 @dataclass
@@ -35,6 +36,13 @@ class WriteDoneEvent:
     confirmed_doc_ids: list
     tag_warnings: list[str]
     selections: list  # paarweise mit confirmed_doc_ids: [(qsoid, route), ...]
+
+
+@dataclass
+class UpdateCheckDoneEvent:
+    """Ergebnis einer Update-Prüfung (ADR-0063) — manual: automatisch vs. manuell ausgelöst."""
+    result: UpdateCheckResult
+    manual: bool = False
 
 
 @dataclass
@@ -91,6 +99,25 @@ class RunController:
                     status_message=c.status_message,
                     is_expected=c.is_expected,
                 ))
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def start_update_check(
+        self,
+        current_version: str,
+        channel: str,
+        *,
+        manual: bool = False,
+    ) -> None:
+        """Startet check_for_update im Daemon-Thread. Ergebnis → Queue (ADR-0063).
+
+        Kein direkter tk-Zugriff aus dem Thread: das Ergebnis läuft über dieselbe
+        Event-Queue wie ProgressEvent/RunDoneEvent/WriteDoneEvent/ErrorEvent, die
+        MainWindow ohnehin per root.after(100, self._poll) abholt.
+        """
+        def _work() -> None:
+            result = check_for_update(current_version, channel)
+            self._queue.put(UpdateCheckDoneEvent(result=result, manual=manual))
 
         threading.Thread(target=_work, daemon=True).start()
 

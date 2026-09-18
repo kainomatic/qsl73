@@ -17,7 +17,11 @@ Stable-Release wieder aktualisiert (danach Rückmerge main→dev, ADR-0046-Nacht
 **Issue #40 (Tcl-Cross-Thread-Absturz im vollen Einzelprozess-Lauf) behoben** —
 `tests/gui/` nutzt jetzt einen session-weiten tk-Root statt hunderter einzelner
 `tk.Tk()`-Erzeugungen (ADR-0062). Voller `pytest -m "not slow"`-Lauf verifiziert
-3× hintereinander stabil, voller `pytest`-Lauf grün.
+3× hintereinander stabil, voller `pytest`-Lauf grün. Der im Issue zusätzlich
+vermerkte Produktivcode-Punkt ist ebenfalls erledigt: Die Update-Prüfung im
+Hauptfenster ruft nicht mehr direkt `self.after(0, …)` aus dem Hintergrund-Thread
+auf, sondern läuft über `RunController.start_update_check()` + Queue-Polling
+(ADR-0063, ADR-0023-Muster).
 
 Keine laufende Beta. Kein aktiver Bau-Auftrag.
 

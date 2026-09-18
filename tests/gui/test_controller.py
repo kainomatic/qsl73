@@ -13,12 +13,14 @@ from qsl73.gui.controller import (
     ProgressEvent,
     RunController,
     RunDoneEvent,
+    UpdateCheckDoneEvent,
     WriteDoneEvent,
 )
 from qsl73.run import RunResult
 from qsl73.log4om_db import WriteResult
 from qsl73.matching import CardFields, MatchOutcome, MatchResult
 from qsl73.run import CardResult, RunResult
+from qsl73.updater import UpdateCheckResult, UpdateStatus
 
 
 def _make_run_result() -> RunResult:
@@ -45,7 +47,7 @@ def _drain(q: queue.Queue, timeout: float = 5.0) -> list:
     while time.monotonic() < deadline:
         try:
             events.append(q.get(timeout=0.1))
-            if isinstance(events[-1], (RunDoneEvent, WriteDoneEvent, ErrorEvent)):
+            if isinstance(events[-1], (RunDoneEvent, WriteDoneEvent, ErrorEvent, UpdateCheckDoneEvent)):
                 break
         except queue.Empty:
             continue
@@ -294,3 +296,59 @@ def test_run_done_event_carries_cancelled_flag():
     done = [e for e in events if isinstance(e, RunDoneEvent)]
     assert len(done) == 1
     assert done[0].result.cancelled is True
+
+
+# ---------------------------------------------------------------------------
+# Update-Prüfung — Queue statt cross-thread self.after (ADR-0063, Issue #40)
+# ---------------------------------------------------------------------------
+
+
+def test_start_update_check_produces_done_event_with_result_and_manual_flag():
+    """start_update_check legt das Ergebnis als UpdateCheckDoneEvent in die Queue."""
+    q = queue.Queue()
+    controller = RunController(q)
+    fake_result = UpdateCheckResult(status=UpdateStatus.UP_TO_DATE)
+
+    with patch("qsl73.gui.controller.check_for_update", return_value=fake_result) as mock_check:
+        controller.start_update_check("1.2.3", "stable", manual=True)
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, UpdateCheckDoneEvent)]
+    assert len(done) == 1
+    assert done[0].result is fake_result
+    assert done[0].manual is True
+    mock_check.assert_called_once_with("1.2.3", "stable")
+
+
+def test_start_update_check_default_manual_is_false():
+    """Ohne explizites manual=... ist das Event nicht als manuell markiert (automatische Prüfung)."""
+    q = queue.Queue()
+    controller = RunController(q)
+    fake_result = UpdateCheckResult(status=UpdateStatus.UP_TO_DATE)
+
+    with patch("qsl73.gui.controller.check_for_update", return_value=fake_result):
+        controller.start_update_check("1.2.3", "stable")
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, UpdateCheckDoneEvent)]
+    assert len(done) == 1
+    assert done[0].manual is False
+
+
+def test_start_update_check_runs_in_background_thread_not_caller_thread():
+    """check_for_update läuft in einem eigenen Thread, nicht synchron im Aufrufer."""
+    q = queue.Queue()
+    controller = RunController(q)
+    caller_thread = threading.current_thread()
+    worker_threads: list[threading.Thread] = []
+
+    def _fake_check(_version, _channel):
+        worker_threads.append(threading.current_thread())
+        return UpdateCheckResult(status=UpdateStatus.UP_TO_DATE)
+
+    with patch("qsl73.gui.controller.check_for_update", side_effect=_fake_check):
+        controller.start_update_check("1.2.3", "stable")
+        _drain(q)
+
+    assert len(worker_threads) == 1
+    assert worker_threads[0] is not caller_thread
