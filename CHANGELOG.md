@@ -8,12 +8,42 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Karten ignorieren (ADR-0059): Nie zuordenbare Karten (fremdes Log, QSO fehlt,
+  falsch getaggter eQSL-/LoTW-Ausdruck) lassen sich im manuellen Zuordnungs-Dialog
+  über einen neuen Button „Ignorieren" dauerhaft aus dem Lauf entfernen — wirkt
+  sofort beim Klick (nur ein Paperless-Tag, kein Bestätigungsdialog, Log4OM-DB
+  unberührt), jederzeit über den erneuten Klick auf „Nicht mehr ignorieren" oder
+  über den neuen Menüpunkt **Bearbeiten → Ignorierte Karten…** (Mehrfachauswahl,
+  „Wieder aufnehmen") rückgängig zu machen. Solange eine Karte ignoriert ist,
+  sind „Speichern"/„Speichern und nächste" gesperrt; eine bestehende manuelle
+  Vormerkung wird verworfen. Fehlender/leerer Ignoriert-Tag zeigt einen
+  Klartext-Hinweis statt eines Traceback-Dialogs — QSL73 legt den Tag nicht
+  automatisch an (ADR-0031 §5). Ignorierte Karten erscheinen im Hauptfenster grau
+  mit Status „Ignoriert" am Listenende, sind aus der Durcharbeiten-Sequenz und dem
+  Schreib-Korb ausgeschlossen und werden ab dem nächsten Durchlauf serverseitig
+  ausgefiltert; die Statuszeile zeigt „N Karten ignoriert" nach Lauf-Ende. Neues
+  Modul `ignore.py`, eigene Audit-Log-Zeilenart für Ignorieren/Wieder-Aufnehmen.
+  Fixes #39
 - Log-Level (INFO/WARNING/DEBUG) im Einstellungen-Dialog wählbar (neues Config-Feld `app.log_level`); wirkt sofort nach dem Speichern. `QSL73_DEBUG=1` bleibt als Entwickler-Override wirksam und kann das gewählte Level nur anheben, nie absenken (ADR-0055, Fixes #26)
 - Manueller Zuordnungs-Dialog zeigt jetzt Grund der Einstufung + gelesene Rohfelder: unterhalb der Suchfelder erscheinen zwei Zeilen „Grund:" (Klartext mit konkreten Werten, z. B. welches Feld widerspricht oder welche Rufzeichen-Kandidaten gelesen wurden) und „Gelesen:" (Rufzeichen/Datum/Band/Mode/Zeit, fehlend = „–"). `MatchOutcome.reason` (additiv, `None` bei CERTAIN) liefert den Grund aus der Matching-Engine als strukturierte `MatchReason` (Code + Klartext + Details); `gui/filter_util.describe_reason()`/`describe_read_fields()` rendern ihn tk-frei (ADR-0058, Fixes #37). Hauptfenster-Zeilen-Tooltip mit demselben Text zurückgestellt (Issue #38 — bestehende Tooltip-Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
 - Manueller Zuordnungs-Dialog zeigt eine dritte Zeile „Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht ausgewertet)." unter „Gelesen:", sobald ein QR-Code tatsächlich mindestens ein Suchfeld überschrieben hat — damit der Grund-Text (ADR-0058, beschreibt den OCR-Lauf) daneben nicht irreführend wirkt. Erscheint nicht ohne QR-Übernahme; Grund-/Gelesen-Text selbst unverändert.
 
 ### Changed
+- Config-Schema `config_version` 1 → 2 (ADR-0059): `tags.uncertain` (faktisch toter
+  Code — der Tag wurde nie gesetzt, siehe „Removed") wird beim Laden einer alten
+  Config verworfen; `tags.ignored` bekommt den Default `qsl-ignoriert`. Alte
+  `config.yaml` lädt weiterhin fehlerfrei; der alte `uncertain`-Wert wird bewusst
+  NICHT übernommen. Drittes Tag-Feld im Setup-Assistenten/den Einstellungen heißt
+  jetzt „Ignoriert-Tag" (gleiche Dropdown-/„Anlegen"-Bedienung wie die anderen
+  Tag-Felder); Auto-Matching-Warnung gilt jetzt auch für diesen Tag.
 - Randfall „QSO ohne CT=QSL-Eintrag" (Issue #4) als durch ADR-0019 + Schema-Validierung abgedeckt dokumentiert; `docs/discovery.md` Frage #3 aufgelöst. Fixes #4
+
+### Removed
+- Ungenutzter Unsicher-Tag-Mechanismus (`tags.uncertain`, `write_selected`-Parameter
+  `uncertain_doc_ids`): Der Tag wurde in der gesamten App nie gesetzt, weil
+  `gui/controller.start_write` den Parameter nie an `write_selected` übergeben hat
+  — toter Code. Der ANZEIGE-Status „Unsicher" (Matching-Einstufung) ist davon
+  unabhängig und bleibt unverändert (ADR-0059).
 
 ### Fixed
 - Trefferliste zeigte bei unsicheren Karten ohne erkennbares Gegencall das **eigene**

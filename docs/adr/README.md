@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0059.
+Nächste freie Nummer: ADR-0060.
 
 ## Index
 
@@ -48,6 +48,7 @@ Nächste freie Nummer: ADR-0059.
 | ADR-0056 | Matching bei mehreren Fremdcalls + Fuzzy erzwingt UNSICHER (Issue #33 Teil 2, verschärft ADR-0016) |
 | ADR-0057 | Bindestrich-Datumsformate TT-MM-JJJJ/TT-MM-JJ mit >12-Disambiguierung |
 | ADR-0058 | Erklärbarkeit der Matching-Entscheidung (MatchReason) — Engine liefert Grund als Daten, GUI rendert ihn |
+| ADR-0059 | Karten ignorieren — ersetzt den ungenutzten Unsicher-Tag (tags.ignored, sofortige Wirkung, kein DB-Zugriff) |
 
 ## Abgrenzung
 

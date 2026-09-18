@@ -8,16 +8,19 @@
 
 ## 🔧 AKTUELLER STAND (Release)
 
-**v0.5.0-beta2** veröffentlicht und in Test durch DF1DS. **v0.5.0 STABLE noch
+**v0.5.0-beta5** veröffentlicht und in Test durch DF1DS. **v0.5.0 STABLE noch
 NICHT released** — `dev`→`main`-Release ist **pausiert** bis DF1DS-Freigabe
 nach abgeschlossenem Beta-Test (`main` steht aktuell auf `v0.4.0`).
 
 Enthaltene Änderungen seit v0.4.0: #26 (Log-Level-Einstellung), #4
 (CT=QSL-Randfälle dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau
-mehrere Fremdcalls/Fuzzy, ADR-0056), #34 (Anzeige-Fix CERTAIN-Rufzeichen —
-bereits als gut bestätigt).
+mehrere Fremdcalls/Fuzzy, ADR-0056), #34 (Anzeige-Fix CERTAIN-Rufzeichen),
+ADR-0057 (Bindestrich-Datumsformate), #37 (Grund der Einstufung, ADR-0058),
+Beta4-Befund-Fixes (Rufzeichen-Vorbefüllung aus Engine-Treffer, QR darf
+Engine-Vorbefüllung überschreiben, leeres Datumsfeld).
 
-`origin/dev = 1049cdf`.
+`origin/dev = 5dfff90` (Stand vor diesem Bau-Schritt — Karten ignorieren,
+ADR-0059).
 
 ---
 
@@ -673,7 +676,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - **Nächster Schritt:** neue Beta `v0.5.0-beta2` bauen und erneut testen, bevor der
   Stable-Release fortgesetzt wird.
 
-### 🔧 Beta-Release v0.5.0-beta2 — in Vorbereitung
+### ✅ Beta-Release v0.5.0-beta2 — veröffentlicht
 
 - Erneute Beta nach Anzeige-Fix #34 (`origin/dev` = `afe883d`); zum erneuten Test vor
   dem Stable-Release. `__version__.py` bleibt `0.5.0`/`stable` (unverändert seit beta1,
@@ -695,7 +698,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   #35 (Sonderrufzeichen mit zwei Ziffern nicht erkannt), #36 (OCR-Zeichenverwechslung
   O/0 und I/1 bei Rufzeichen, kein Neutralisierer). Entscheidung jeweils offen.
 
-### 🔧 Beta-Release v0.5.0-beta3 — in Vorbereitung
+### ✅ Beta-Release v0.5.0-beta3 — veröffentlicht
 
 - Erneute Beta nach Bindestrich-Datumsfix (ADR-0057) — zum erneuten Test der PA80OMG-
   Karte vor dem Stable-Release. `__version__.py` bleibt `0.5.0`/`stable` (unverändert
@@ -729,7 +732,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   als Issue #38 festgehalten.
 - ADR-0058 angelegt. 1326 Tests grün (3 erwartete Skips).
 
-### 🔧 Beta-Release v0.5.0-beta4 — in Vorbereitung
+### ✅ Beta-Release v0.5.0-beta4 — veröffentlicht
 
 - Erneute Beta zum Praxistest der Grund-Anzeige (#37, ADR-0058) an DF1DS'
   Kartenstapel — zum erneuten Test vor dem Stable-Release. `__version__.py` bleibt
@@ -796,7 +799,7 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   QR-Übernahme, Hinweiszeile bleibt ausgeblendet ohne QR-Übernahme). 1337 Tests
   grün (3 erwartete Skips).
 
-### 🔧 Beta-Release v0.5.0-beta5 — in Vorbereitung
+### ✅ Beta-Release v0.5.0-beta5 — veröffentlicht, in Test durch DF1DS
 
 - Erneute Beta nach den Beta4-Befund-Fixes (Rufzeichen-Vorbefüllung aus Engine-
   Treffer, leeres Datumsfeld ohne gelesenes Datum, QR darf Engine-Vorbefüllung
@@ -808,6 +811,45 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - Tag `v0.5.0-beta5`; Praxistest der Vorbefüllung + QR-Korrektur + Datumsfeld im
   manuellen Zuordnungs-Dialog macht DF1DS manuell nach dem Build. Stable-Release
   weiterhin nicht durch DF1DS bestätigt.
+
+### ✅ Karten ignorieren — ersetzt den ungenutzten Unsicher-Tag (ADR-0059, Issue #39)
+
+- Befund (Desktop-Review): `tags.uncertain` war faktisch toter Code — nie gesetzt,
+  weil `gui/controller.start_write` `uncertain_doc_ids` nie an `write_selected`
+  übergab. KONZEPT §8 beschrieb damit nicht existierendes Verhalten.
+- `tags.uncertain` → `tags.ignored` ersetzt; Config `config_version` 1→2 (alter
+  Wert wird nicht übernommen, Default `qsl-ignoriert`).
+- Neues Modul `ignore.py` (`ignore_card`/`unignore_card`) — wirkt sofort über
+  einen Paperless-Tag, Log4OM-DB unberührt, kein Bestätigungsdialog; legt den Tag
+  NICHT automatisch an (ADR-0031 §5). Eigene Audit-Log-Zeilenart in `audit.py`.
+- `paperless.py`: `get_documents_by_tag` mit mehreren Ausschluss-Tags
+  (`exclude_tag_names`, kommagetrennte `tags__id__none`); neue
+  `count_documents_with_all_tags`/`list_documents_with_all_tags` (`tags__id__all`).
+- `run_pass` schließt confirmed UND ignored serverseitig aus; `RunResult.
+  ignored_count` additiv (Zählfehler nicht fatal). `write_selected` verliert den
+  nie genutzten `uncertain_doc_ids`-Parameter (toter Code entfernt).
+- Manueller Zuordnungs-Dialog: neuer Button „Ignorieren"/„Nicht mehr ignorieren"
+  (nur UNCERTAIN/NO_MATCH, `tk.Button` mit roter Schrift), Netzwerkaufruf im
+  Hintergrund-Thread über Queue-Polling (ADR-0023-Muster — ein direkter
+  `self.after(0, …)`-Aufruf aus dem Hintergrund-Thread blockierte die
+  verschachtelte `wait_window()`-Eventloop faktisch bis zum Timeout, siehe
+  Commit-Historie). Speichern/Speichern-und-nächste gesperrt solange ignoriert;
+  fehlender Ignoriert-Tag zeigt Klartext-Hinweis statt Traceback.
+- Hauptfenster: ignorierte Karten grau mit Status „Ignoriert" am Listenende
+  (`filter_util.done_doc_ids`), aus Durcharbeiten-Sequenz und Schreib-Korb
+  ausgeschlossen, per Doppelklick weiter öffenbar. Statuszeile zeigt „N Karten
+  ignoriert" nach Lauf-Ende. Neuer Menüpunkt „Bearbeiten → Ignorierte Karten…"
+  (`gui/ignored_window.py`): lädt frisch aus Paperless, Mehrfachauswahl +
+  „Wieder aufnehmen", einfache Bildvorschau per Doppelklick.
+- Setup-Assistent: drittes Tag-Feld heißt jetzt „Ignoriert-Tag" (gleiche
+  Dropdown-/„Anlegen"-Bedienung); Auto-Matching-Warnung gilt jetzt auch dafür.
+- ADR-0059 angelegt; KONZEPT.md §5/§8/§9 aktualisiert; README (Bedienung +
+  Update-Hinweis) und CHANGELOG `[Unreleased]` ergänzt. Issue #39 angelegt und
+  per „Fixes #39" geschlossen.
+- Tests: neue Module `test_ignore.py`, `test_ignored_window.py`; erweitert:
+  `test_config.py`, `test_paperless.py`, `test_run.py`, `test_audit.py`,
+  `test_manual_assignment.py`, `test_filter_util.py`,
+  `test_setup_wizard_logic.py`, `test_gui_imports.py`.
 
 ## V2 — Vorgemerkte Features
 
