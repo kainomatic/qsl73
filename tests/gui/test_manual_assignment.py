@@ -13,11 +13,13 @@ import pytest
 
 from qsl73.gui.manual_assignment import (
     card_fields_to_query,
+    dialog_buttons_state,
     distinct_bands,
     distinct_modes,
     field_values_to_query,
     format_ignore_tag_missing_message,
     ignore_button_label,
+    ignore_button_tooltip,
     ignore_toggle_target,
     last_page_index,
     render_pdf_first_page,
@@ -1085,6 +1087,56 @@ def test_format_ignore_tag_missing_message_empty_name_no_crash():
     assert "''" not in msg
 
 
+def test_ignore_button_tooltip_reflects_state():
+    assert ignore_button_tooltip(False) != ignore_button_tooltip(True)
+    assert "ignorier" in ignore_button_tooltip(False).lower()
+    assert "entfernt" in ignore_button_tooltip(True).lower()
+
+
+# ---------------------------------------------------------------------------
+# dialog_buttons_state — reine Helfer (ADR-0059-Nachtrag, kein tk)
+# ---------------------------------------------------------------------------
+
+
+def test_dialog_buttons_state_in_flight_locks_all_four():
+    states = dialog_buttons_state(in_flight=True, ignored=False, has_selection=True, has_next=True)
+    assert states == {"save": False, "save_next": False, "next": False, "cancel": False}
+
+
+def test_dialog_buttons_state_in_flight_locks_regardless_of_other_flags():
+    states = dialog_buttons_state(in_flight=True, ignored=True, has_selection=False, has_next=False)
+    assert states == {"save": False, "save_next": False, "next": False, "cancel": False}
+
+
+def test_dialog_buttons_state_not_in_flight_ignored_locks_save_only():
+    states = dialog_buttons_state(in_flight=False, ignored=True, has_selection=True, has_next=True)
+    assert states["save"] is False
+    assert states["save_next"] is False
+    assert states["next"] is True   # Nächste bleibt unabhängig vom Ignoriert-Zustand
+    assert states["cancel"] is True
+
+
+def test_dialog_buttons_state_not_in_flight_not_ignored_with_selection():
+    states = dialog_buttons_state(in_flight=False, ignored=False, has_selection=True, has_next=True)
+    assert states == {"save": True, "save_next": True, "next": True, "cancel": True}
+
+
+def test_dialog_buttons_state_not_in_flight_no_selection():
+    states = dialog_buttons_state(in_flight=False, ignored=False, has_selection=False, has_next=True)
+    assert states["save"] is False
+    assert states["save_next"] is False
+    assert states["next"] is True
+    assert states["cancel"] is True
+
+
+def test_dialog_buttons_state_no_next_card():
+    states = dialog_buttons_state(in_flight=False, ignored=False, has_selection=True, has_next=False)
+    assert states["save"] is True
+    assert states["save_next"] is False
+    assert states["next"] is False
+    assert states["cancel"] is True
+
+
 # ---------------------------------------------------------------------------
 # Ignorieren — Dialog (tk, ADR-0059)
 # ---------------------------------------------------------------------------
@@ -1250,3 +1302,107 @@ def test_ignore_button_click_without_client_is_noop():
     dlg = ManualAssignmentDialog(root, card, [], "bureau")
     assert dlg.ignored is False
     root.destroy()
+
+
+@_tk_skip
+def test_ignore_in_flight_locks_all_four_buttons_and_blocks_window_close():
+    """Race-Schutz (ADR-0059-Nachtrag): während _in_flight sind alle vier
+    Workflow-Buttons gesperrt und Fenster-X schließt den Dialog nicht; danach wird
+    der korrekte Zustand wiederhergestellt.
+
+    Treibt _in_flight direkt (statt über einen echten Hintergrund-Thread) — geprüft
+    wird die Sperr-/Wiederherstellungslogik selbst (_refresh_button_states/
+    _on_delete_window), nicht die Thread-Zeitsteuerung; die reale End-to-End-Kette
+    inkl. Hintergrund-Thread ist bereits durch
+    test_ignore_button_click_success_locks_save_and_toggles_label abgedeckt.
+    """
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    root = tk.Tk()
+    root.withdraw()
+    captured: dict = {}
+    try:
+        card = _make_card_result(doc_id=9)
+        candidates = [_make_cand("Q001")]
+
+        def _drive_race_check():
+            dlg_win = _find_toplevel(root)
+            if dlg_win is None:
+                return
+            # Zustand simulieren, wie ihn _on_toggle_ignore setzt, bevor die Antwort da ist.
+            dlg_win._in_flight = True
+            dlg_win._refresh_button_states()
+
+            captured["save_state"] = str(dlg_win._btn_save.cget("state"))
+            captured["save_next_state"] = str(dlg_win._btn_save_next.cget("state"))
+            captured["next_state"] = str(dlg_win._btn_next.cget("state"))
+            captured["cancel_state"] = str(dlg_win._btn_cancel.cget("state"))
+
+            dlg_win._on_delete_window()  # simuliert Fenster-X-Klick
+            captured["still_open_after_x"] = bool(dlg_win.winfo_exists())
+
+            # Antwort simulieren (wie _on_ignore_done es tun würde) und Zustand prüfen.
+            dlg_win._in_flight = False
+            dlg_win.ignored = True
+            dlg_win._refresh_button_states()
+
+            captured["restored_cancel_state"] = str(dlg_win._btn_cancel.cget("state"))
+            captured["restored_next_state"] = str(dlg_win._btn_next.cget("state"))
+            dlg_win._on_cancel()
+
+        root.after(80, _drive_race_check)
+
+        ManualAssignmentDialog(root, card, candidates, "bureau")
+    finally:
+        root.destroy()
+
+    assert captured["save_state"] == "disabled"
+    assert captured["save_next_state"] == "disabled"
+    assert captured["next_state"] == "disabled"
+    assert captured["cancel_state"] == "disabled"
+    assert captured["still_open_after_x"] is True
+    assert captured["restored_cancel_state"] == "normal"
+    assert captured["restored_next_state"] == "disabled"  # has_next=False in diesem Test
+
+
+@_tk_skip
+def test_ignore_button_tooltip_updates_with_state(monkeypatch):
+    """Tooltip-Text folgt dem Ignoriert-Zustand (ADR-0059-Nachtrag)."""
+    import tkinter as tk
+    from unittest.mock import MagicMock
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog, ignore_button_tooltip
+
+    def _fake_ignore_card(client, doc_id, tags_config, log_dir, callsign=""):
+        pass
+
+    monkeypatch.setattr("qsl73.ignore.ignore_card", _fake_ignore_card)
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        card = _make_card_result(doc_id=3)
+
+        def _check_initial_tooltip():
+            dlg_win = _find_toplevel(root)
+            if dlg_win is not None:
+                assert dlg_win._ignore_tooltip._text == ignore_button_tooltip(False)
+                dlg_win._on_toggle_ignore()
+
+        def _check_updated_tooltip_and_cancel():
+            dlg_win = _find_toplevel(root)
+            if dlg_win is not None:
+                assert dlg_win.ignored is True
+                assert dlg_win._ignore_tooltip._text == ignore_button_tooltip(True)
+                dlg_win._on_cancel()
+
+        root.after(80, _check_initial_tooltip)
+        root.after(400, _check_updated_tooltip_and_cancel)
+
+        dlg = ManualAssignmentDialog(
+            root, card, [], "bureau",
+            paperless_client=MagicMock(), tags_config=MagicMock(),
+        )
+        assert dlg.ignored is True
+    finally:
+        root.destroy()

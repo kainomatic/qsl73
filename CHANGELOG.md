@@ -46,6 +46,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   unabhängig und bleibt unverändert (ADR-0059).
 
 ### Fixed
+- Review-Nachtrag zu ADR-0059 (Karten ignorieren): Schloss der Nutzer den manuellen
+  Zuordnungs-Dialog (Speichern/Speichern-und-nächste/Nächste/Abbrechen/Fenster-X),
+  während der Ignorieren/Wieder-Aufnehmen-Netzwerkaufruf noch lief, konnte der
+  Paperless-Tag bereits gesetzt sein, während main_window die Karte mangels
+  `dlg.ignored`-Update nicht als ignoriert übernahm (Race — Tag gesetzt, aber Karte
+  bleibt fälschlich in Liste/Workflow/Schreib-Korb). Neuer `_in_flight`-Zustand
+  sperrt während des Aufrufs alle vier Workflow-Buttons und ignoriert
+  `WM_DELETE_WINDOW`; reine Funktion `dialog_buttons_state()` kapselt die
+  Freigabe-Logik. Zusätzlich: Ignorieren-Button-Tooltip folgt jetzt dem Zustand
+  (`ignore_button_tooltip()`); `paperless.list_documents_with_all_tags` fordert nur
+  noch `fields=id,title,created,added` an statt des vollen Dokuments (voller
+  OCR-Text kam bisher unnötig mit); Auto-Matching-Warnung im Setup-Assistenten
+  nennt jetzt korrekt „bestätigt markiert oder ignoriert" statt der veralteten
+  Formulierung „bestätigt/unsicher markiert".
 - Trefferliste zeigte bei unsicheren Karten ohne erkennbares Gegencall das **eigene**
   Rufzeichen an statt „–" (Fallback auf `call_to`, das per Konstruktion das Eigencall
   ist); neue Hilfsfunktion `card_display_callsign()` in `gui/filter_util.py` sorgt für

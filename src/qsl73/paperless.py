@@ -168,8 +168,10 @@ class PaperlessClient:
         return int(data.get("count", 0))
 
     def list_documents_with_all_tags(self, tag_names: list[str]) -> list[dict]:
-        """Gibt alle Dokumente zurück, die ALLE angegebenen Tags tragen (id/title/…).
+        """Gibt alle Dokumente zurück, die ALLE angegebenen Tags tragen (id/title/date).
 
+        Fordert serverseitig nur die benötigten Felder an (fields=id,title,created,
+        added) — der komplette OCR-Text jedes Dokuments würde sonst unnötig mitkommen.
         Paginierung vollständig aufgelöst. Fehlt einer der Tags in Paperless, wird
         eine leere Liste zurückgegeben (kein Fehler, wie ADR-0032).
         """
@@ -180,7 +182,10 @@ class PaperlessClient:
                 return []
             ids.append(tag_id)
         ids_str = ",".join(str(i) for i in ids)
-        url: str | None = f"{self._base}/api/documents/?tags__id__all={ids_str}"
+        url: str | None = (
+            f"{self._base}/api/documents/?tags__id__all={ids_str}"
+            "&fields=id,title,created,added"
+        )
         results: list[dict] = []
         while url:
             data = self._get_json(url)

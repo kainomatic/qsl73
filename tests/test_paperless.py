@@ -742,6 +742,22 @@ class TestListDocumentsWithAllTags:
         assert [d["id"] for d in docs] == [1, 2]
 
     @rsps.activate
+    def test_list_requests_only_needed_fields(self, client):
+        """Reviewer-Nachtrag: fields=id,title,created,added statt vollem OCR-Text."""
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 3, "name": "qsl-card"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 9, "name": "qsl-ignoriert"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 0, "next": None, "results": []})
+        client.list_documents_with_all_tags(["qsl-card", "qsl-ignoriert"])
+        req_url = rsps.calls[2].request.url
+        assert "fields=id%2Ctitle%2Ccreated%2Cadded" in req_url or \
+            "fields=id,title,created,added" in req_url
+
+    @rsps.activate
     def test_list_missing_tag_returns_empty(self, client):
         rsps.add(rsps.GET, f"{BASE}/api/tags/",
                  json={"count": 0, "next": None, "results": []})

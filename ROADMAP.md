@@ -851,6 +851,38 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   `test_manual_assignment.py`, `test_filter_util.py`,
   `test_setup_wizard_logic.py`, `test_gui_imports.py`.
 
+### ✅ Korrektur-Nachtrag zu ADR-0059 — Race beim Dialog-Schließen behoben (Review f8f3728)
+
+- Review-Befund: main_window liest `dlg.ignored` erst nach dem Schließen des
+  manuellen Zuordnungs-Dialogs — schloss der Nutzer während des laufenden
+  Ignorieren/Wieder-Aufnehmen-Netzwerkaufrufs, konnte der Paperless-Tag bereits
+  gesetzt sein, während die Karte mangels Update fälschlich nicht als ignoriert
+  übernommen wurde (Race).
+- `gui/manual_assignment.py`: neuer `_in_flight`-Zustand sperrt während des
+  Aufrufs alle vier Workflow-Buttons (Speichern/Speichern-und-nächste/Nächste/
+  Abbrechen) und ignoriert `WM_DELETE_WINDOW` (Fenster-X); reine Funktion
+  `dialog_buttons_state(in_flight, ignored, has_selection, has_next)` kapselt
+  die Freigabe-Logik tk-frei und testbar. Ignorieren-Button-Tooltip folgt jetzt
+  dem Zustand (`ignore_button_tooltip()`, neue `_Tooltip.set_text()` in
+  `gui/tooltip.py`).
+- `paperless.list_documents_with_all_tags`: fordert nur noch
+  `fields=id,title,created,added` an statt des vollen Dokuments (voller
+  OCR-Text kam bisher unnötig mit jeder ignorierten Karte mit).
+- `wizard_logic.auto_matching_warning`: Formulierung „bestätigt markiert oder
+  ignoriert" statt der veralteten „bestätigt/unsicher markiert".
+- ADR-0059 um Nachtrag ergänzt; CHANGELOG `[Unreleased]` (Fixed) ergänzt.
+- **Hinweis Testumgebung:** Der volle `pytest -m "not slow"`-Lauf in einem
+  einzelnen Prozess ist auf der aktuellen Windows-Dev-Maschine bei diesem
+  Testumfang (>1300 Tests, mehrere hundert reale `tk.Tk()`-Instanzen)
+  zunehmend anfällig für einen Tcl-internen Cross-Thread-Absturz
+  („Tcl_AsyncDelete: async handler deleted by the wrong thread") — durch
+  Bisektion bestätigt umgebungsbedingt (reproduziert auch mit rein
+  vorbestehendem Code bei genügend Wiederholungen in derselben Session,
+  Häufigkeit steigt mit der Session-Laufzeit), keine Logikursache im
+  Anwendungscode. Verifiziert stattdessen in zwei Teilläufen
+  (`--ignore=tests/gui` sowie `tests/gui` einzeln), beide grün. CI (Linux,
+  ohne Display) ist nicht betroffen, da dort alle tk-Tests skippen.
+
 ## V2 — Vorgemerkte Features
 
 - **Mehrsprachigkeit (i18n) — Issue #25 (ADR-0038):** i18n-Infrastruktur einführen

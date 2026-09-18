@@ -67,3 +67,31 @@ jederzeit wieder zurückgeholt werden können, ohne das Logbuch zu berühren.
   Log, Wert 0), damit ein Paperless-Hänger den Lauf nicht abbricht.
 - Undo einer Papier-QSL-Bestätigung bleibt weiterhin V2 (KONZEPT §18) — Ignorieren
   betrifft ausschließlich Karten, die noch NICHT geschrieben wurden.
+
+## Nachtrag (Review f8f3728) — Race beim Schließen während eines laufenden Aufrufs
+
+Review-Befund: main_window liest `dlg.ignored` erst NACH dem Schließen des Dialogs.
+Schließt der Nutzer den Dialog (Speichern/Speichern-und-nächste/Nächste/Abbrechen/
+Fenster-X), während der Ignorieren/Wieder-Aufnehmen-Netzwerkaufruf noch läuft
+(zwischen Klick und Antwort), ist der Paperless-Tag zu diesem Zeitpunkt ggf. bereits
+gesetzt — main_window trägt die Karte aber mangels `dlg.ignored`-Update nicht als
+ignoriert nach; sie bliebe fälschlich in Liste/Workflow/Schreib-Korb sichtbar.
+
+**Entscheidung:** `gui/manual_assignment.py` führt einen `_in_flight`-Zustand
+(True zwischen Klick und Antwort). Solange `_in_flight`, sind alle vier
+Workflow-Buttons (Speichern, Speichern und nächste, Nächste, Abbrechen) gesperrt
+und `WM_DELETE_WINDOW` (Fenster-X) wird ignoriert — der Dialog ist erst nach der
+Antwort (Erfolg oder Fehler) wieder schließbar. Die reine Funktion
+`dialog_buttons_state(in_flight, ignored, has_selection, has_next)` kapselt die
+Freigabe-Logik tk-frei und testbar; außerhalb von `in_flight` unverändert
+`save_buttons_enabled()`. Der Ignorieren-Button-Tooltip folgt jetzt ebenfalls dem
+Zustand (`ignore_button_tooltip()`, `_Tooltip.set_text()` in `gui/tooltip.py`).
+
+Zusätzlich in diesem Nachtrag behoben: `paperless.list_documents_with_all_tags`
+fordert jetzt nur `fields=id,title,created,added` an (statt des vollen
+Dokuments inkl. OCR-Text); die Auto-Matching-Warnung im Setup-Assistenten
+(`wizard_logic.auto_matching_warning`) nennt jetzt korrekt „bestätigt markiert
+oder ignoriert" statt der veralteten Formulierung „bestätigt/unsicher markiert".
+
+Keine Änderung an den Entscheidungen 1–6 oben — reine Absicherung der bereits
+getroffenen Entscheidung 3 (Umschalt-Button ohne Bestätigungsdialog).

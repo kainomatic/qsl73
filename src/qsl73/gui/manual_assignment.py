@@ -16,7 +16,11 @@
   compute_qr_prefill     — QR-Felder + OCR-Stand → Überschreibungs-Dict (rein, tk-frei)
   ignore_toggle_target   — aktueller Ignoriert-Zustand → Ziel-Zustand (Toggle, ADR-0059)
   ignore_button_label    — Ignoriert-Zustand → Button-Beschriftung (ADR-0059)
+  ignore_button_tooltip  — Ignoriert-Zustand → Tooltip-Text (ADR-0059-Nachtrag)
   save_buttons_enabled   — (ignored, has_selection, has_next) → (save_ok, save_next_ok)
+  dialog_buttons_state   — (in_flight, ignored, has_selection, has_next) → Freigabe der
+                           vier Workflow-Buttons; sperrt alle während eines laufenden
+                           Ignorieren-Aufrufs (Race-Schutz, ADR-0059-Nachtrag)
   format_ignore_tag_missing_message — Tag-Name → Hinweistext bei fehlendem Ignoriert-Tag
 
 tk-abhängig:
@@ -83,6 +87,9 @@ _TT_BTN_CANCEL = "Dialog schließen ohne Zuordnung"
 _TT_BTN_IGNORE = (
     "Markiert diese Karte dauerhaft als ignoriert — wirkt sofort (nur Paperless-Tag, "
     "Log4OM-Logbuch bleibt unberührt). Über Bearbeiten → Ignorierte Karten… jederzeit rückgängig."
+)
+_TT_BTN_UNIGNORE = (
+    "Entfernt den Ignoriert-Tag — die Karte erscheint wieder im nächsten Durchlauf."
 )
 
 # ---------------------------------------------------------------------------
@@ -292,6 +299,11 @@ def ignore_button_label(ignored: bool) -> str:
     return _BTN_UNIGNORE if ignored else _BTN_IGNORE
 
 
+def ignore_button_tooltip(ignored: bool) -> str:
+    """Gibt den Tooltip-Text des Ignorieren-Buttons für den gegebenen Zustand zurück."""
+    return _TT_BTN_UNIGNORE if ignored else _TT_BTN_IGNORE
+
+
 def save_buttons_enabled(ignored: bool, has_selection: bool, has_next: bool) -> tuple[bool, bool]:
     """Gibt (save_enabled, save_next_enabled) für den aktuellen Zustand zurück.
 
@@ -301,6 +313,27 @@ def save_buttons_enabled(ignored: bool, has_selection: bool, has_next: bool) -> 
     if ignored:
         return False, False
     return has_selection, has_selection and has_next
+
+
+def dialog_buttons_state(
+    in_flight: bool, ignored: bool, has_selection: bool, has_next: bool
+) -> dict[str, bool]:
+    """Berechnet den Freigabe-Zustand der vier Workflow-Buttons (ADR-0059-Nachtrag).
+
+    Während ein Ignorieren/Wieder-Aufnehmen-Aufruf läuft (in_flight=True), sind
+    'Speichern', 'Speichern und nächste', 'Nächste' und 'Abbrechen' alle gesperrt —
+    der Dialog darf nicht schließbar sein, bevor die Antwort da ist. Ohne diese
+    Sperre kann main_window ``dlg.ignored`` lesen, bevor der Tag-Aufruf
+    abgeschlossen ist: der Tag wäre in Paperless bereits gesetzt, aber die Karte
+    bliebe in Liste/Workflow fälschlich als nicht ignoriert stehen (Race).
+    Außerhalb von in_flight unverändert: Speichern/Speichern-und-nächste folgen
+    save_buttons_enabled(); Nächste hängt nur von has_next ab; Abbrechen ist
+    immer verfügbar.
+    """
+    if in_flight:
+        return {"save": False, "save_next": False, "next": False, "cancel": False}
+    save_ok, save_next_ok = save_buttons_enabled(ignored, has_selection, has_next)
+    return {"save": save_ok, "save_next": save_next_ok, "next": has_next, "cancel": True}
 
 
 def format_ignore_tag_missing_message(tag_name: str) -> str:
@@ -367,6 +400,8 @@ if _TK_OK:
             self._has_next = has_next
             self._paperless_client = paperless_client  # für Ignorieren/Wieder-Aufnehmen (ADR-0059)
             self._tags_config = tags_config
+            self._in_flight: bool = False  # True während laufendem Ignorieren-Aufruf (Race-Schutz)
+            self._ignore_tooltip = None    # _Tooltip-Instanz des Ignorieren-Buttons
             self._img_ref = None          # PIL/tk PhotoImage — vor GC schützen
             self._iid_to_qsoid: dict[str, str] = {}
             self._pages: list = []        # gerenderte Seiten (PIL-Images)
@@ -381,6 +416,9 @@ if _TK_OK:
             self.title("Manuelle Zuordnung — by DF1DS")
             self.resizable(True, True)
             self.grab_set()
+            # Fenster-X während eines laufenden Ignorieren-Aufrufs ignorieren (Race-Schutz,
+            # ADR-0059-Nachtrag) — sonst wie Abbrechen.
+            self.protocol("WM_DELETE_WINDOW", self._on_delete_window)
 
             # OCR/Engine-Vorbefüllung EINMALIG berechnen (statt in _build_ui erneut)
             # und für den QR-Vergleich in _apply_qr_prefill merken. Muss denselben
@@ -665,13 +703,15 @@ if _TK_OK:
                     command=self._on_toggle_ignore,
                 )
                 self._ignore_btn.pack(side="left")
-                attach_tooltip(self._ignore_btn, _TT_BTN_IGNORE)
+                self._ignore_tooltip = attach_tooltip(
+                    self._ignore_btn, ignore_button_tooltip(self.ignored)
+                )
 
-            _cancel_btn = ttk.Button(
+            self._btn_cancel = ttk.Button(
                 btn_frame, text=_BTN_CANCEL, command=self._on_cancel
             )
-            _cancel_btn.pack(side="right", padx=(4, 0))
-            attach_tooltip(_cancel_btn, _TT_BTN_CANCEL)
+            self._btn_cancel.pack(side="right", padx=(4, 0))
+            attach_tooltip(self._btn_cancel, _TT_BTN_CANCEL)
 
             self._btn_save = ttk.Button(
                 btn_frame, text=_BTN_SAVE, command=self._on_save, state="disabled"
@@ -736,19 +776,35 @@ if _TK_OK:
             self._date_entry.delete(0, "end")
 
         def _on_tree_select(self, _event=None) -> None:
+            self._refresh_button_states()
+
+        def _refresh_button_states(self) -> None:
+            """Setzt Speichern/Speichern-und-nächste/Nächste/Abbrechen gemäß aktuellem
+            Zustand (ADR-0059-Nachtrag) — insbesondere gesperrt während _in_flight."""
             has_sel = bool(self._tree.selection())
-            save_ok, save_next_ok = save_buttons_enabled(self.ignored, has_sel, self._has_next)
-            self._btn_save.config(state="normal" if save_ok else "disabled")
-            self._btn_save_next.config(state="normal" if save_next_ok else "disabled")
+            states = dialog_buttons_state(self._in_flight, self.ignored, has_sel, self._has_next)
+            self._btn_save.config(state="normal" if states["save"] else "disabled")
+            self._btn_save_next.config(state="normal" if states["save_next"] else "disabled")
+            self._btn_next.config(state="normal" if states["next"] else "disabled")
+            self._btn_cancel.config(state="normal" if states["cancel"] else "disabled")
+
+        def _on_delete_window(self) -> None:
+            """WM_DELETE_WINDOW (Fenster-X) — während eines laufenden Ignorieren-Aufrufs
+            ignoriert (Race-Schutz, ADR-0059-Nachtrag), sonst wie Abbrechen."""
+            if self._in_flight:
+                return
+            self._on_cancel()
 
         def _on_toggle_ignore(self) -> None:
             """Ignorieren/Wieder-Aufnehmen — wirkt sofort, kein Bestätigungsdialog (ADR-0059).
 
             Netzwerkaufruf im Hintergrund-Thread; Ergebnis kommt über eine Queue zurück,
             die im Haupt-Thread per self.after() abgefragt wird (ADR-0023-Muster — kein
-            direkter Tk-Zugriff aus dem Hintergrund-Thread). Button währenddessen
-            deaktiviert. Dialog bleibt nach dem Klick offen — kein automatisches
-            Weiterblättern.
+            direkter Tk-Zugriff aus dem Hintergrund-Thread). Solange der Aufruf läuft,
+            sind alle vier Workflow-Buttons UND das Schließen per Fenster-X gesperrt
+            (ADR-0059-Nachtrag) — sonst könnte main_window ``dlg.ignored`` lesen, bevor
+            die Antwort da ist (Race). Dialog bleibt nach dem Klick offen — kein
+            automatisches Weiterblättern.
             """
             if self._paperless_client is None or self._tags_config is None:
                 _log.warning("Ignorieren ohne Paperless-Client/Tags-Config aufgerufen — no-op")
@@ -760,8 +816,10 @@ if _TK_OK:
             tags_cfg = self._tags_config
             doc_id = self._card.doc_id
 
+            self._in_flight = True
             if self._ignore_btn is not None:
                 self._ignore_btn.config(state="disabled")
+            self._refresh_button_states()
 
             result_queue: "queue.Queue" = queue.Queue()
 
@@ -792,8 +850,20 @@ if _TK_OK:
         def _on_ignore_done(self, target: bool, error: Optional[Exception]) -> None:
             if not self.winfo_exists():
                 return
+            self._in_flight = False
             if self._ignore_btn is not None:
                 self._ignore_btn.config(state="normal")
+
+            if error is None:
+                self.ignored = target
+                if self._ignore_btn is not None:
+                    self._ignore_btn.config(text=ignore_button_label(self.ignored))
+                if self._ignore_tooltip is not None:
+                    self._ignore_tooltip.set_text(ignore_button_tooltip(self.ignored))
+
+            # Zustand der vier Workflow-Buttons IMMER wiederherstellen (Erfolg wie Fehler),
+            # bevor eine evtl. Fehlermeldung modal blockiert (ADR-0059-Nachtrag).
+            self._refresh_button_states()
 
             if error is not None:
                 from qsl73.ignore import IgnoreTagMissingError
@@ -807,12 +877,6 @@ if _TK_OK:
                     from qsl73.gui.error_messages import classify_error
                     c = classify_error(error)
                     show_error(self, c.title, c.user_message)
-                return  # Zustand unverändert
-
-            self.ignored = target
-            if self._ignore_btn is not None:
-                self._ignore_btn.config(text=ignore_button_label(self.ignored))
-            self._on_tree_select()  # Speichern-Buttons neu bewerten (gesperrt solange ignoriert)
 
         def _on_sort_click(self, column: str) -> None:
             """Spaltenklick: Richtung umkehren wenn dieselbe Spalte, sonst neue Spalte setzen."""

@@ -98,8 +98,9 @@ def auto_matching_warning(tag_name: str, tags: list[dict]) -> str | None:
                 return (
                     f"Tag '{tag_name}' hat in Paperless automatisches Matching aktiviert "
                     f"(Algorithmus {algo}). Das kann dazu führen, dass Paperless Karten "
-                    "selbstständig als bestätigt/unsicher markiert. Bitte in Paperless für "
-                    "diesen Tag 'kein Matching' (None) einstellen."
+                    "selbstständig als bestätigt markiert oder ignoriert — und damit aus dem "
+                    "Durchlauf verschwinden lässt. Bitte in Paperless für diesen Tag "
+                    "'kein Matching' (None) einstellen."
                 )
     return None
 
