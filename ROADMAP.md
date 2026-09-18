@@ -6,22 +6,22 @@
 
 ---
 
-## 🔧 AKTUELLER STAND (Release)
+## ✅ AKTUELLER STAND (Release)
 
-**v0.5.0-beta6** in Vorbereitung (Tag gesetzt, Test durch DF1DS ausstehend).
-**v0.5.0 STABLE noch NICHT released** — `dev`→`main`-Release ist **pausiert**
-bis DF1DS-Freigabe nach abgeschlossenem Beta-Test (`main` steht aktuell auf
-`v0.4.0`).
+**v0.5.0 STABLE veröffentlicht (2026-09-18).** `main` und `dev` stehen auf
+demselben Commit; Tag `v0.5.0` zeigt darauf.
 
 Enthaltene Änderungen seit v0.4.0: #26 (Log-Level-Einstellung), #4
 (CT=QSL-Randfälle dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau
 mehrere Fremdcalls/Fuzzy, ADR-0056), #34 (Anzeige-Fix CERTAIN-Rufzeichen),
 ADR-0057 (Bindestrich-Datumsformate), #37 (Grund der Einstufung, ADR-0058),
-Beta4-Befund-Fixes (Rufzeichen-Vorbefüllung aus Engine-Treffer, QR darf
-Engine-Vorbefüllung überschreiben, leeres Datumsfeld), #39 (Karten ignorieren
-ersetzt Unsicher-Tag, ADR-0059 + Race-Nachtrag, Config v1→v2).
+#39 (Karten ignorieren ersetzt Unsicher-Tag, ADR-0059 + Race-Nachtrag,
+Config v1→v2).
 
-`origin/dev = 8b2a833` (Stand vor diesem Bau-Schritt — Beta-Release beta6).
+Nicht enthalten (offen): #35 (Sonderrufzeichen zwei Ziffern), #36
+(OCR O/0, I/1 bei Rufzeichen), #38 (Hauptfenster-Zeilen-Tooltip), #40
+(Testsuite-Stabilität — Tcl-Cross-Thread-Absturz bei langen pytest-Läufen
+auf der Windows-Dev-Maschine). **Empfehlung:** #40 als nächster Auftrag.
 
 ---
 
@@ -909,6 +909,20 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Dialog, Listenfenster, Setup-Assistent-Tag-Feld, einmaliger Ignoriert-Tag-
   Hinweis nach dem Update) macht DF1DS manuell nach dem Build. Stable-Release
   weiterhin nicht durch DF1DS bestätigt.
+
+### ✅ Stable-Release v0.5.0 — VERÖFFENTLICHT (2026-09-18)
+
+- CHANGELOG [0.5.0] - 2026-09-18 eingefroren (inkl. Bereinigung: Review-Nachtrag
+  zu ADR-0059 aus Fixed entfernt, nutzerrelevanter Kern in den Added-Eintrag
+  „Karten ignorieren" integriert; Update-Hinweis zum Ignoriert-Tag ergänzt);
+  dev → main Fast-Forward; Tag `v0.5.0` gesetzt.
+- Enthaltene Issues: #26 (Log-Level-Einstellung), #4 (CT=QSL-Randfälle
+  dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau), #34
+  (Anzeige-Fix CERTAIN-Rufzeichen), #37 (Grund der Einstufung, ADR-0058), #39
+  (Karten ignorieren, ADR-0059, Config v1→v2); ADR-0057-Datumsfix
+  (Bindestrich-Datumsformate).
+- Nicht enthalten (bleiben offen): #35, #36, #38, #40. **Empfehlung:** #40
+  (Testsuite-Stabilität) als nächster Auftrag.
 
 ## V2 — Vorgemerkte Features
 

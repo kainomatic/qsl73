@@ -7,6 +7,8 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-18
+
 ### Added
 - Karten ignorieren (ADR-0059): Nie zuordenbare Karten (fremdes Log, QSO fehlt,
   falsch getaggter eQSL-/LoTW-Ausdruck) lassen sich im manuellen Zuordnungs-Dialog
@@ -16,13 +18,18 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   über den neuen Menüpunkt **Bearbeiten → Ignorierte Karten…** (Mehrfachauswahl,
   „Wieder aufnehmen") rückgängig zu machen. Solange eine Karte ignoriert ist,
   sind „Speichern"/„Speichern und nächste" gesperrt; eine bestehende manuelle
-  Vormerkung wird verworfen. Fehlender/leerer Ignoriert-Tag zeigt einen
+  Vormerkung wird verworfen. Während eines laufenden Ignorieren-/Wieder-Aufnehmen-
+  Aufrufs sind alle vier Dialog-Buttons gesperrt und das Fenster lässt sich nicht
+  per Fenster-X schließen (verhindert eine Race-Bedingung zwischen Tag-Setzen und
+  Dialog-Schließen). Fehlender/leerer Ignoriert-Tag zeigt einen
   Klartext-Hinweis statt eines Traceback-Dialogs — QSL73 legt den Tag nicht
   automatisch an (ADR-0031 §5). Ignorierte Karten erscheinen im Hauptfenster grau
   mit Status „Ignoriert" am Listenende, sind aus der Durcharbeiten-Sequenz und dem
   Schreib-Korb ausgeschlossen und werden ab dem nächsten Durchlauf serverseitig
   ausgefiltert; die Statuszeile zeigt „N Karten ignoriert" nach Lauf-Ende. Neues
   Modul `ignore.py`, eigene Audit-Log-Zeilenart für Ignorieren/Wieder-Aufnehmen.
+  **Nach dem Update einmalig unter Bearbeiten → Einstellungen… den Ignoriert-Tag
+  auswählen oder anlegen.**
   Fixes #39
 - Log-Level (INFO/WARNING/DEBUG) im Einstellungen-Dialog wählbar (neues Config-Feld `app.log_level`); wirkt sofort nach dem Speichern. `QSL73_DEBUG=1` bleibt als Entwickler-Override wirksam und kann das gewählte Level nur anheben, nie absenken (ADR-0055, Fixes #26)
 - Manueller Zuordnungs-Dialog zeigt jetzt Grund der Einstufung + gelesene Rohfelder: unterhalb der Suchfelder erscheinen zwei Zeilen „Grund:" (Klartext mit konkreten Werten, z. B. welches Feld widerspricht oder welche Rufzeichen-Kandidaten gelesen wurden) und „Gelesen:" (Rufzeichen/Datum/Band/Mode/Zeit, fehlend = „–"). `MatchOutcome.reason` (additiv, `None` bei CERTAIN) liefert den Grund aus der Matching-Engine als strukturierte `MatchReason` (Code + Klartext + Details); `gui/filter_util.describe_reason()`/`describe_read_fields()` rendern ihn tk-frei (ADR-0058, Fixes #37). Hauptfenster-Zeilen-Tooltip mit demselben Text zurückgestellt (Issue #38 — bestehende Tooltip-Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
@@ -46,20 +53,6 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   unabhängig und bleibt unverändert (ADR-0059).
 
 ### Fixed
-- Review-Nachtrag zu ADR-0059 (Karten ignorieren): Schloss der Nutzer den manuellen
-  Zuordnungs-Dialog (Speichern/Speichern-und-nächste/Nächste/Abbrechen/Fenster-X),
-  während der Ignorieren/Wieder-Aufnehmen-Netzwerkaufruf noch lief, konnte der
-  Paperless-Tag bereits gesetzt sein, während main_window die Karte mangels
-  `dlg.ignored`-Update nicht als ignoriert übernahm (Race — Tag gesetzt, aber Karte
-  bleibt fälschlich in Liste/Workflow/Schreib-Korb). Neuer `_in_flight`-Zustand
-  sperrt während des Aufrufs alle vier Workflow-Buttons und ignoriert
-  `WM_DELETE_WINDOW`; reine Funktion `dialog_buttons_state()` kapselt die
-  Freigabe-Logik. Zusätzlich: Ignorieren-Button-Tooltip folgt jetzt dem Zustand
-  (`ignore_button_tooltip()`); `paperless.list_documents_with_all_tags` fordert nur
-  noch `fields=id,title,created,added` an statt des vollen Dokuments (voller
-  OCR-Text kam bisher unnötig mit); Auto-Matching-Warnung im Setup-Assistenten
-  nennt jetzt korrekt „bestätigt markiert oder ignoriert" statt der veralteten
-  Formulierung „bestätigt/unsicher markiert".
 - Trefferliste zeigte bei unsicheren Karten ohne erkennbares Gegencall das **eigene**
   Rufzeichen an statt „–" (Fallback auf `call_to`, das per Konstruktion das Eigencall
   ist); neue Hilfsfunktion `card_display_callsign()` in `gui/filter_util.py` sorgt für
