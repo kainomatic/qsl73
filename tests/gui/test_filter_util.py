@@ -910,6 +910,37 @@ def test_text_filter_source_not_searchable():
     assert text_filter_cards(cards, "qr") == []
 
 
+def test_done_doc_ids_unions_written_and_ignored():
+    from qsl73.gui.filter_util import done_doc_ids
+    assert done_doc_ids({1, 2}, {3}) == {1, 2, 3}
+
+
+def test_done_doc_ids_overlap_deduplicates():
+    from qsl73.gui.filter_util import done_doc_ids
+    assert done_doc_ids({1, 2}, {2, 3}) == {1, 2, 3}
+
+
+def test_done_doc_ids_empty_sets():
+    from qsl73.gui.filter_util import done_doc_ids
+    assert done_doc_ids(set(), set()) == set()
+
+
+def test_sort_cards_written_last_then_by_column_with_ignored_pushed_to_end():
+    """Ignorierte Karten landen wie geschriebene ans Listenende (ADR-0059)."""
+    from qsl73.gui.filter_util import done_doc_ids, sort_cards_written_last_then_by_column
+    cards = [
+        _make_card_full(1, call="B", result=MatchResult.UNCERTAIN),  # ignoriert
+        _make_card_full(2, call="A", result=MatchResult.CERTAIN),
+        _make_card_full(3, call="C", result=MatchResult.UNCERTAIN),  # geschrieben
+    ]
+    written = {3}
+    ignored = {1}
+    ordered = sort_cards_written_last_then_by_column(
+        cards, done_doc_ids(written, ignored), column=None
+    )
+    assert [c.doc_id for c in ordered] == [2, 1, 3]
+
+
 def test_text_filter_and_category_filter_intersection():
     # Simuliert V1: Kategorie-Filter zuerst, dann Textfilter
     from qsl73.gui.filter_util import filter_results

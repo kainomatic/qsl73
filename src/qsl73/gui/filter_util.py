@@ -182,6 +182,16 @@ def describe_read_fields(card_fields) -> str:
     return f"Rufzeichen {call} · Datum {date} · Band {band} · Mode {mode} · Zeit {time_utc}"
 
 
+def done_doc_ids(written: set, ignored: set) -> set:
+    """Vereinigt geschriebene und ignorierte doc_ids (ADR-0059).
+
+    Beide Gruppen werden gemeinsam ans Listenende sortiert (ADR-0052) und aus der
+    Durcharbeiten-Sequenz ausgeschlossen — praktisch überschneidungsfrei, da eine
+    ignorierte Karte nie in den Schreib-Korb gelangt.
+    """
+    return written | ignored
+
+
 def sort_cards_written_last(cards: list, written: set) -> list:
     """Sortiert geschriebene Karten ans Ende; erhält Reihenfolge innerhalb der Gruppen (stabil).
 
