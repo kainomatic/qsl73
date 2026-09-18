@@ -19,7 +19,9 @@ Log4OM-Logbuch abgleicht und Papier-QSL bestätigt. → Details: **KONZEPT.md**
 Zu Beginn jeder neuen Session diese Dateien in dieser Reihenfolge lesen:
 
 1. `CLAUDE.md` — Arbeitsvorgehen (dieses Dokument)
-2. `ROADMAP.md` — aktueller Schritt und Review-Stand
+2. `ROADMAP.md` — aktueller Stand + priorisierte nächste Schritte (→ ADR-0061); offene
+   Issues zusätzlich per `gh issue list --state open` (Claude Code) bzw. GitHub-Webseite
+   (Claude Desktop) prüfen — die ROADMAP zählt sie nicht mehr vollständig auf
 3. `KONZEPT.md` — Spezifikation (bei Bedarf; bei Codearbeit immer)
 4. `docs/adr/` — getroffene Designentscheidungen
 5. `docs/discovery.md` — Log4OM-DB-Befunde (bei DB-naher Arbeit)
@@ -129,7 +131,7 @@ sind. → Begründung und Kontext: **ADR-0027**
 | # | Kriterium | Wie |
 |---|-----------|-----|
 | 1 | **pytest grün** (lokal) + **CI grün** (GitHub Actions) | Pflicht ab Schritt 2; Teststrategie → ADR-0009 |
-| 2 | **ROADMAP.md-Status** des Schritts/Teilschritts aktualisiert | `✅` abgeschlossen / `➡️` nächster Schritt / `🔧 IN ARBEIT` |
+| 2 | **ROADMAP.md „Aktueller Stand" und „Nächste Schritte" aktuell** | Überschreiben, KEIN neuer Absatz je Änderung; erledigtes Issue aus „Nächste Schritte" entfernen. → ADR-0061 |
 | 3 | **CHANGELOG.md `[Unreleased]`** um die Änderung ergänzt | Unter passendem Abschnitt (`### Added` / `### Fixed` / …) |
 | 4 | **Zugehörige GitHub-Issues geschlossen** | Bevorzugt per `Fixes #N` im Commit; sonst mit Schließkommentar inkl. belegendem Commit-Hash. Issue nur schließen wenn Fix im Code belegt. |
 | 5 | **ADR angelegt**, falls im Schritt eine Design-/Grundentscheidung gefallen ist | → bestehende ADR-Pflicht (Abschnitt „Entscheidungen und Aufgaben festhalten") |
@@ -181,6 +183,12 @@ setzen — niemals löschen. Format und Nummerierung → `docs/adr/README.md`
 Weder Claude Desktop noch DF1DS führen Aufgaben- oder Ideenlisten im Chat. Alles Dauerhafte
 gehört ins Repo: Design-/Grundentscheidung → ADR; Aufgabe/Bug/Feature-Idee → GitHub Issue;
 Schritt/Projektstand → ROADMAP.md.
+
+**Die ROADMAP führt keine Issue-Liste und keine Änderungs-Historie (ADR-0061).** Offene
+Aufgaben/Bugs/Feature-Ideen leben ausschließlich als GitHub Issues — GitHub ist die
+einzige Quelle für „was ist offen"; die ROADMAP nennt in „Nächste Schritte" nur die
+priorisierte Reihenfolge, nie den vollständigen Bestand. Änderungs-Details (was wurde
+wann geändert) gehören ins CHANGELOG, nicht in die ROADMAP.
 
 **Auslöser für Desktop (analog zur ADR-Pflicht):** Taucht im Planungsgespräch eine Aufgabe,
 ein Bug oder eine Feature-Idee auf, die nicht sofort umgesetzt wird, legt Desktop **keinen**
@@ -352,6 +360,6 @@ Jedes neue Fenster/Widget, das eine Erklärung verdient, bekommt einen Hover-Too
 | Dokument | Inhalt |
 |----------|--------|
 | `KONZEPT.md` | Vollständige fachliche Spezifikation |
-| `ROADMAP.md` | Schrittplan mit Review-Punkten |
+| `ROADMAP.md` | Aktueller Stand + priorisierte nächste Schritte (ADR-0061) |
 | `docs/discovery.md` | Log4OM-DB-Schema-Befunde (empirisch) |
 | `docs/adr/` | Architecture Decision Records |

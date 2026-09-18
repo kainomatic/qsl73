@@ -69,3 +69,9 @@ gegen jeden `dev`-Push. Es gibt keinen Grund, mit dem Push zu warten.
 - Punkt 5 (ADR) ist bereits in der ADR-Pflicht (CLAUDE.md) verankert; diese Liste
   bündelt alle Punkte nur an einer Stelle.
 - Punkt 6 (Push) ist neu; er ergänzt die bisherigen fünf Punkte und ersetzt keinen.
+
+**Nachtrag September 2026 (ADR-0061) — Präzisierung Punkt 2:**
+„ROADMAP.md-Status aktualisiert" bedeutet seit ADR-0061 konkret: die Abschnitte
+„Aktueller Stand" und „Nächste Schritte" überschreiben, kein neuer Absatz je Änderung.
+Die ROADMAP führt seither keine Issue-Liste und keine Änderungs-Historie mehr — beides
+lief zuvor gegen GitHub Issues bzw. CHANGELOG auseinander. → ADR-0061.
