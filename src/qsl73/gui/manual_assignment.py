@@ -14,6 +14,10 @@
   wrap_page_index        — Seiten-Umlauf (wrap-around), direction +1/-1
   apply_display_limit    — (candidates, limit) → (shown_list, total_count); ADR-0030
   compute_qr_prefill     — QR-Felder + OCR-Stand → Überschreibungs-Dict (rein, tk-frei)
+  ignore_toggle_target   — aktueller Ignoriert-Zustand → Ziel-Zustand (Toggle, ADR-0059)
+  ignore_button_label    — Ignoriert-Zustand → Button-Beschriftung (ADR-0059)
+  save_buttons_enabled   — (ignored, has_selection, has_next) → (save_ok, save_next_ok)
+  format_ignore_tag_missing_message — Tag-Name → Hinweistext bei fehlendem Ignoriert-Tag
 
 tk-abhängig:
   ManualAssignmentDialog — modales tk.Toplevel; result = (qsoid, route) | None;
@@ -23,14 +27,18 @@ from __future__ import annotations
 
 import io
 import logging
+import queue
+import threading
 from typing import TYPE_CHECKING, Callable, Optional
 
 from qsl73.gui.filter_util import (
     apply_display_limit,
+    card_display_callsign,
     describe_read_fields,
     describe_reason,
     sort_candidates_by_column,
 )
+from qsl73.gui.error_dialog import show_error
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
 from qsl73.gui.tooltip import attach_tooltip
 from qsl73.matching import CardFields, MatchResult, QsoCandidate
@@ -51,6 +59,9 @@ _BTN_SAVE_NEXT = "Speichern und nächste"
 _BTN_NEXT = "Nächste"
 _BTN_CANCEL = "Abbrechen"
 _BTN_DATE_CLEAR = "✕"
+_BTN_IGNORE = "Ignorieren"
+_BTN_UNIGNORE = "Nicht mehr ignorieren"
+_TITLE_IGNORE_TAG_MISSING = "Ignoriert-Tag fehlt"
 _LBL_REASON = "Grund:"
 _LBL_READ_FIELDS = "Gelesen:"
 _LBL_QR_HINT = "Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht ausgewertet)."
@@ -69,6 +80,10 @@ _TT_BTN_SAVE = "Zuordnung speichern — Karte wird diesem QSO zugeordnet vorgeme
 _TT_BTN_SAVE_NEXT = "Zuordnung speichern und direkt zur nächsten Karte weitergehen"
 _TT_BTN_NEXT = "Diese Karte überspringen und zur nächsten weitergehen (keine Zuordnung)"
 _TT_BTN_CANCEL = "Dialog schließen ohne Zuordnung"
+_TT_BTN_IGNORE = (
+    "Markiert diese Karte dauerhaft als ignoriert — wirkt sofort (nur Paperless-Tag, "
+    "Log4OM-Logbuch bleibt unberührt). Über Bearbeiten → Ignorierte Karten… jederzeit rückgängig."
+)
 
 # ---------------------------------------------------------------------------
 # Reine Helfer — tk-frei, vollständig ohne Display testbar
@@ -263,6 +278,41 @@ def compute_qr_prefill(
 
 
 # ---------------------------------------------------------------------------
+# Ignorieren — reine Helfer (ADR-0059), tk-frei, vollständig ohne Display testbar
+# ---------------------------------------------------------------------------
+
+
+def ignore_toggle_target(current_ignored: bool) -> bool:
+    """Gibt den Ziel-Zustand für einen Klick auf den Ignorieren-Button zurück (Toggle)."""
+    return not current_ignored
+
+
+def ignore_button_label(ignored: bool) -> str:
+    """Gibt die Beschriftung des Ignorieren-Buttons für den gegebenen Zustand zurück."""
+    return _BTN_UNIGNORE if ignored else _BTN_IGNORE
+
+
+def save_buttons_enabled(ignored: bool, has_selection: bool, has_next: bool) -> tuple[bool, bool]:
+    """Gibt (save_enabled, save_next_enabled) für den aktuellen Zustand zurück.
+
+    Solange eine Karte ignoriert ist, sind 'Speichern' und 'Speichern und nächste'
+    gesperrt (ADR-0059) — unabhängig von der Trefferlisten-Auswahl.
+    """
+    if ignored:
+        return False, False
+    return has_selection, has_selection and has_next
+
+
+def format_ignore_tag_missing_message(tag_name: str) -> str:
+    """Formatiert den Hinweistext für einen fehlenden/leeren Ignoriert-Tag (erwarteter Fehler)."""
+    name = tag_name or "(nicht gesetzt)"
+    return (
+        f"Der Ignoriert-Tag '{name}' ist in Paperless nicht vorhanden. "
+        "Bitte zuerst unter Bearbeiten → Einstellungen… auswählen oder anlegen."
+    )
+
+
+# ---------------------------------------------------------------------------
 # tk-Toplevel — nur importieren wenn tk verfügbar
 # ---------------------------------------------------------------------------
 
@@ -298,10 +348,14 @@ if _TK_OK:
             card_index: int = 0,
             total_cards: int = 0,
             has_next: bool = False,
+            paperless_client=None,
+            tags_config=None,
+            already_ignored: bool = False,
         ) -> None:
             super().__init__(parent)
             self.result: Optional[tuple[str, str]] = None
             self.action: str = "cancel"   # "save"|"save_next"|"skip"|"cancel"
+            self.ignored: bool = already_ignored  # finaler Ignoriert-Zustand beim Schließen (ADR-0059)
             self._card = card
             self._candidates = candidates
             self._default_route = default_route
@@ -311,6 +365,8 @@ if _TK_OK:
             self._card_index = card_index
             self._total_cards = total_cards
             self._has_next = has_next
+            self._paperless_client = paperless_client  # für Ignorieren/Wieder-Aufnehmen (ADR-0059)
+            self._tags_config = tags_config
             self._img_ref = None          # PIL/tk PhotoImage — vor GC schützen
             self._iid_to_qsoid: dict[str, str] = {}
             self._pages: list = []        # gerenderte Seiten (PIL-Images)
@@ -597,6 +653,20 @@ if _TK_OK:
             btn_frame = ttk.Frame(main)
             btn_frame.pack(fill="x")
 
+            # Ignorieren — links, deutlich abgesetzt von den vier Workflow-Buttons rechts
+            # (ADR-0059). tk.Button statt ttk.Button: ttk-foreground greift unter Windows
+            # nicht zuverlässig für rote Schrift. Nur für UNCERTAIN/NO_MATCH-Karten.
+            self._ignore_btn: Optional[tk.Button] = None
+            if self._card.outcome.result != MatchResult.CERTAIN:
+                self._ignore_btn = tk.Button(
+                    btn_frame,
+                    text=ignore_button_label(self.ignored),
+                    fg="#cc0000",
+                    command=self._on_toggle_ignore,
+                )
+                self._ignore_btn.pack(side="left")
+                attach_tooltip(self._ignore_btn, _TT_BTN_IGNORE)
+
             _cancel_btn = ttk.Button(
                 btn_frame, text=_BTN_CANCEL, command=self._on_cancel
             )
@@ -667,9 +737,82 @@ if _TK_OK:
 
         def _on_tree_select(self, _event=None) -> None:
             has_sel = bool(self._tree.selection())
-            self._btn_save.config(state="normal" if has_sel else "disabled")
-            save_next_state = "normal" if (has_sel and self._has_next) else "disabled"
-            self._btn_save_next.config(state=save_next_state)
+            save_ok, save_next_ok = save_buttons_enabled(self.ignored, has_sel, self._has_next)
+            self._btn_save.config(state="normal" if save_ok else "disabled")
+            self._btn_save_next.config(state="normal" if save_next_ok else "disabled")
+
+        def _on_toggle_ignore(self) -> None:
+            """Ignorieren/Wieder-Aufnehmen — wirkt sofort, kein Bestätigungsdialog (ADR-0059).
+
+            Netzwerkaufruf im Hintergrund-Thread; Ergebnis kommt über eine Queue zurück,
+            die im Haupt-Thread per self.after() abgefragt wird (ADR-0023-Muster — kein
+            direkter Tk-Zugriff aus dem Hintergrund-Thread). Button währenddessen
+            deaktiviert. Dialog bleibt nach dem Klick offen — kein automatisches
+            Weiterblättern.
+            """
+            if self._paperless_client is None or self._tags_config is None:
+                _log.warning("Ignorieren ohne Paperless-Client/Tags-Config aufgerufen — no-op")
+                return
+
+            target = ignore_toggle_target(self.ignored)
+            callsign = card_display_callsign(self._card.card_fields)
+            client = self._paperless_client
+            tags_cfg = self._tags_config
+            doc_id = self._card.doc_id
+
+            if self._ignore_btn is not None:
+                self._ignore_btn.config(state="disabled")
+
+            result_queue: "queue.Queue" = queue.Queue()
+
+            def _work() -> None:
+                from qsl73.ignore import ignore_card, unignore_card
+                from qsl73.logging_setup import get_log_dir
+                try:
+                    if target:
+                        ignore_card(client, doc_id, tags_cfg, get_log_dir(), callsign=callsign)
+                    else:
+                        unignore_card(client, doc_id, tags_cfg, get_log_dir(), callsign=callsign)
+                    result_queue.put((target, None))
+                except Exception as exc:
+                    result_queue.put((target, exc))
+
+            threading.Thread(target=_work, daemon=True).start()
+            self._poll_ignore_result(result_queue)
+
+        def _poll_ignore_result(self, result_queue: "queue.Queue") -> None:
+            try:
+                target, error = result_queue.get_nowait()
+            except queue.Empty:
+                if self.winfo_exists():
+                    self.after(50, lambda: self._poll_ignore_result(result_queue))
+                return
+            self._on_ignore_done(target, error)
+
+        def _on_ignore_done(self, target: bool, error: Optional[Exception]) -> None:
+            if not self.winfo_exists():
+                return
+            if self._ignore_btn is not None:
+                self._ignore_btn.config(state="normal")
+
+            if error is not None:
+                from qsl73.ignore import IgnoreTagMissingError
+                if isinstance(error, IgnoreTagMissingError):
+                    show_error(
+                        self,
+                        _TITLE_IGNORE_TAG_MISSING,
+                        format_ignore_tag_missing_message(error.tag_name),
+                    )
+                else:
+                    from qsl73.gui.error_messages import classify_error
+                    c = classify_error(error)
+                    show_error(self, c.title, c.user_message)
+                return  # Zustand unverändert
+
+            self.ignored = target
+            if self._ignore_btn is not None:
+                self._ignore_btn.config(text=ignore_button_label(self.ignored))
+            self._on_tree_select()  # Speichern-Buttons neu bewerten (gesperrt solange ignoriert)
 
         def _on_sort_click(self, column: str) -> None:
             """Spaltenklick: Richtung umkehren wenn dieselbe Spalte, sonst neue Spalte setzen."""

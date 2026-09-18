@@ -16,9 +16,13 @@ from qsl73.gui.manual_assignment import (
     distinct_bands,
     distinct_modes,
     field_values_to_query,
+    format_ignore_tag_missing_message,
+    ignore_button_label,
+    ignore_toggle_target,
     last_page_index,
     render_pdf_first_page,
     render_pdf_pages,
+    save_buttons_enabled,
     wrap_page_index,
 )
 from qsl73.gui.filter_util import apply_display_limit
@@ -486,16 +490,19 @@ _tk_skip = pytest.mark.skipif(
 )
 
 
-def _make_card_result(doc_id: int = 1) -> "object":
+def _make_card_result(doc_id: int = 1, result=None) -> "object":
     """Minimales CardResult-Objekt für Dialog-Tests."""
     from qsl73.matching import MatchOutcome, MatchResult
     from qsl73.run import CardResult
+
+    if result is None:
+        result = MatchResult.UNCERTAIN
 
     return CardResult(
         doc_id=doc_id,
         card_fields=_make_card_fields(call_from="DK1AA", band="20m"),
         source="ocr",
-        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        outcome=MatchOutcome(result=result, matched_qso=None),
         existing_confirmations=[],
     )
 
@@ -1032,3 +1039,214 @@ def test_compute_qr_prefill_date_no_override_user_modified():
         ocr_date="2024-04-01",       # OCR hatte etwas anderes → current ≠ ocr_date
     )
     assert "date" not in result, "Nutzer-Datum darf nicht überschrieben werden"
+
+
+# ---------------------------------------------------------------------------
+# Ignorieren — reine Helfer (ADR-0059, kein tk)
+# ---------------------------------------------------------------------------
+
+
+def test_ignore_toggle_target_flips_state():
+    assert ignore_toggle_target(False) is True
+    assert ignore_toggle_target(True) is False
+
+
+def test_ignore_button_label_reflects_state():
+    assert ignore_button_label(False) == "Ignorieren"
+    assert ignore_button_label(True) == "Nicht mehr ignorieren"
+
+
+def test_save_buttons_disabled_while_ignored_regardless_of_selection():
+    assert save_buttons_enabled(ignored=True, has_selection=True, has_next=True) == (False, False)
+    assert save_buttons_enabled(ignored=True, has_selection=False, has_next=False) == (False, False)
+
+
+def test_save_buttons_enabled_when_not_ignored_and_selected():
+    assert save_buttons_enabled(ignored=False, has_selection=True, has_next=True) == (True, True)
+
+
+def test_save_next_disabled_without_next_card():
+    assert save_buttons_enabled(ignored=False, has_selection=True, has_next=False) == (True, False)
+
+
+def test_save_buttons_disabled_without_selection():
+    assert save_buttons_enabled(ignored=False, has_selection=False, has_next=True) == (False, False)
+
+
+def test_format_ignore_tag_missing_message_contains_tag_name_and_hint():
+    msg = format_ignore_tag_missing_message("qsl-ignoriert")
+    assert "qsl-ignoriert" in msg
+    assert "Einstellungen" in msg
+
+
+def test_format_ignore_tag_missing_message_empty_name_no_crash():
+    msg = format_ignore_tag_missing_message("")
+    assert "Einstellungen" in msg
+    assert "''" not in msg
+
+
+# ---------------------------------------------------------------------------
+# Ignorieren — Dialog (tk, ADR-0059)
+# ---------------------------------------------------------------------------
+
+
+@_tk_skip
+def test_ignore_button_absent_for_certain_card():
+    """Button existiert nicht für CERTAIN-Karten (defensiv — Dialog öffnet sich dafür nie)."""
+    import tkinter as tk
+    from qsl73.matching import MatchResult
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    root = tk.Tk()
+    root.withdraw()
+    card = _make_card_result(result=MatchResult.CERTAIN)
+
+    def _check_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            assert dlg_win._ignore_btn is None
+            dlg_win._on_cancel()
+
+    root.after(80, _check_and_cancel)
+    ManualAssignmentDialog(root, card, [], "bureau")
+    root.destroy()
+
+
+@_tk_skip
+def test_ignore_button_initial_label_already_ignored():
+    """already_ignored=True → Button zeigt direkt 'Nicht mehr ignorieren'."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    root = tk.Tk()
+    root.withdraw()
+    card = _make_card_result()
+
+    def _check_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            assert dlg_win._ignore_btn.cget("text") == "Nicht mehr ignorieren"
+            assert dlg_win.ignored is True
+            dlg_win._on_cancel()
+
+    root.after(80, _check_and_cancel)
+    dlg = ManualAssignmentDialog(root, card, [], "bureau", already_ignored=True)
+    assert dlg.ignored is True
+    root.destroy()
+
+
+@_tk_skip
+def test_ignore_button_click_success_locks_save_and_toggles_label(monkeypatch):
+    """Klick → ignore_card wird aufgerufen, Label wechselt, Speichern gesperrt."""
+    import tkinter as tk
+    from unittest.mock import MagicMock
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    called = {}
+
+    def _fake_ignore_card(client, doc_id, tags_config, log_dir, callsign=""):
+        called["doc_id"] = doc_id
+        called["callsign"] = callsign
+
+    monkeypatch.setattr("qsl73.ignore.ignore_card", _fake_ignore_card)
+
+    root = tk.Tk()
+    root.withdraw()
+    card = _make_card_result(doc_id=77)
+    candidates = [_make_cand("Q001")]
+
+    def _click_ignore():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            dlg_win._on_toggle_ignore()
+
+    def _check_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            assert dlg_win.ignored is True
+            assert dlg_win._ignore_btn.cget("text") == "Nicht mehr ignorieren"
+            save_ok, save_next_ok = save_buttons_enabled(dlg_win.ignored, True, True)
+            assert (save_ok, save_next_ok) == (False, False)
+            assert str(dlg_win._btn_save.cget("state")) == "disabled"
+            dlg_win._on_cancel()
+
+    root.after(80, _click_ignore)
+    root.after(500, _check_and_cancel)
+    dlg = ManualAssignmentDialog(
+        root, card, candidates, "bureau",
+        paperless_client=MagicMock(), tags_config=MagicMock(),
+    )
+    assert dlg.ignored is True
+    assert called["doc_id"] == 77
+    root.destroy()
+
+
+@_tk_skip
+def test_ignore_button_click_missing_tag_shows_expected_error_no_traceback(monkeypatch):
+    """Fehlender Ignoriert-Tag → Hinweis ohne Traceback-Dialog; Zustand unverändert."""
+    import tkinter as tk
+    from unittest.mock import MagicMock
+    from qsl73.ignore import IgnoreTagMissingError
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    shown = {}
+
+    def _fake_ignore_card(client, doc_id, tags_config, log_dir, callsign=""):
+        raise IgnoreTagMissingError("qsl-ignoriert")
+
+    def _fake_show_error(parent, title, message, detail=""):
+        shown["title"] = title
+        shown["message"] = message
+        shown["detail"] = detail
+
+    monkeypatch.setattr("qsl73.ignore.ignore_card", _fake_ignore_card)
+    monkeypatch.setattr("qsl73.gui.manual_assignment.show_error", _fake_show_error)
+
+    root = tk.Tk()
+    root.withdraw()
+    card = _make_card_result(doc_id=5)
+
+    def _click_ignore():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            dlg_win._on_toggle_ignore()
+
+    def _check_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            assert dlg_win.ignored is False  # Zustand unverändert
+            dlg_win._on_cancel()
+
+    root.after(80, _click_ignore)
+    root.after(500, _check_and_cancel)
+    dlg = ManualAssignmentDialog(
+        root, card, [], "bureau",
+        paperless_client=MagicMock(), tags_config=MagicMock(),
+    )
+    assert dlg.ignored is False
+    assert "qsl-ignoriert" in shown["message"]
+    assert shown["detail"] == ""  # kein Traceback
+    root.destroy()
+
+
+@_tk_skip
+def test_ignore_button_click_without_client_is_noop():
+    """Kein paperless_client konfiguriert → Klick ist ein no-op, kein Absturz."""
+    import tkinter as tk
+    from qsl73.gui.manual_assignment import ManualAssignmentDialog
+
+    root = tk.Tk()
+    root.withdraw()
+    card = _make_card_result()
+
+    def _click_and_cancel():
+        dlg_win = _find_toplevel(root)
+        if dlg_win is not None:
+            dlg_win._on_toggle_ignore()  # kein paperless_client → no-op
+            assert dlg_win.ignored is False
+            dlg_win._on_cancel()
+
+    root.after(80, _click_and_cancel)
+    dlg = ManualAssignmentDialog(root, card, [], "bureau")
+    assert dlg.ignored is False
+    root.destroy()
