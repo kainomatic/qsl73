@@ -28,12 +28,14 @@ from qsl73.gui.filter_util import (
     FILTER_MODES,
     build_workflow_sequence,
     build_write_selections,
+    done_doc_ids,
     filter_results,
     format_progress_text,
     is_batch_writable,
     merge_selections,
     qso_by_id,
     qso_display_values,
+    resolve_display_values,
     select_range,
     sort_cards_written_last_then_by_column,
     text_filter_cards,
@@ -58,6 +60,9 @@ _UPDATE_CHECK_LABEL = "Nach Updates suchen"
 # Hilfe-Menü Infodateien
 _MENU_README = "Liesmich anzeigen"
 _MENU_CHANGELOG = "Was ist neu (Änderungen)…"
+
+# Bearbeiten-Menü (ADR-0059)
+_MENU_IGNORED_CARDS = "Ignorierte Karten…"
 _MSG_DOC_UNAVAILABLE_TITLE = "Information nicht verfügbar — by DF1DS"
 _MSG_DOC_UNAVAILABLE_BODY = (
     "Diese Information ist nur in der installierten Version verfügbar.\n\n"
@@ -193,6 +198,7 @@ class MainWindow(tk.Tk):
         self._displayed: list[CardResult] = []  # aktuell angezeigte Karten
         self._manual_pending: dict[int, tuple[str, str]] = {}  # doc_id → (qsoid, route)
         self._written: set[int] = set()       # doc_ids die in diesem Lauf bereits geschrieben wurden
+        self._ignored: set[int] = set()       # doc_ids die in dieser Sitzung ignoriert wurden (ADR-0059)
         self._written_qso: dict[int, str] = {}  # doc_id → qsoid (manuell zugeordnet + geschrieben)
         self._paperless_client = None         # wird in _on_run gesetzt, für Bildladen im Dialog
         self._pending_update_result = None    # UpdateCheckResult wenn Nutzer „Später" gewählt
@@ -344,6 +350,7 @@ class MainWindow(tk.Tk):
         self._tree.tag_configure("selected", background="#cce5ff")
         self._tree.tag_configure("manual_assigned", background="#e8d8f8", foreground="#5a0090")
         self._tree.tag_configure("written", background="#d4edda", foreground="#155724")
+        self._tree.tag_configure("ignored", foreground="#888888")
 
         self._tree.bind("<ButtonRelease-1>", self._on_tree_click)
         self._tree.bind("<Shift-ButtonRelease-1>", self._on_tree_shift_click)
@@ -395,16 +402,18 @@ class MainWindow(tk.Tk):
             if event.result.cancelled:
                 n_total = (len(event.result.certain) + len(event.result.uncertain)
                            + len(event.result.no_match))
-                self._status_var.set(
-                    f"Durchlauf abgebrochen — Teilergebnis: {n_total} Karten gelesen."
-                )
+                status = f"Durchlauf abgebrochen — Teilergebnis: {n_total} Karten gelesen."
             else:
                 certain = len(event.result.certain)
                 uncertain = len(event.result.uncertain)
                 no_match = len(event.result.no_match)
-                self._status_var.set(
-                    f"Fertig — {certain} sicher, {uncertain} unsicher, {no_match} ohne Treffer."
+                status = f"Fertig — {certain} sicher, {uncertain} unsicher, {no_match} ohne Treffer."
+            if event.result.ignored_count > 0:
+                status += (
+                    f" {event.result.ignored_count} Karten ignoriert "
+                    "(Bearbeiten → Ignorierte Karten…)."
                 )
+            self._status_var.set(status)
         elif isinstance(event, WriteDoneEvent):
             res = event.result
             actually_written = written_doc_ids(
@@ -465,17 +474,15 @@ class MainWindow(tk.Tk):
         text_filtered = text_filter_cards(category_filtered, query)
 
         sorted_cards = sort_cards_written_last_then_by_column(
-            text_filtered, self._written, self._sort_column, self._sort_ascending
+            text_filtered, done_doc_ids(self._written, self._ignored),
+            self._sort_column, self._sort_ascending
         )
         self._displayed = sorted_cards   # Anzeigereihenfolge für Shift-Klick korrekt halten
 
         self._tree.delete(*self._tree.get_children())
         for card in sorted_cards:
             iid = str(card.doc_id)
-            call = card.card_fields.call_from or card.card_fields.call_to or "–"
-            date = card.card_fields.date or "–"
-            band = card.card_fields.band or "–"
-            mode_val = card.card_fields.mode or "–"
+            call, date, band, mode_val = resolve_display_values(card)
             source = card.source
             match_result = card.outcome.result
             status_label = _RESULT_LABELS.get(match_result, "?")
@@ -495,6 +502,9 @@ class MainWindow(tk.Tk):
                     matched = qso_by_id(self._run_result.candidates, self._written_qso[card.doc_id])
                     if matched is not None:
                         call, date, band, mode_val = qso_display_values(matched)
+            elif card.doc_id in self._ignored:
+                tags = ["ignored"]
+                status_label = "Ignoriert"
             else:
                 if card.doc_id in self._selected:
                     tags.append("selected")
@@ -627,21 +637,18 @@ class MainWindow(tk.Tk):
             return
 
         # Workflow-Kontext berechnen (Phase, X von Y, has_next)
-        done = set(self._manual_pending.keys()) | self._written
+        done = set(self._manual_pending.keys()) | self._written | self._ignored
         uncertain, no_match = build_workflow_sequence(self._displayed, done)
         ctx = workflow_card_context(card, uncertain, no_match)
 
         dlg = self._open_assignment_dialog(card, ctx)
 
-        _log.debug("Dialog geschlossen — dlg.result=%r action=%s", dlg.result, dlg.action)
+        _log.debug(
+            "Dialog geschlossen — dlg.result=%r action=%s ignored=%s",
+            dlg.result, dlg.action, dlg.ignored,
+        )
 
-        if dlg.result is not None:
-            self._manual_pending[doc_id] = dlg.result
-        else:
-            if dlg.action == "cancel":
-                # Abbrechen = Vormerkung aufheben
-                self._manual_pending.pop(doc_id, None)
-            # skip = kein Speichern, Vormerkung bleibt unverändert
+        self._apply_dialog_result(dlg, doc_id)
 
         if dlg.action in ("save_next", "skip"):
             self._continue_workflow(card, dlg.action)
@@ -673,7 +680,28 @@ class MainWindow(tk.Tk):
             card_index=ctx.get("card_index", 0),
             total_cards=ctx.get("total_cards", 0),
             has_next=ctx.get("has_next", False),
+            paperless_client=pc,
+            tags_config=cfg.tags,
+            already_ignored=card.doc_id in self._ignored,
         )
+
+    def _apply_dialog_result(self, dlg, doc_id: int) -> None:
+        """Wertet das Dialog-Ergebnis aus: Ignoriert-Zustand + manuelle Vormerkung (ADR-0059).
+
+        Ist die Karte beim Schließen ignoriert, wird eine bestehende Vormerkung verworfen
+        (§C der Aufgabe) und die Karte landet nie im Schreib-Korb. Sonst unverändertes
+        Verhalten: Speichern-Ergebnis übernehmen, 'Abbrechen' hebt die Vormerkung auf.
+        """
+        if dlg.ignored:
+            self._ignored.add(doc_id)
+            self._manual_pending.pop(doc_id, None)
+            return
+        self._ignored.discard(doc_id)
+        if dlg.result is not None:
+            self._manual_pending[doc_id] = dlg.result
+        elif dlg.action == "cancel":
+            self._manual_pending.pop(doc_id, None)
+        # skip = kein Speichern, Vormerkung bleibt unverändert
 
     def _continue_workflow(self, just_processed: CardResult, trigger_action: str) -> None:
         """Setzt Durcharbeiten-Workflow nach just_processed fort (iterativ).
@@ -691,7 +719,7 @@ class MainWindow(tk.Tk):
             if result == "cancel":
                 return
             # UNCERTAIN-Phase abgeschlossen → ggf. NO_MATCH-Phase anbieten
-            done = set(self._manual_pending.keys()) | self._written
+            done = set(self._manual_pending.keys()) | self._written | self._ignored
             _, no_match_remaining = build_workflow_sequence(self._displayed, done)
             if no_match_remaining:
                 if messagebox.askyesno(
@@ -711,7 +739,7 @@ class MainWindow(tk.Tk):
         else:
             result = self._run_workflow_phase(MatchResult.NO_MATCH, extra_skip=initial_skip)
             if result != "cancel":
-                done = set(self._manual_pending.keys()) | self._written
+                done = set(self._manual_pending.keys()) | self._written | self._ignored
                 _, no_match_remaining = build_workflow_sequence(self._displayed, done)
                 if not no_match_remaining:
                     messagebox.showinfo(
@@ -734,7 +762,7 @@ class MainWindow(tk.Tk):
         total_at_start: Optional[int] = None
 
         while True:
-            done = set(self._manual_pending.keys()) | self._written
+            done = set(self._manual_pending.keys()) | self._written | self._ignored
             excluded = done | skipped
             uncertain, no_match = build_workflow_sequence(self._displayed, excluded)
             seq = uncertain if phase_type == MatchResult.UNCERTAIN else no_match
@@ -765,8 +793,7 @@ class MainWindow(tk.Tk):
 
             dlg = self._open_assignment_dialog(card, ctx)
 
-            if dlg.result is not None:
-                self._manual_pending[card.doc_id] = dlg.result
+            self._apply_dialog_result(dlg, card.doc_id)
             self._refresh_tree()
             self._update_write_btn()
 
@@ -777,7 +804,7 @@ class MainWindow(tk.Tk):
 
             if action == "save":
                 # Karte gespeichert → prüfen ob Phase damit abgeschlossen
-                done_new = set(self._manual_pending.keys()) | self._written
+                done_new = set(self._manual_pending.keys()) | self._written | self._ignored
                 excl_new = done_new | skipped
                 unc_new, nm_new = build_workflow_sequence(self._displayed, excl_new)
                 seq_new = unc_new if phase_type == MatchResult.UNCERTAIN else nm_new
@@ -860,6 +887,7 @@ class MainWindow(tk.Tk):
         self._manual_pending.clear()
         self._written.clear()
         self._written_qso.clear()
+        self._ignored.clear()  # neuer Lauf schließt ignorierte Karten serverseitig aus (ADR-0059)
         self._run_result = None
         self._displayed = []
         self._tree.delete(*self._tree.get_children())
@@ -982,6 +1010,8 @@ class MainWindow(tk.Tk):
 
         edit_menu = tk.Menu(menubar, tearoff=0)
         edit_menu.add_command(label="Einstellungen…", command=self._on_settings)
+        edit_menu.add_separator()
+        edit_menu.add_command(label=_MENU_IGNORED_CARDS, command=self._on_show_ignored)
         menubar.add_cascade(label="Bearbeiten", menu=edit_menu)
 
         self._help_menu = tk.Menu(menubar, tearoff=0)
@@ -1020,6 +1050,18 @@ class MainWindow(tk.Tk):
         if wizard.result is not None:
             self._config = wizard.result
             self._show_restart_prompt()
+
+    def _on_show_ignored(self) -> None:
+        """Öffnet das Ignorierte-Karten-Fenster (ADR-0059)."""
+        from qsl73.gui.ignored_window import IgnoredCardsWindow
+
+        cfg = self._config
+        pc = self._paperless_client
+        if pc is None:
+            from qsl73.paperless import PaperlessClient
+            pc = PaperlessClient(cfg.paperless.url, cfg.paperless.token)
+
+        IgnoredCardsWindow(self, pc, cfg.tags)
 
     def _show_restart_prompt(self) -> None:
         """Neustart-Dialog nach Einstellungs-Speichern.

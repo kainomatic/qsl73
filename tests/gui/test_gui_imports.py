@@ -21,6 +21,7 @@ _GUI_MODULES = [
     "qsl73.gui.error_dialog",
     "qsl73.gui.error_report_dialog",
     "qsl73.gui.filter_util",
+    "qsl73.gui.ignored_window",
     "qsl73.gui.main_window",
     "qsl73.gui.manual_assignment",
     "qsl73.gui.manual_match",

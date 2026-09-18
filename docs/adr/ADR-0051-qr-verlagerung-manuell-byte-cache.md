@@ -55,6 +55,40 @@ der Nutzer manuell getippt hat, werden nie überschrieben.
 gestoppt in `_on_close`). Stop setzt ein `threading.Event` — laufende Threads beenden
 sich nach Erkennung des Events. Daemon-Threads blockieren das Beenden nicht.
 
+### 4. Rufzeichen-Vorbefüllung aus Engine-Treffer (Nachtrag, Beta4-Befund 2026-09-17)
+
+Trägt eine Karte mehrere erkannte Fremdcall-Kandidaten (`call_from_candidates`,
+ADR-0056), bleibt `card_fields.call_from` `None` — auch wenn `match_card` bereits
+genau EIN DB-QSO getroffen hat (z. B. R2 `TOO_FEW_FIELDS`: exakter Treffer, aber
+Datum/Band fehlen; R3 `FUZZY_CALL`: unscharfer Treffer). Bisher blieb das
+Rufzeichen-Suchfeld dann leer, und die Trefferliste zeigte alle QSOs statt des
+einen bereits von der Engine gefundenen.
+
+`card_fields_to_query` (Nachtrag) nimmt zusätzlich das `MatchOutcome` entgegen:
+ist `call_from` leer, aber `outcome.candidates` enthält GENAU EIN QSO, wird das
+dafür verantwortliche Karten-Rufzeichen aus `outcome.reason.details` (ADR-0058:
+`TOO_FEW_FIELDS` → Schlüssel `"call"`; `FUZZY_CALL` → Schlüssel `"read"`)
+vorbefüllt. Bei mehreren getroffenen QSOs (`MULTI_QSO`) bleibt das Feld leer —
+kein Raten (ADR-0007). Es handelt sich weiterhin nur um eine **Vorbefüllung des
+Suchfelds**, keine Vorauswahl eines Kandidaten in der Trefferliste — der Grundsatz
+aus Abschnitt 2 (menschengeführter manueller Schritt, ADR-0028) bleibt unverändert.
+
+Reihenfolge der Vorbefüll-Quellen für das Rufzeichen-Suchfeld, höchste Priorität
+zuerst: **QR-Wert** (überschreibt bei Bildladen, siehe Abschnitt 2) > **OCR
+`call_from`** (falls eindeutig gelesen) > **Engine-Treffer-Rufzeichen** (nur bei
+genau einem DB-Treffer trotz mehrdeutiger OCR-Calls) > leer.
+
+**Nachtrag (Beta4-Review):** Der Vergleichswert für „hat der Nutzer das Feld schon
+geändert?" (`compute_qr_prefill`s `ocr_call`) muss denselben Wert tragen wie die
+tatsächlich angezeigte Vorbefüllung — auch wenn diese aus dem Engine-Treffer statt
+aus `card_fields.call_from` stammt. Sonst blockiert ein Engine-vorbefülltes,
+verlesenes Rufzeichen (R3 `FUZZY_CALL`) die spätere QR-Korrektur fälschlich,
+weil `current_call != ocr_call` einen manuellen Nutzer-Edit vortäuscht. Der Dialog
+zeigt zusätzlich einen Hinweis („Suchfelder aus QR-Code vorbefüllt (im Durchlauf
+nicht ausgewertet)."), sobald `_apply_qr_prefill` tatsächlich mindestens ein Feld
+überschrieben hat — sonst könnte der Grund-Text (ADR-0058, beschreibt den
+OCR-Lauf) neben einem bereits QR-korrigierten Feld irreführend wirken.
+
 ---
 
 ## Verhältnis zu ADR-0007

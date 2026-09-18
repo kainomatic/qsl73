@@ -108,6 +108,9 @@ Es gibt einen Lauf-Typ mit eingebauter Vorschau und Bestätigung (kein separater
 dry-run-Modus).
 
 1. Sammeln: Alle Paperless-Dokumente mit Tag `qsl-card` abrufen, OCR-Text holen.
+   Dokumente mit dem Bestätigt-Tag ODER dem Ignoriert-Tag (→ §9, ADR-0059) werden
+   dabei serverseitig ausgeschlossen — bereits bestätigte und dauerhaft ignorierte
+   Karten erscheinen nicht erneut als „kein Treffer".
 2. Parsen: Aus dem OCR-Text Kandidatenwerte extrahieren (Rufzeichen, Datum, Band, Mode).
 3. Vorfilter Log4OM: Nur QSOs als Match-Kandidaten, deren Papier-QSL noch NICHT bestätigt
    ist. eQSL/LoTW/QRZ etc. werden weder gelesen-als-Grund noch geschrieben.
@@ -127,9 +130,17 @@ dry-run-Modus).
 8. Abschluss: Ergebnis/Logeintrag; verbleibende unsichere/kein-Match-Karten bleiben in der
    Liste bzw. kommen beim nächsten Lauf erneut zur Wiedervorlage.
 
+**Ausnahme — Karten ignorieren (ADR-0059):** Das Ignorieren/Wieder-Aufnehmen einer
+Karte (→ §9) wirkt bewusst SOFORT beim Klick, nicht erst nach „Jetzt schreiben" —
+eine ausdrückliche, eng begrenzte Ausnahme zur Vorschau-Garantie unten. Betroffen
+ist ausschließlich ein Paperless-Tag auf dem Dokument; die Log4OM-DB wird dabei
+nie angefasst, kein Backup, keine Transaktion. Die Garantie „nichts geschrieben
+vor Jetzt schreiben" schützt das Logbuch und gilt dafür uneingeschränkt weiter.
+
 **Akzeptanzkriterien:**
-- Vor dem Klick 'Jetzt schreiben' wird garantiert nichts geschrieben (weder DB noch Tags),
-  aber die vollständige Vorschau ist erzeugt.
+- Vor dem Klick 'Jetzt schreiben' wird garantiert nichts geschrieben (weder DB noch
+  Tags) — mit der oben genannten Ausnahme Ignorieren/Wieder-Aufnehmen (nur
+  Paperless-Tag) —, aber die vollständige Vorschau ist erzeugt.
 - 'Abbrechen' hinterlässt DB und Tags unverändert.
 - Auto-Treffer und manuelle Zuordnungen werden in EINER Transaktion gemeinsam geschrieben.
 - Bereits Papier-QSL-bestätigte QSOs erscheinen nie als Kandidat.
@@ -220,9 +231,13 @@ der einzig gangbare Weg für ältere oder handschriftliche Karten.
 | US-getrennte Spalten | Month=`06` Day=`21` Year=`2024` | aus getrennten Tabellenfeldern zusammensetzen |
 | `MM/DD/YYYY` | `06/21/2024` | US-Langform |
 | `MM/DD/YY` | `06/21/24` | US-Kurzform |
+| `TT-MM-JJJJ` | `14-09-2024` | Bindestrich-Variante der Kurzform (ADR-0057) |
+| `TT-MM-JJ` | `14-09-24` | Bindestrich-Variante, 2-stelliges Jahr (ADR-0057) |
 
 - Zweistellige Jahreszahl: `>= 30` → 19xx, `< 30` → 20xx (Heuristik, kann falsch sein).
 - Mehrdeutige Formate (z. B. `03/04/25` — Tag/Monat oder Monat/Tag?) → **unsicher**.
+  Gleiche Regel bei Bindestrich (z. B. `03-04-2025`): erstes Feld `> 12` → Tag-Monat-Jahr;
+  zweites Feld `> 12` → Monat-Tag-Jahr; beide `<= 12` → mehrdeutig → **unsicher** (ADR-0057).
 - Unbekannte/exotische Formate (z. B. römische Monatsziffern `17-XI-93`) werden **nicht**
   per Sonderregel erschlossen — Grundsatz: lieber „Datum nicht normalisierbar" → **unsicher**
   als ein Rategespräch über undokumentierte Formate. Manuelle Zuordnung (§9) fängt das auf.
@@ -353,6 +368,15 @@ Kandidaten-QSO einer von drei Zuständen:
 **Rufzeichen:**
 - Fuzzy-Toleranz von 1 Zeichen (Levenshtein) bei `fuzzy_enabled=True`, um OCR-Verleser
   abzufangen. Fuzzy in den Einstellungen abschaltbar.
+- **Mehrere erkannte Fremd-Rufzeichen (ADR-0056):** Erkennt die OCR-Auswertung mehr als
+  ein Fremd-Rufzeichen auf einer Karte (z. B. echter Absender + Druckvermerk/Werbe-Call),
+  werden alle Kandidaten unabhängig gematcht und die getroffenen DB-QSOs zusammengeführt
+  (nicht mehr hart auf „kein Rufzeichen" kollabiert). **Fuzzy erzwingt UNSICHER:** Beruht
+  der (einzige) Treffer auf einem unscharfen Rufzeichen-Vergleich, ist das Ergebnis NIE
+  „sicher", sondern immer „unsicher" — auch wenn 3-von-4/Suffix-Regel sonst erfüllt wären.
+  Nur ein EXAKTER Rufzeichen-Treffer darf automatisch „sicher" werden. Treffen mehrere
+  Fremd-Rufzeichen-Kandidaten verschiedene DB-QSOs, ist das Ergebnis ebenfalls „unsicher"
+  (mehrdeutig). Details und vollständige Wahrheitstabelle: ADR-0056 (verschärft ADR-0016).
 
 **Band und Mode:**
 - Immer **exakt** verglichen (case-insensitiv), unabhängig von `fuzzy_enabled`.
@@ -512,7 +536,14 @@ ohne Annahme exklusiven Zugriffs. Log4OM kann parallel laufen und die DB veränd
 
 - `qsl-card` → zu verarbeitende Karten (nur diese werden gelesen).
 - `qsl-bestätigt` → gesetzt bei sicherem Match ODER nach manueller Zuordnung.
-- `qsl-nicht-bestätigt` → gesetzt nur bei unsicherem/mehrdeutigem Treffer.
+- `qsl-ignoriert` → gesetzt beim Ignorieren einer nie zuordenbaren Karte (§9,
+  ADR-0059); wirkt sofort, ausschließlich über diesen Tag, Log4OM-DB unberührt.
+  Über „Bearbeiten → Ignorierte Karten…" (§9) jederzeit wieder entfernbar. QSL73
+  legt diesen Tag NICHT automatisch an (siehe „Nutzungs-Voraussetzung" unten) —
+  fehlt er, zeigt QSL73 beim Ignorieren-Versuch einen Hinweis statt ihn selbst
+  anzulegen. Die Auto-Matching-Warnung des Setup-Assistenten (ADR-0031 §4) gilt
+  für diesen Tag ebenso wie für den Bestätigt-Tag — ein von Paperless automatisch
+  vergebener Ignoriert-Tag ließe Karten sonst still verschwinden.
 - kein Status-Tag → bei „kein Match" (Wiedervorlage).
 - Tag-Namen im Setup frei wählbar (für bestehende Paperless-Installationen).
 
@@ -548,6 +579,19 @@ für korrekte Verschlagwortung liegt beim Nutzer.
   - **Live-Suche während des Tippens** gegen die Log4OM-DB: passende QSOs (Datum/Band/Mode)
     sofort als Vorschläge; Nutzer wählt das richtige QSO und ordnet zu.
   - Manuelle Zuordnung = wie Auto-Match: QSO markieren + Tag `qsl-bestätigt`.
+  - **Ignorieren (ADR-0059):** Button „Ignorieren"/„Nicht mehr ignorieren" für
+    UNCERTAIN/NO_MATCH-Karten — wirkt sofort beim Klick, kein Bestätigungsdialog,
+    Dialog bleibt offen. Solange eine Karte ignoriert ist, sind „Speichern" und
+    „Speichern und nächste" gesperrt; eine bestehende manuelle Vormerkung wird
+    verworfen. Fehlender/leerer Ignoriert-Tag → Klartext-Hinweis statt Traceback.
+- **Ignorierte Karten (Menü „Bearbeiten → Ignorierte Karten…", ADR-0059):**
+  eigenes Fenster, lädt die Liste frisch aus Paperless (Eingangs- + Ignoriert-Tag);
+  Mehrfachauswahl + „Wieder aufnehmen" entfernt den Tag und schreibt einen
+  Audit-Eintrag. Leere Liste/fehlender Tag → freundlicher Hinweis, kein Fehler.
+  Im Hauptfenster erscheinen ignorierte Karten grau mit Status „Ignoriert" am
+  Listenende (zusammen mit geschriebenen Karten), bleiben per Doppelklick
+  öffenbar (für Rückgängig), sind aber nicht Teil der Durcharbeiten-Sequenz und
+  nie im Schreib-Korb. Kein eigener Ignorieren-Button im Hauptfenster.
 - **Fehler-Prompt:** verständliche Kurzmeldung mit **aufklappbarem Detailbereich** (Stacktrace).
 - **Setup-Assistent** beim ersten Start; alle Werte später in **Einstellungen** änderbar.
 - **Einstellungen — QSL-Route-Default (RV):** Standardwert für das Feld „Received Via"

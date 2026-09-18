@@ -4,6 +4,27 @@
 > Spezifikation (→ KONZEPT.md). Lebendes Dokument: erledigte Schritte abhaken,
 > Reihenfolge bei Bedarf anpassen.
 
+---
+
+## ✅ AKTUELLER STAND (Release)
+
+**v0.5.0 STABLE veröffentlicht (2026-09-18).** `main` und `dev` stehen auf
+demselben Commit; Tag `v0.5.0` zeigt darauf.
+
+Enthaltene Änderungen seit v0.4.0: #26 (Log-Level-Einstellung), #4
+(CT=QSL-Randfälle dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau
+mehrere Fremdcalls/Fuzzy, ADR-0056), #34 (Anzeige-Fix CERTAIN-Rufzeichen),
+ADR-0057 (Bindestrich-Datumsformate), #37 (Grund der Einstufung, ADR-0058),
+#39 (Karten ignorieren ersetzt Unsicher-Tag, ADR-0059 + Race-Nachtrag,
+Config v1→v2).
+
+Nicht enthalten (offen): #35 (Sonderrufzeichen zwei Ziffern), #36
+(OCR O/0, I/1 bei Rufzeichen), #38 (Hauptfenster-Zeilen-Tooltip), #40
+(Testsuite-Stabilität — Tcl-Cross-Thread-Absturz bei langen pytest-Läufen
+auf der Windows-Dev-Maschine). **Empfehlung:** #40 als nächster Auftrag.
+
+---
+
 ## Zusammenarbeit (Rollen)
 - **Claude Desktop:** Architekt + Reviewer. Schreibt/aktualisiert KONZEPT.md & Prompts,
   liest nach jedem Schritt den Repo-Stand (Filesystem, nur lesend) und prüft gegen die
@@ -568,6 +589,340 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
 - CHANGELOG [0.4.0] - 2026-06-24 eingefroren; dev → main Fast-Forward; Tag `v0.4.0` gesetzt.
 - Alle fünf Issues enthalten: #30 (Performance), #28 (Treeview-Sortierung),
   #29 (Live-Textsuche), #31 (Durchlauf abbrechbar), #27 (Self-Update Beta-Fix).
+
+### ✅ UX-Verbesserung — Log-Level im Einstellungen-Dialog (Issue #26, ADR-0055)
+
+- Neues Config-Feld `app.log_level` (INFO/WARNING/DEBUG) als Combobox im
+  Einstellungen-Dialog; additive Migration (fehlendes Feld → INFO, kein Versions-Bump).
+- `logging_setup.py`: reine Funktion `effective_level(env_debug, config_level_name)`
+  (max-Verbosität-Regel — `QSL73_DEBUG` kann nur anheben, nie absenken) + `apply_log_level()`
+  (setzt Logger + alle Handler, loggt Hinweis wenn `QSL73_DEBUG` das Config-Level anhebt).
+  `setup_logging()` unverändert, weiterhin erste Aktion in `run_app()`.
+- `gui/app.py`: `apply_log_level(config.app.log_level)` nach Config-Laden (nach allen drei
+  Zweigen: normal/Wizard/Fehlerdialog) — kein Umbau der Startreihenfolge.
+- `gui/setup_wizard.py`: ruft `apply_log_level()` direkt nach dem Speichern auf — Level
+  wirkt sofort, kein Neustart nötig (konsistent mit ADR-0036 §7). Tooltip gemäß ADR-0047.
+- ADR-0055 angelegt. 1278 Tests grün (3 erwartete Skips).
+
+### ✅ Doku-Klarstellung — Issue #4 (QSOs ohne CT="QSL"-Eintrag) aufgelöst, kein Code-Fix
+
+- Randfall aus Discovery-Frage #3 (`docs/discovery.md §6`, seit Schritt 0 offen) war bereits
+  durch ADR-0019 (`QslEntryNotFoundError` statt stillem Neuanlegen) + vorgelagerte
+  `validate_schema`-Prüfung + Transaktions-Rollback sicher abgedeckt.
+  Entscheidung (DF1DS): nur dokumentieren und schließen, keine neue Schreiblogik.
+- `docs/discovery.md §6.1` neu: Auflösung + bewusst akzeptierte Stichproben-Einschränkung
+  von `validate_schema` (prüft nur die ersten 30 Zeilen mit `qsoconfirmations` — bei einer
+  gemischten DB fällt eine einzelne betroffene Karte ggf. erst als Transaktions-Rollback auf,
+  nicht als vorab spezifische Meldung; sicher, aber technischer formuliert). Optionaler
+  künftiger Feinschliff bei Bedarf als separates Issue.
+- Kein neues ADR (ADR-0019 bleibt maßgeblich); keine Änderung an `log4om_write.py`/`log4om_db.py`.
+
+### ✅ Anzeige-Fix — Eigencall nicht mehr als Karten-Rufzeichen (Issue #33, Teil 1/2)
+
+- Neue Hilfsfunktion `gui/filter_util.py::card_display_callsign(card_fields)` (tk-frei):
+  liefert nur noch `call_from` — `call_to` (per Konstruktion das Eigencall, siehe
+  `run._extract_token_based`/ADR-0025) wird nicht mehr als Rückfallwert genutzt.
+- `_card_sort_key` (Spalte „call") und `text_filter_cards` nutzen jetzt dieselbe
+  Funktion → Anzeige, Sortierung und Textsuche konsistent (ADR-0052 unverändert gültig).
+- `gui/main_window.py::_refresh_tree`: Basis-Fall `call = ...` umgestellt; QSO-Werte
+  bei manuell zugeordneten/geschriebenen Karten (`qso_display_values`) unverändert.
+- 1282 Tests grün (4 erwartete Skips).
+
+### ✅ Matching-Umbau — mehrere Fremdcalls + Fuzzy erzwingt UNSICHER (Issue #33, Teil 2/2, ADR-0056)
+
+- `matching.CardFields`: neues additives Feld `call_from_candidates: list[str]`.
+  `call_from` bleibt für Abwärtskompatibilität erhalten; ist `call_from_candidates`
+  nicht leer, nutzt `match_card` die Liste statt des einzelnen `call_from`.
+- `run._extract_token_based`: `unique_foreign` wird jetzt IMMER (auch bei >1 Kandidat)
+  als `call_from_candidates` durchgereicht — vorher kollabierte >1 Fremdcall hart auf
+  `call_from=None` und löschte damit den echten Absender neben einem Druckvermerk-/
+  Werbe-Call. `call_from` bleibt zusätzlich gesetzt, wenn genau ein Kandidat existiert.
+- `matching.match_card`: matcht jeden Fremdcall-Kandidaten unabhängig (Zerlegung,
+  Widerspruchs-Ausschluss, Zeit-Tie-Breaker je Call) und führt die getroffenen DB-QSOs
+  zusammen (Wahrheitstabelle R1–R5, ADR-0056). **Verschärfung:** ein fuzzy
+  (Levenshtein-1) Rufzeichen-Treffer erzwingt jetzt immer UNSICHER — nie mehr
+  automatisches CERTAIN, auch bei erfüllter 3-von-4-Regel (verschärft ADR-0016).
+  Neue Hilfsfunktionen `_rufzeichen_kind`, `_filter_candidates_for_call`,
+  `_resolve_time_tiebreaker`, `_fields_rule_certain`, `_dedup_by_qsoid`.
+- `gui/filter_util.py::text_filter_cards`: veralteten Docstring korrigiert
+  (durchsuchbar ist nur `call_from`, nicht mehr `call_to`).
+- ADR-0056 angelegt (verschärft ADR-0016 — Rückverweis dort ergänzt); KONZEPT.md §6.4
+  präzisiert. 21 bestehende Tests bewusst von fuzzy→CERTAIN auf fuzzy→UNCERTAIN
+  angepasst (im Bericht einzeln benannt); vollständige R1–R5-Testabdeckung mit
+  fiktiven Rufzeichen (ADR-0050) ergänzt. 1296 Tests grün (3 erwartete Skips).
+  Issue #33 vollständig geschlossen (Teil 1 + Teil 2).
+
+### ✅ Beta-Release v0.5.0-beta1 — veröffentlicht, Release PAUSIERT (Anzeige-Bug gefunden)
+
+- Erste Beta nach Stable v0.4.0; enthält Log-Level-Einstellung #26, CT=QSL-Randfall-
+  Doku #4, Matching-Umbau mehrere Fremdcalls + Fuzzy erzwingt UNSICHER #33 (ADR-0056).
+- `__version__.py` auf `0.5.0` gesetzt (ADR-0046 §1), `CHANNEL` bleibt `"stable"`.
+- Tag `v0.5.0-beta1` gepusht, Pre-Release + Asset `QSL73-Beta-Setup-v0.5.0.exe` veröffentlicht.
+- **Im Beta-Test gefunden:** CERTAIN-Karte zeigte „–" statt gematchtem Rufzeichen/Datum
+  bei mehreren erkannten Fremdcalls (Issue #34) — siehe nächster Eintrag. Release der
+  Stable-Version bis Fix + erneutem Beta-Test **pausiert**.
+
+### ✅ Anzeige-Fix — CERTAIN zeigt gematchtes Rufzeichen statt „–" (Issue #34)
+
+- Ursache untersucht und code-belegt: reiner Anzeige-Bug, Matching (ADR-0056 R2) korrekt.
+  `card_fields.call_from` bleibt bei mehreren erkannten Fremdcalls `None` (ADR-0056 §1);
+  `gui/main_window._refresh_tree` nutzte im Basis-/CERTAIN-Zweig bislang nur die rohen
+  `card_fields` statt des bereits bekannten `outcome.matched_qso`.
+- Neue Hilfsfunktion `gui/filter_util.py::resolve_display_values(card)`: zeigt bei
+  gesetztem `outcome.matched_qso` dessen Werte (`qso_display_values`), sonst unverändert
+  die rohen `card_fields`. `matching.py`/`run.py` (Matching-Logik) nicht angefasst.
+  „Bestätigt"/„manuell zugeordnet"-Zweige unverändert.
+- 1300 Tests grün (3 erwartete Skips), neue Regressionstests in `test_filter_util.py`.
+  CHANGELOG-Eintrag ergänzt (kein neues ADR — Anzeige-Korrektur im Rahmen ADR-0052/0056).
+- **Nächster Schritt:** neue Beta `v0.5.0-beta2` bauen und erneut testen, bevor der
+  Stable-Release fortgesetzt wird.
+
+### ✅ Beta-Release v0.5.0-beta2 — veröffentlicht
+
+- Erneute Beta nach Anzeige-Fix #34 (`origin/dev` = `afe883d`); zum erneuten Test vor
+  dem Stable-Release. `__version__.py` bleibt `0.5.0`/`stable` (unverändert seit beta1,
+  ADR-0046 §1); CHANGELOG `[Unreleased]` weiterhin offen (ADR-0046 §3), enthält jetzt
+  zusätzlich #34.
+- Tag `v0.5.0-beta2` auf `dev`-HEAD; Self-Update-Test + Anzeige-Prüfung (CERTAIN zeigt
+  Rufzeichen, kein „–") macht DF1DS manuell nach dem Build.
+
+### ✅ Bugfix — Bindestrich-Datumsformate TT-MM-JJJJ/TT-MM-JJ (Beta-Test-Befund, ADR-0057)
+
+- Im Beta-Test v0.5.0-beta2 gefunden: gedrucktes OCR-Datum `"14-09-2024"` (Bindestrich)
+  endete ohne erkanntes Datum als „Unsicher" — `normalize_date()` kannte das Format nicht.
+  Ergänzt um `TT-MM-JJJJ`/`TT-MM-JJ` mit derselben `>12`-Disambiguierungsregel wie beim
+  bestehenden Schrägstrich-2-stellig-Fall (ADR-0007/ADR-0014). `_STRIP_CHARS` in
+  `run._tokenize` unverändert (Bindestrich bleibt bewusst kein Trennzeichen); per Test
+  belegt, dass das Token unverändert ankommt. KONZEPT.md §6.3 aktualisiert; ADR-0057
+  angelegt.
+- Zwei weitere Befunde derselben Karte als Issues festgehalten, nicht umgesetzt:
+  #35 (Sonderrufzeichen mit zwei Ziffern nicht erkannt), #36 (OCR-Zeichenverwechslung
+  O/0 und I/1 bei Rufzeichen, kein Neutralisierer). Entscheidung jeweils offen.
+
+### ✅ Beta-Release v0.5.0-beta3 — veröffentlicht
+
+- Erneute Beta nach Bindestrich-Datumsfix (ADR-0057) — zum erneuten Test der PA80OMG-
+  Karte vor dem Stable-Release. `__version__.py` bleibt `0.5.0`/`stable` (unverändert
+  seit beta1, ADR-0046 §1); CHANGELOG `[Unreleased]` weiterhin offen (ADR-0046 §3),
+  enthält jetzt zusätzlich den ADR-0057-Datumsfix.
+  Issues #35 (Sonderrufzeichen zwei Ziffern) und #36 (OCR O/0, I/1) bleiben offen —
+  nicht Teil dieser Beta.
+- Tag `v0.5.0-beta3`; Test der PA80OMG-Karte (Datum jetzt erkannt) macht DF1DS
+  manuell nach dem Build.
+
+### ✅ Erklärbarkeit der Matching-Entscheidung — Grund + Rohfelder im manuellen Dialog (Issue #37, ADR-0058)
+
+- Beta-Test-Befund: im manuellen Zuordnungs-Dialog war nicht erkennbar, warum eine
+  Karte als „Unsicher"/„Kein Treffer" eingestuft wurde. `matching.match_card` kannte
+  den Grund intern, gab ihn aber nicht aus.
+- `MatchOutcome` um additives Feld `reason: Optional[MatchReason]` erweitert
+  (Default `None`, abwärtskompatibel); `match_card` setzt `reason` an jeder
+  UNCERTAIN/NO_MATCH-Entscheidungsstelle — Codes `NOT_OWN_CALL`, `NO_CALL`,
+  `CALL_NOT_DECOMPOSABLE`, `NO_CANDIDATE`, `MULTI_CALL`, `CONTRADICTION`,
+  `FUZZY_CALL`, `TOO_FEW_FIELDS`, `MULTI_QSO`. Klartext nennt konkrete Werte
+  (gelesene/gematchte Calls, widersprechendes Feld mit Karten-/DB-Wert, fehlende
+  Felder, konkurrierende QSO-Zeiten). Reine Zusatz-Diagnose — keine Änderung der
+  Matching-Regeln (ADR-0016/ADR-0056 unverändert); alle bestehenden Matching-Tests
+  unverändert grün.
+- `gui/filter_util.py`: `describe_reason(outcome)` + `describe_read_fields(card_fields)`
+  (tk-frei, testbar) rendern Grund und rohe OCR-Felder als Klartext.
+- `gui/manual_assignment.py`: unterhalb der Suchfelder zwei read-only, umbrechende
+  Zeilen „Grund:"/„Gelesen:"; bei CERTAIN (defensiv) ausgeblendet.
+- Hauptfenster-Zeilen-Tooltip zurückgestellt: bestehende Tooltip-Infrastruktur
+  (ADR-0047) bindet nur pro Widget, nicht pro Treeview-Zeile — Neubau nötig,
+  als Issue #38 festgehalten.
+- ADR-0058 angelegt. 1326 Tests grün (3 erwartete Skips).
+
+### ✅ Beta-Release v0.5.0-beta4 — veröffentlicht
+
+- Erneute Beta zum Praxistest der Grund-Anzeige (#37, ADR-0058) an DF1DS'
+  Kartenstapel — zum erneuten Test vor dem Stable-Release. `__version__.py` bleibt
+  `0.5.0`/`stable` (unverändert seit beta1, ADR-0046 §1); CHANGELOG `[Unreleased]`
+  weiterhin offen (ADR-0046 §3), enthält jetzt zusätzlich den #37-Eintrag.
+  Issues #35 (Sonderrufzeichen zwei Ziffern), #36 (OCR O/0, I/1) und #38
+  (Hauptfenster-Zeilen-Tooltip) bleiben offen — nicht Teil dieser Beta.
+- Tag `v0.5.0-beta4`; Praxistest der Grund-/Gelesen-Anzeige im manuellen
+  Zuordnungs-Dialog macht DF1DS manuell nach dem Build. Stable-Release weiterhin
+  nicht durch DF1DS bestätigt.
+
+### ✅ Bugfix — Rufzeichen-Vorbefüllung bei Engine-Treffer + leeres Datumsfeld ohne gelesenes Datum (Beta4-Befund, ADR-0051-Nachtrag)
+
+- Beta4-Befund 1: Karte mit zwei OCR-Rufzeichen-Kandidaten (echter Absender +
+  Verleser); Engine trifft mit dem echten Call exakt EIN DB-QSO
+  (UNCERTAIN/`TOO_FEW_FIELDS`, `outcome.candidates` = `[dieses QSO]`). Der manuelle
+  Dialog befüllte das Rufzeichen-Suchfeld bisher nur aus `card_fields.call_from`
+  (bei >1 Kandidat `None`, ADR-0056 §1) → Feld leer, Trefferliste zeigte alle QSOs
+  statt des einen bekannten Treffers.
+- `manual_assignment.card_fields_to_query` nimmt jetzt zusätzlich das `MatchOutcome`
+  entgegen: ist `call_from` leer, aber `outcome.candidates` enthält genau EIN QSO,
+  wird das dafür verantwortliche Karten-Rufzeichen aus `outcome.reason.details`
+  (ADR-0058: `TOO_FEW_FIELDS` → `"call"`; `FUZZY_CALL` → `"read"`) vorbefüllt. Bei
+  mehreren getroffenen QSOs (`MULTI_QSO`) bleibt das Feld leer (kein Raten, ADR-0007).
+  Keine Vorauswahl eines Kandidaten in der Trefferliste (ADR-0028/ADR-0051
+  unverändert) — reine Zusatz-Vorbefüllung, QR-Überschreibregel (`compute_qr_prefill`)
+  unverändert. ADR-0051 um Abschnitt 4 (Vorbefüll-Prioritätskette) ergänzt statt
+  eigenes ADR — Erweiterung der dort bereits getroffenen Entscheidung, keine neue
+  Grundsatzentscheidung.
+- Beta4-Befund 2: DateEntry zeigte das heutige Datum, wenn kein Datum gelesen wurde
+  (Filter blieb korrekt inaktiv, aber Anzeige wirkte neben „Gelesen: Datum –" wie ein
+  echter Wert) — auch nach Klick auf den Datum-Löschen-Button (`✕`), der die Anzeige
+  bisher unverändert ließ. Neue Methode `_blank_date_display()` (tkcalendar
+  `validate='none'` + Text leeren) sorgt in beiden Fällen für ein wirklich leeres
+  Feld; echte Nutzerauswahl über den Kalender-Dropdown bleibt unberührt.
+- 7 neue Tests (Vorbefüllung a–d + kein-outcome-Fall, DateEntry-Leerdarstellung
+  nach simuliertem Fokusverlust). 1333 Tests grün (3 erwartete Skips).
+
+### ✅ Review-Nachbesserung 4cb171a — QR darf Engine-Vorbefüllung überschreiben + QR-Hinweiszeile (ADR-0051-Nachtrag)
+
+- Review-Befund zu 4cb171a: Die neue Engine-Vorbefüllung (voriger Punkt) war
+  korrekt, aber `ManualAssignmentDialog` berechnete `_ocr_prefill_call` weiterhin
+  direkt aus `card_fields.call_from` (leer bei mehreren Kandidaten), während das
+  Suchfeld selbst bereits den Engine-Call trug. `compute_qr_prefill` überschreibt
+  ein Feld nur, wenn es leer ist oder noch dem OCR-Vorbefüllungswert entspricht —
+  dieser Vergleich schlug dadurch fehl, ein per QR gelesenes korrektes Rufzeichen
+  konnte einen unscharf erkannten Engine-Treffer (`FUZZY_CALL`) nicht mehr
+  korrigieren. Verletzte die in ADR-0051 §4 festgelegte Priorität QR > OCR > Engine.
+- Fix: `_ocr_prefill_call`/`_band`/`_mode`/`_date` werden jetzt EINMALIG aus
+  demselben `card_fields_to_query(card_fields, outcome)`-Ergebnis berechnet, das
+  auch die tatsächliche Feld-Vorbefüllung liefert (`self._prefill_query`,
+  in `__init__` vor `_build_ui()`, dort wiederverwendet statt neu berechnet).
+  `band`/`mode`/`date` waren bereits identisch zu `card_fields` — nur konsistent
+  auf dieselbe Quelle umgestellt, kein Verhaltensunterschied dort.
+- Neue Hinweiszeile (DF1DS-Entscheidung): sobald `_apply_qr_prefill` tatsächlich
+  mindestens ein Feld überschrieben hat, erscheint unter „Gelesen:" eine dritte
+  Zeile „Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht
+  ausgewertet)." (`_LBL_QR_HINT`) — sonst könnte der Grund-Text (beschreibt den
+  OCR-Lauf) neben einem QR-korrigierten Feld irreführend wirken. Zeile fehlt ohne
+  QR-Übernahme; Grund-/Gelesen-Text selbst unverändert.
+- ADR-0051 §4 um den Beta4-Review-Nachtrag ergänzt.
+- 5 neue Tests (reiner `compute_qr_prefill`-Test für den Engine-Vorbefüllungsfall,
+  3 tk-Tests: QR überschreibt Engine-Vorbefüllung, Hinweiszeile sichtbar nach
+  QR-Übernahme, Hinweiszeile bleibt ausgeblendet ohne QR-Übernahme). 1337 Tests
+  grün (3 erwartete Skips).
+
+### ✅ Beta-Release v0.5.0-beta5 — veröffentlicht, in Test durch DF1DS
+
+- Erneute Beta nach den Beta4-Befund-Fixes (Rufzeichen-Vorbefüllung aus Engine-
+  Treffer, leeres Datumsfeld ohne gelesenes Datum, QR darf Engine-Vorbefüllung
+  überschreiben, QR-Hinweiszeile — `origin/dev` = `9415a71`). `__version__.py`
+  bleibt `0.5.0`/`stable` (unverändert seit beta1, ADR-0046 §1); CHANGELOG
+  `[Unreleased]` weiterhin offen (ADR-0046 §3), enthält jetzt zusätzlich diese
+  Fixes. Issues #35 (Sonderrufzeichen zwei Ziffern), #36 (OCR O/0, I/1) und #38
+  (Hauptfenster-Zeilen-Tooltip) bleiben offen — nicht Teil dieser Beta.
+- Tag `v0.5.0-beta5`; Praxistest der Vorbefüllung + QR-Korrektur + Datumsfeld im
+  manuellen Zuordnungs-Dialog macht DF1DS manuell nach dem Build. Stable-Release
+  weiterhin nicht durch DF1DS bestätigt.
+
+### ✅ Karten ignorieren — ersetzt den ungenutzten Unsicher-Tag (ADR-0059, Issue #39)
+
+- Befund (Desktop-Review): `tags.uncertain` war faktisch toter Code — nie gesetzt,
+  weil `gui/controller.start_write` `uncertain_doc_ids` nie an `write_selected`
+  übergab. KONZEPT §8 beschrieb damit nicht existierendes Verhalten.
+- `tags.uncertain` → `tags.ignored` ersetzt; Config `config_version` 1→2 (alter
+  Wert wird nicht übernommen, Default `qsl-ignoriert`).
+- Neues Modul `ignore.py` (`ignore_card`/`unignore_card`) — wirkt sofort über
+  einen Paperless-Tag, Log4OM-DB unberührt, kein Bestätigungsdialog; legt den Tag
+  NICHT automatisch an (ADR-0031 §5). Eigene Audit-Log-Zeilenart in `audit.py`.
+- `paperless.py`: `get_documents_by_tag` mit mehreren Ausschluss-Tags
+  (`exclude_tag_names`, kommagetrennte `tags__id__none`); neue
+  `count_documents_with_all_tags`/`list_documents_with_all_tags` (`tags__id__all`).
+- `run_pass` schließt confirmed UND ignored serverseitig aus; `RunResult.
+  ignored_count` additiv (Zählfehler nicht fatal). `write_selected` verliert den
+  nie genutzten `uncertain_doc_ids`-Parameter (toter Code entfernt).
+- Manueller Zuordnungs-Dialog: neuer Button „Ignorieren"/„Nicht mehr ignorieren"
+  (nur UNCERTAIN/NO_MATCH, `tk.Button` mit roter Schrift), Netzwerkaufruf im
+  Hintergrund-Thread über Queue-Polling (ADR-0023-Muster — ein direkter
+  `self.after(0, …)`-Aufruf aus dem Hintergrund-Thread blockierte die
+  verschachtelte `wait_window()`-Eventloop faktisch bis zum Timeout, siehe
+  Commit-Historie). Speichern/Speichern-und-nächste gesperrt solange ignoriert;
+  fehlender Ignoriert-Tag zeigt Klartext-Hinweis statt Traceback.
+- Hauptfenster: ignorierte Karten grau mit Status „Ignoriert" am Listenende
+  (`filter_util.done_doc_ids`), aus Durcharbeiten-Sequenz und Schreib-Korb
+  ausgeschlossen, per Doppelklick weiter öffenbar. Statuszeile zeigt „N Karten
+  ignoriert" nach Lauf-Ende. Neuer Menüpunkt „Bearbeiten → Ignorierte Karten…"
+  (`gui/ignored_window.py`): lädt frisch aus Paperless, Mehrfachauswahl +
+  „Wieder aufnehmen", einfache Bildvorschau per Doppelklick.
+- Setup-Assistent: drittes Tag-Feld heißt jetzt „Ignoriert-Tag" (gleiche
+  Dropdown-/„Anlegen"-Bedienung); Auto-Matching-Warnung gilt jetzt auch dafür.
+- ADR-0059 angelegt; KONZEPT.md §5/§8/§9 aktualisiert; README (Bedienung +
+  Update-Hinweis) und CHANGELOG `[Unreleased]` ergänzt. Issue #39 angelegt und
+  per „Fixes #39" geschlossen.
+- Tests: neue Module `test_ignore.py`, `test_ignored_window.py`; erweitert:
+  `test_config.py`, `test_paperless.py`, `test_run.py`, `test_audit.py`,
+  `test_manual_assignment.py`, `test_filter_util.py`,
+  `test_setup_wizard_logic.py`, `test_gui_imports.py`.
+
+### ✅ Korrektur-Nachtrag zu ADR-0059 — Race beim Dialog-Schließen behoben (Review f8f3728)
+
+- Review-Befund: main_window liest `dlg.ignored` erst nach dem Schließen des
+  manuellen Zuordnungs-Dialogs — schloss der Nutzer während des laufenden
+  Ignorieren/Wieder-Aufnehmen-Netzwerkaufrufs, konnte der Paperless-Tag bereits
+  gesetzt sein, während die Karte mangels Update fälschlich nicht als ignoriert
+  übernommen wurde (Race).
+- `gui/manual_assignment.py`: neuer `_in_flight`-Zustand sperrt während des
+  Aufrufs alle vier Workflow-Buttons (Speichern/Speichern-und-nächste/Nächste/
+  Abbrechen) und ignoriert `WM_DELETE_WINDOW` (Fenster-X); reine Funktion
+  `dialog_buttons_state(in_flight, ignored, has_selection, has_next)` kapselt
+  die Freigabe-Logik tk-frei und testbar. Ignorieren-Button-Tooltip folgt jetzt
+  dem Zustand (`ignore_button_tooltip()`, neue `_Tooltip.set_text()` in
+  `gui/tooltip.py`).
+- `paperless.list_documents_with_all_tags`: fordert nur noch
+  `fields=id,title,created,added` an statt des vollen Dokuments (voller
+  OCR-Text kam bisher unnötig mit jeder ignorierten Karte mit).
+- `wizard_logic.auto_matching_warning`: Formulierung „bestätigt markiert oder
+  ignoriert" statt der veralteten „bestätigt/unsicher markiert".
+- ADR-0059 um Nachtrag ergänzt; CHANGELOG `[Unreleased]` (Fixed) ergänzt.
+- **Hinweis Testumgebung:** Der volle `pytest -m "not slow"`-Lauf in einem
+  einzelnen Prozess ist auf der aktuellen Windows-Dev-Maschine bei diesem
+  Testumfang (>1300 Tests, mehrere hundert reale `tk.Tk()`-Instanzen)
+  zunehmend anfällig für einen Tcl-internen Cross-Thread-Absturz
+  („Tcl_AsyncDelete: async handler deleted by the wrong thread") — durch
+  Bisektion bestätigt umgebungsbedingt (reproduziert auch mit rein
+  vorbestehendem Code bei genügend Wiederholungen in derselben Session,
+  Häufigkeit steigt mit der Session-Laufzeit), keine Logikursache im
+  Anwendungscode. Verifiziert stattdessen in zwei Teilläufen
+  (`--ignore=tests/gui` sowie `tests/gui` einzeln), beide grün. CI (Linux,
+  ohne Display) ist nicht betroffen, da dort alle tk-Tests skippen.
+- **Testnachweis-Nachtrag:** Die 899+475=1374 aus dem letzten Bericht liefen
+  beide mit `-m "not slow"` bzw. ohne `tests/acceptance`-Abdeckung — die
+  23 `slow`/Acceptance-Tests (DB-Kopie, `tests/acceptance/` +
+  `test_log4om_db.py`) fehlten damit im Nachweis. Separat nachgeholt:
+  `pytest -m slow` → 23 passed, 0 failed. Damit sind alle drei disjunkten
+  Teilmengen (899 nicht-GUI-schnell + 481 GUI [463–475 passed, Rest
+  umgebungsbedingte Skips, siehe unten] + 23 slow) nachweislich grün — DoD
+  ADR-0027 erfüllt.
+- Tcl-Absturzbefund als eigenes Tech-Debt-Issue #40 festgehalten (nicht in
+  diesem Schritt behoben); zusätzlich vermerkt: `main_window.
+  _start_update_check` nutzt dasselbe `self.after(0, …)`-aus-Hintergrund-
+  Thread-Muster wie ursprünglich der Ignorieren-Dialog — Umstellung auf
+  Queue-Polling (ADR-0023) dort zur Prüfung vorgemerkt.
+
+### 🔧 Beta-Release v0.5.0-beta6 — in Vorbereitung
+
+- Enthält Karten ignorieren (#39, ADR-0059 + Race-Nachtrag, Config v1→v2) seit
+  beta5 (`origin/dev` = `8b2a833`). `__version__.py` bleibt `0.5.0`/`stable`
+  (unverändert seit beta1, ADR-0046 §1); CHANGELOG `[Unreleased]` weiterhin
+  offen (ADR-0046 §3). Issues #35 (Sonderrufzeichen zwei Ziffern), #36 (OCR
+  O/0, I/1) und #38 (Hauptfenster-Zeilen-Tooltip) bleiben offen — nicht Teil
+  dieser Beta.
+- Tag `v0.5.0-beta6`; Praxistest des Ignorieren-Features (Button im manuellen
+  Dialog, Listenfenster, Setup-Assistent-Tag-Feld, einmaliger Ignoriert-Tag-
+  Hinweis nach dem Update) macht DF1DS manuell nach dem Build. Stable-Release
+  weiterhin nicht durch DF1DS bestätigt.
+
+### ✅ Stable-Release v0.5.0 — VERÖFFENTLICHT (2026-09-18)
+
+- CHANGELOG [0.5.0] - 2026-09-18 eingefroren (inkl. Bereinigung: Review-Nachtrag
+  zu ADR-0059 aus Fixed entfernt, nutzerrelevanter Kern in den Added-Eintrag
+  „Karten ignorieren" integriert; Update-Hinweis zum Ignoriert-Tag ergänzt);
+  dev → main Fast-Forward; Tag `v0.5.0` gesetzt.
+- Enthaltene Issues: #26 (Log-Level-Einstellung), #4 (CT=QSL-Randfälle
+  dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau), #34
+  (Anzeige-Fix CERTAIN-Rufzeichen), #37 (Grund der Einstufung, ADR-0058), #39
+  (Karten ignorieren, ADR-0059, Config v1→v2); ADR-0057-Datumsfix
+  (Bindestrich-Datumsformate).
+- Nicht enthalten (bleiben offen): #35, #36, #38, #40. **Empfehlung:** #40
+  (Testsuite-Stabilität) als nächster Auftrag.
 
 ## V2 — Vorgemerkte Features
 

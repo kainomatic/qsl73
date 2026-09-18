@@ -62,6 +62,7 @@ class RunResult:
     expected_states: dict[str, str]    # qsoid → R-Wert aus Sammelphase → write_selected
     candidates: list[QsoCandidate] = field(default_factory=list)  # offene QSO-Kandidaten für manuellen Zuordnungs-Dialog
     cancelled: bool = False  # True wenn run_pass via cancel_event abgebrochen (ADR-0053)
+    ignored_count: int = 0  # Anzahl aktuell ignorierter Karten (Eingangs-Tag + Ignoriert-Tag, ADR-0059/ADR-0022)
 
 
 @dataclass
@@ -189,20 +190,25 @@ def _extract_token_based(
     date = date_candidates[0] if len(set(date_candidates)) == 1 else None
     time_utc = time_candidates[0] if time_candidates else None
 
-    # call_from: genau ein eindeutiges Fremd-Rufzeichen → Absender.
+    # Fremd-Rufzeichen: dedupliziert, Reihenfolge erhalten. call_from bleibt aus
+    # Abwärtskompatibilität nur bei GENAU einem Kandidaten gesetzt; die vollständige
+    # Liste wird IMMER als call_from_candidates durchgereicht (ADR-0056) — match_card
+    # verarbeitet mehrere Fremdcalls unabhängig, statt sie bei >1 zu None zu kollabieren
+    # (Issue #33: ein Druckvermerk-/Werbe-Call löschte sonst den echten Absender).
     seen: set[str] = set()
     unique_foreign = [c for c in foreign_calls if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
     call_from = unique_foreign[0] if len(unique_foreign) == 1 else None
 
     _log.debug(
         "OCR token-scan: band_cands=%r mode_cands=%r date_cands=%r "
-        "time_cands=%r foreign_calls=%r call_to=%r",
+        "time_cands=%r call_from_candidates=%r call_to=%r",
         band_candidates, mode_candidates, date_candidates,
         time_candidates, unique_foreign, call_to,
     )
 
     return CardFields(
         call_from=call_from,
+        call_from_candidates=unique_foreign,
         call_to=call_to,
         date=date,
         band=band,
@@ -380,15 +386,16 @@ def run_pass(
             on_progress(done, total, msg)
 
     # 1. Paperless-Dokumente mit qsl-card-Tag laden (paginiert).
-    #    Bereits bestätigte Karten (Bestätigt-Tag) werden serverseitig ausgeschlossen
-    #    damit sie im zweiten Durchlauf nicht erneut als „Kein Treffer" erscheinen (ADR-0032).
+    #    Bereits bestätigte Karten (Bestätigt-Tag) UND ignorierte Karten (Ignoriert-Tag)
+    #    werden serverseitig ausgeschlossen, damit sie nicht erneut als „Kein Treffer"
+    #    erscheinen (ADR-0032, erweitert um Ignoriert-Tag in ADR-0059).
     tag_name = config.tags.input
-    exclude_tag = config.tags.confirmed
-    docs = paperless_client.get_documents_by_tag(tag_name, exclude_tag_name=exclude_tag)
+    exclude_tags = [config.tags.confirmed, config.tags.ignored]
+    docs = paperless_client.get_documents_by_tag(tag_name, exclude_tag_names=exclude_tags)
     total = len(docs)
     _log.debug(
-        "Dokumente geladen — Tag '%s', Ausschluss '%s', Ergebnis: %d Dok.",
-        tag_name, exclude_tag, total,
+        "Dokumente geladen — Tag '%s', Ausschluss %r, Ergebnis: %d Dok.",
+        tag_name, exclude_tags, total,
     )
     _progress(0, total, f"{total} Dokumente mit Tag '{tag_name}' geladen")
 
@@ -466,6 +473,18 @@ def run_pass(
             "Lauf beendet — sicher=%d unsicher=%d kein_treffer=%d",
             len(certain), len(uncertain), len(no_match),
         )
+
+    # Zähler ignorierter Karten für die Statuszeile (ADR-0059) — Zählfehler sind
+    # nicht fatal (WARNING im Log, Wert 0), damit ein Paperless-Hänger den Lauf
+    # nicht zum Absturz bringt.
+    ignored_count = 0
+    try:
+        ignored_count = paperless_client.count_documents_with_all_tags(
+            [config.tags.input, config.tags.ignored]
+        )
+    except Exception as exc:
+        _log.warning("Zähler ignorierter Karten konnte nicht ermittelt werden: %s", exc)
+
     return RunResult(
         certain=certain,
         uncertain=uncertain,
@@ -474,6 +493,7 @@ def run_pass(
         expected_states=data.expected_states,
         candidates=data.candidates,
         cancelled=cancelled,
+        ignored_count=ignored_count,
     )
 
 
@@ -491,7 +511,6 @@ def write_selected(
     backup_count: int = 5,
     paperless_client: Optional[PaperlessClient] = None,
     confirmed_doc_ids: Optional[list[int]] = None,
-    uncertain_doc_ids: Optional[list[int]] = None,
     tags_config: Optional[TagsConfig] = None,
     manual_qsoids: Optional[set[str]] = None,
     candidates: Optional[list[QsoCandidate]] = None,
@@ -513,7 +532,6 @@ def write_selected(
         backup_count: Maximale Anzahl aufbewahrter Backups.
         paperless_client: Optional — wenn None, werden keine Tags gesetzt.
         confirmed_doc_ids: Dok-IDs, die den bestätigten Tag erhalten.
-        uncertain_doc_ids: Dok-IDs, die den unsicheren Tag erhalten.
         tags_config: Tag-Namen aus Config; erforderlich wenn paperless_client gesetzt.
 
     Returns:
@@ -551,22 +569,6 @@ def write_selected(
             tag_warnings.append(
                 f"Tag '{tags_config.confirmed}' konnte nicht gesetzt werden "
                 f"({confirmed_failures} Dok.) — existiert er in Paperless?"
-            )
-
-        uncertain_failures = 0
-        for doc_id in (uncertain_doc_ids or []):
-            try:
-                paperless_client.add_tag_to_document(doc_id, tags_config.uncertain)
-            except Exception as exc:
-                uncertain_failures += 1
-                _log.warning(
-                    "Tag '%s' konnte für Dok. %s nicht gesetzt werden: %s",
-                    tags_config.uncertain, doc_id, exc,
-                )
-        if uncertain_failures:
-            tag_warnings.append(
-                f"Tag '{tags_config.uncertain}' konnte nicht gesetzt werden "
-                f"({uncertain_failures} Dok.) — existiert er in Paperless?"
             )
 
     _log.info(

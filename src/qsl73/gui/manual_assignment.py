@@ -2,7 +2,9 @@
 """Manueller Zuordnungs-Dialog (Schritt 6c-2/6c-UX, ADR-0037).
 
 Öffentliche API (tk-frei, vollständig ohne Display testbar):
-  card_fields_to_query   — CardFields → ManualQuery (OCR-Vorbefüllung)
+  card_fields_to_query   — CardFields (+ optional MatchOutcome) → ManualQuery
+                           (OCR-Vorbefüllung; nutzt bei mehreren Fremdcall-
+                           Kandidaten den Engine-Treffer, Beta4-Befund)
   field_values_to_query  — Eingabefeld-Strings → ManualQuery
   render_pdf_pages       — PDF-Bytes → list[PIL.Image] (alle Seiten, 150 DPI, Issue #19)
   render_pdf_first_page  — PDF-Bytes → PIL.Image | None (Seite 1; Abwärtskomp.)
@@ -12,6 +14,14 @@
   wrap_page_index        — Seiten-Umlauf (wrap-around), direction +1/-1
   apply_display_limit    — (candidates, limit) → (shown_list, total_count); ADR-0030
   compute_qr_prefill     — QR-Felder + OCR-Stand → Überschreibungs-Dict (rein, tk-frei)
+  ignore_toggle_target   — aktueller Ignoriert-Zustand → Ziel-Zustand (Toggle, ADR-0059)
+  ignore_button_label    — Ignoriert-Zustand → Button-Beschriftung (ADR-0059)
+  ignore_button_tooltip  — Ignoriert-Zustand → Tooltip-Text (ADR-0059-Nachtrag)
+  save_buttons_enabled   — (ignored, has_selection, has_next) → (save_ok, save_next_ok)
+  dialog_buttons_state   — (in_flight, ignored, has_selection, has_next) → Freigabe der
+                           vier Workflow-Buttons; sperrt alle während eines laufenden
+                           Ignorieren-Aufrufs (Race-Schutz, ADR-0059-Nachtrag)
+  format_ignore_tag_missing_message — Tag-Name → Hinweistext bei fehlendem Ignoriert-Tag
 
 tk-abhängig:
   ManualAssignmentDialog — modales tk.Toplevel; result = (qsoid, route) | None;
@@ -21,9 +31,18 @@ from __future__ import annotations
 
 import io
 import logging
+import queue
+import threading
 from typing import TYPE_CHECKING, Callable, Optional
 
-from qsl73.gui.filter_util import apply_display_limit, sort_candidates_by_column
+from qsl73.gui.filter_util import (
+    apply_display_limit,
+    card_display_callsign,
+    describe_read_fields,
+    describe_reason,
+    sort_candidates_by_column,
+)
+from qsl73.gui.error_dialog import show_error
 from qsl73.gui.manual_match import ManualQuery, make_manual_selection, search_candidates
 from qsl73.gui.tooltip import attach_tooltip
 from qsl73.matching import CardFields, MatchResult, QsoCandidate
@@ -44,6 +63,13 @@ _BTN_SAVE_NEXT = "Speichern und nächste"
 _BTN_NEXT = "Nächste"
 _BTN_CANCEL = "Abbrechen"
 _BTN_DATE_CLEAR = "✕"
+_BTN_IGNORE = "Ignorieren"
+_BTN_UNIGNORE = "Nicht mehr ignorieren"
+_TITLE_IGNORE_TAG_MISSING = "Ignoriert-Tag fehlt"
+_LBL_REASON = "Grund:"
+_LBL_READ_FIELDS = "Gelesen:"
+_LBL_QR_HINT = "Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht ausgewertet)."
+_REASON_WRAPLENGTH = 320
 
 # Tooltip-Texte (i18n-Vorbereitung)
 _TT_CALL_FIELD = "Rufzeichen der Gegenstation — aus QR-Code oder OCR vorbefüllt, bearbeitbar"
@@ -58,20 +84,58 @@ _TT_BTN_SAVE = "Zuordnung speichern — Karte wird diesem QSO zugeordnet vorgeme
 _TT_BTN_SAVE_NEXT = "Zuordnung speichern und direkt zur nächsten Karte weitergehen"
 _TT_BTN_NEXT = "Diese Karte überspringen und zur nächsten weitergehen (keine Zuordnung)"
 _TT_BTN_CANCEL = "Dialog schließen ohne Zuordnung"
+_TT_BTN_IGNORE = (
+    "Markiert diese Karte dauerhaft als ignoriert — wirkt sofort (nur Paperless-Tag, "
+    "Log4OM-Logbuch bleibt unberührt). Über Bearbeiten → Ignorierte Karten… jederzeit rückgängig."
+)
+_TT_BTN_UNIGNORE = (
+    "Entfernt den Ignoriert-Tag — die Karte erscheint wieder im nächsten Durchlauf."
+)
 
 # ---------------------------------------------------------------------------
 # Reine Helfer — tk-frei, vollständig ohne Display testbar
 # ---------------------------------------------------------------------------
 
 
-def card_fields_to_query(card_fields: CardFields) -> ManualQuery:
+def _prefill_call_from_outcome(outcome) -> Optional[str]:
+    """Ermittelt ein Vorbefüll-Rufzeichen aus dem Engine-Treffer (Beta4-Befund, ADR-0051).
+
+    Trägt eine Karte mehrere erkannte Fremdcall-Kandidaten (ADR-0056),
+    bleibt card_fields.call_from None — auch wenn match_card bereits genau
+    EIN DB-QSO getroffen hat (R2 TOO_FEW_FIELDS oder R3 FUZZY_CALL). Ohne
+    diese Funktion blieb das Rufzeichen-Suchfeld dann leer und die
+    Trefferliste zeigte alle QSOs statt des einen bereits bekannten Treffers.
+
+    Nur wenn outcome.candidates GENAU EIN QSO enthält UND der Grund
+    (reason.details) das dafür verantwortliche Karten-Rufzeichen nennt
+    (TOO_FEW_FIELDS: "call"; FUZZY_CALL: "read"), wird dieses zurückgegeben.
+    Bei mehreren getroffenen QSOs (MULTI_QSO) oder ohne Grunddaten: None —
+    kein Raten (ADR-0007). Wählt NUR das Suchfeld vor, keine Vorauswahl in
+    der Trefferliste (ADR-0028: Vorbefüllung ja, Auto-Select nein).
+    """
+    candidates = getattr(outcome, "candidates", None) or []
+    if len(candidates) != 1:
+        return None
+    reason = getattr(outcome, "reason", None)
+    if reason is None:
+        return None
+    details = reason.details or {}
+    return details.get("call") or details.get("read")
+
+
+def card_fields_to_query(card_fields: CardFields, outcome=None) -> ManualQuery:
     """Befüllt ManualQuery aus OCR/QR-extrahierten CardFields.
 
     call_from (Absender der Karte) wird als Rufzeichen-Suchfeld verwendet.
-    Leere Strings und None bleiben None (kein Filter).
+    Ist call_from None (mehrere erkannte Fremdcall-Kandidaten, ADR-0056), aber
+    match_card hat bereits genau EIN DB-QSO getroffen (outcome, optional),
+    wird ersatzweise das dafür verantwortliche Karten-Rufzeichen vorbefüllt
+    (_prefill_call_from_outcome, Beta4-Befund). Leere Strings und None bleiben
+    None (kein Filter).
     """
+    call = card_fields.call_from or _prefill_call_from_outcome(outcome)
     return ManualQuery(
-        call=card_fields.call_from or None,
+        call=call or None,
         date=card_fields.date or None,
         band=card_fields.band or None,
         mode=card_fields.mode or None,
@@ -221,6 +285,67 @@ def compute_qr_prefill(
 
 
 # ---------------------------------------------------------------------------
+# Ignorieren — reine Helfer (ADR-0059), tk-frei, vollständig ohne Display testbar
+# ---------------------------------------------------------------------------
+
+
+def ignore_toggle_target(current_ignored: bool) -> bool:
+    """Gibt den Ziel-Zustand für einen Klick auf den Ignorieren-Button zurück (Toggle)."""
+    return not current_ignored
+
+
+def ignore_button_label(ignored: bool) -> str:
+    """Gibt die Beschriftung des Ignorieren-Buttons für den gegebenen Zustand zurück."""
+    return _BTN_UNIGNORE if ignored else _BTN_IGNORE
+
+
+def ignore_button_tooltip(ignored: bool) -> str:
+    """Gibt den Tooltip-Text des Ignorieren-Buttons für den gegebenen Zustand zurück."""
+    return _TT_BTN_UNIGNORE if ignored else _TT_BTN_IGNORE
+
+
+def save_buttons_enabled(ignored: bool, has_selection: bool, has_next: bool) -> tuple[bool, bool]:
+    """Gibt (save_enabled, save_next_enabled) für den aktuellen Zustand zurück.
+
+    Solange eine Karte ignoriert ist, sind 'Speichern' und 'Speichern und nächste'
+    gesperrt (ADR-0059) — unabhängig von der Trefferlisten-Auswahl.
+    """
+    if ignored:
+        return False, False
+    return has_selection, has_selection and has_next
+
+
+def dialog_buttons_state(
+    in_flight: bool, ignored: bool, has_selection: bool, has_next: bool
+) -> dict[str, bool]:
+    """Berechnet den Freigabe-Zustand der vier Workflow-Buttons (ADR-0059-Nachtrag).
+
+    Während ein Ignorieren/Wieder-Aufnehmen-Aufruf läuft (in_flight=True), sind
+    'Speichern', 'Speichern und nächste', 'Nächste' und 'Abbrechen' alle gesperrt —
+    der Dialog darf nicht schließbar sein, bevor die Antwort da ist. Ohne diese
+    Sperre kann main_window ``dlg.ignored`` lesen, bevor der Tag-Aufruf
+    abgeschlossen ist: der Tag wäre in Paperless bereits gesetzt, aber die Karte
+    bliebe in Liste/Workflow fälschlich als nicht ignoriert stehen (Race).
+    Außerhalb von in_flight unverändert: Speichern/Speichern-und-nächste folgen
+    save_buttons_enabled(); Nächste hängt nur von has_next ab; Abbrechen ist
+    immer verfügbar.
+    """
+    if in_flight:
+        return {"save": False, "save_next": False, "next": False, "cancel": False}
+    save_ok, save_next_ok = save_buttons_enabled(ignored, has_selection, has_next)
+    return {"save": save_ok, "save_next": save_next_ok, "next": has_next, "cancel": True}
+
+
+def format_ignore_tag_missing_message(tag_name: str) -> str:
+    """Formatiert den Hinweistext für einen fehlenden/leeren Ignoriert-Tag (erwarteter Fehler)."""
+    name = tag_name or "(nicht gesetzt)"
+    return (
+        f"Der Ignoriert-Tag '{name}' ist in Paperless nicht vorhanden. "
+        "Bitte zuerst unter Bearbeiten → Einstellungen… auswählen oder anlegen."
+    )
+
+
+# ---------------------------------------------------------------------------
 # tk-Toplevel — nur importieren wenn tk verfügbar
 # ---------------------------------------------------------------------------
 
@@ -256,10 +381,14 @@ if _TK_OK:
             card_index: int = 0,
             total_cards: int = 0,
             has_next: bool = False,
+            paperless_client=None,
+            tags_config=None,
+            already_ignored: bool = False,
         ) -> None:
             super().__init__(parent)
             self.result: Optional[tuple[str, str]] = None
             self.action: str = "cancel"   # "save"|"save_next"|"skip"|"cancel"
+            self.ignored: bool = already_ignored  # finaler Ignoriert-Zustand beim Schließen (ADR-0059)
             self._card = card
             self._candidates = candidates
             self._default_route = default_route
@@ -269,6 +398,10 @@ if _TK_OK:
             self._card_index = card_index
             self._total_cards = total_cards
             self._has_next = has_next
+            self._paperless_client = paperless_client  # für Ignorieren/Wieder-Aufnehmen (ADR-0059)
+            self._tags_config = tags_config
+            self._in_flight: bool = False  # True während laufendem Ignorieren-Aufruf (Race-Schutz)
+            self._ignore_tooltip = None    # _Tooltip-Instanz des Ignorieren-Buttons
             self._img_ref = None          # PIL/tk PhotoImage — vor GC schützen
             self._iid_to_qsoid: dict[str, str] = {}
             self._pages: list = []        # gerenderte Seiten (PIL-Images)
@@ -283,12 +416,21 @@ if _TK_OK:
             self.title("Manuelle Zuordnung — by DF1DS")
             self.resizable(True, True)
             self.grab_set()
+            # Fenster-X während eines laufenden Ignorieren-Aufrufs ignorieren (Race-Schutz,
+            # ADR-0059-Nachtrag) — sonst wie Abbrechen.
+            self.protocol("WM_DELETE_WINDOW", self._on_delete_window)
 
-            # OCR-Vorbefüllung merken für QR-Vergleich in _apply_qr_prefill
-            self._ocr_prefill_call = self._card.card_fields.call_from or ""
-            self._ocr_prefill_band = self._card.card_fields.band or ""
-            self._ocr_prefill_mode = self._card.card_fields.mode or ""
-            self._ocr_prefill_date = self._card.card_fields.date or ""
+            # OCR/Engine-Vorbefüllung EINMALIG berechnen (statt in _build_ui erneut)
+            # und für den QR-Vergleich in _apply_qr_prefill merken. Muss denselben
+            # Wert tragen wie die tatsächliche Feld-Vorbefüllung weiter unten —
+            # sonst blockiert ein Engine-Rufzeichen (ADR-0051 §4, aus outcome bei
+            # mehreren Fremdcall-Kandidaten) fälschlich die QR-Überschreibung, weil
+            # compute_qr_prefill nur bei current==ocr_prefill überschreibt.
+            self._prefill_query = card_fields_to_query(self._card.card_fields, self._card.outcome)
+            self._ocr_prefill_call = self._prefill_query.call or ""
+            self._ocr_prefill_band = self._prefill_query.band or ""
+            self._ocr_prefill_mode = self._prefill_query.mode or ""
+            self._ocr_prefill_date = self._prefill_query.date or ""
 
             self._build_ui()
             self._update_search()
@@ -380,7 +522,7 @@ if _TK_OK:
             self._var_mode = tk.StringVar()
 
             # OCR-Vorbefüllung
-            q = card_fields_to_query(self._card.card_fields)
+            q = self._prefill_query
             if q.call:
                 self._var_call.set(q.call)
             if q.band:
@@ -409,6 +551,7 @@ if _TK_OK:
                 self._date_entry = DateEntry(
                     fld_frame, width=18, date_pattern="yyyy-MM-dd"
                 )
+                self._use_datepicker = True
                 if q.date:
                     try:
                         from datetime import datetime as _dt
@@ -417,14 +560,18 @@ if _TK_OK:
                         )
                         self._date_explicit = True
                     except Exception:
-                        pass
+                        self._blank_date_display()
+                else:
+                    # Kein gelesenes Datum (OCR/QR) — DateEntry würde sonst das
+                    # heutige Datum zeigen und wie ein gelesener Wert wirken,
+                    # direkt neben "Gelesen: Datum –" (Beta4-Befund).
+                    self._blank_date_display()
                 self._date_entry.bind(
                     "<<DateEntrySelected>>", self._on_date_changed
                 )
                 self._date_entry.bind(
                     "<KeyRelease>", self._on_date_changed
                 )
-                self._use_datepicker = True
             except ImportError:
                 _log.warning(
                     "tkcalendar nicht verfügbar — Datum als Textfeld (Format: YYYY-MM-DD)"
@@ -480,6 +627,37 @@ if _TK_OK:
             _mode_combo.grid(row=3, column=1, sticky="ew", pady=2)
             attach_tooltip(_mode_combo, _TT_MODE_FIELD)
 
+            # Row 4/5 — Grund der Einstufung + gelesene Rohfelder (ADR-0058, Issue #37)
+            # CERTAIN trägt keinen Grund (match_card setzt reason=None) — Block
+            # entfällt dann; in der Praxis öffnet sich der Dialog nur für
+            # UNCERTAIN/NO_MATCH, die Prüfung ist defensiv.
+            self._reason_label: Optional[tk.Label] = None
+            self._fields_label: Optional[tk.Label] = None
+            self._qr_hint_label: Optional[tk.Label] = None
+            if self._card.outcome.result != MatchResult.CERTAIN:
+                reason_line = f"{_LBL_REASON} {describe_reason(self._card.outcome)}"
+                fields_line = f"{_LBL_READ_FIELDS} {describe_read_fields(self._card.card_fields)}"
+                self._reason_label = tk.Label(
+                    fld_frame, text=reason_line, justify="left", anchor="w",
+                    wraplength=_REASON_WRAPLENGTH,
+                )
+                self._reason_label.grid(row=4, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=(8, 0))
+                self._fields_label = tk.Label(
+                    fld_frame, text=fields_line, justify="left", anchor="w",
+                    wraplength=_REASON_WRAPLENGTH,
+                )
+                self._fields_label.grid(row=5, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=(2, 0))
+                # Dritte Zeile: nur sichtbar, sobald _apply_qr_prefill tatsächlich
+                # mindestens ein Feld aus dem QR übernommen hat (sonst wirkt der
+                # Grund-Text, der den OCR-Lauf beschreibt, irreführend — DF1DS-
+                # Entscheidung, Beta4-Review). Grund-/Gelesen-Text selbst unverändert.
+                self._qr_hint_label = tk.Label(
+                    fld_frame, text=_LBL_QR_HINT, justify="left", anchor="w",
+                    wraplength=_REASON_WRAPLENGTH, foreground="#0a5aa8",
+                )
+                self._qr_hint_label.grid(row=6, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=(2, 0))
+                self._qr_hint_label.grid_remove()
+
             fld_frame.columnconfigure(1, weight=1)
 
             # --- Trefferliste ---
@@ -513,11 +691,27 @@ if _TK_OK:
             btn_frame = ttk.Frame(main)
             btn_frame.pack(fill="x")
 
-            _cancel_btn = ttk.Button(
+            # Ignorieren — links, deutlich abgesetzt von den vier Workflow-Buttons rechts
+            # (ADR-0059). tk.Button statt ttk.Button: ttk-foreground greift unter Windows
+            # nicht zuverlässig für rote Schrift. Nur für UNCERTAIN/NO_MATCH-Karten.
+            self._ignore_btn: Optional[tk.Button] = None
+            if self._card.outcome.result != MatchResult.CERTAIN:
+                self._ignore_btn = tk.Button(
+                    btn_frame,
+                    text=ignore_button_label(self.ignored),
+                    fg="#cc0000",
+                    command=self._on_toggle_ignore,
+                )
+                self._ignore_btn.pack(side="left")
+                self._ignore_tooltip = attach_tooltip(
+                    self._ignore_btn, ignore_button_tooltip(self.ignored)
+                )
+
+            self._btn_cancel = ttk.Button(
                 btn_frame, text=_BTN_CANCEL, command=self._on_cancel
             )
-            _cancel_btn.pack(side="right", padx=(4, 0))
-            attach_tooltip(_cancel_btn, _TT_BTN_CANCEL)
+            self._btn_cancel.pack(side="right", padx=(4, 0))
+            attach_tooltip(self._btn_cancel, _TT_BTN_CANCEL)
 
             self._btn_save = ttk.Button(
                 btn_frame, text=_BTN_SAVE, command=self._on_save, state="disabled"
@@ -555,19 +749,134 @@ if _TK_OK:
             self._update_search()
 
         def _on_clear_date(self) -> None:
-            """Datum-Löschen-Button: Filter aufheben; DateEntry bleibt sichtbar."""
+            """Datum-Löschen-Button: Filter aufheben, DateEntry-Anzeige leeren (Beta4-Befund)."""
             self._date_explicit = False
-            if not self._use_datepicker:
+            if self._use_datepicker:
+                self._blank_date_display()
+            else:
                 self._var_date.set("")
-            # Bei DateEntry: Anzeige bleibt (zeigt "heute"), aber _date_explicit=False
-            # → _get_date_str() liefert "" → kein Datumsfilter greift.
             self._update_search()
 
+        def _blank_date_display(self) -> None:
+            """Zeigt das DateEntry-Feld leer statt mit dem heutigen Datum (Beta4-Befund).
+
+            tkcalendar validiert den Entry-Text beim Fokusverlust
+            (validate='focusout') und setzt ihn sonst automatisch auf den
+            zuletzt gültigen Wert zurück (Default: heute) — das würde ein
+            geleertes Feld sofort wieder mit "heute" überschreiben.
+            validate='none' unterbindet diese automatische Korrektur; eine
+            echte Auswahl über den Kalender-Dropdown bleibt unberührt, weil
+            _select() den Text direkt setzt, unabhängig von der
+            validate-Option. Kein Effekt, wenn kein DateEntry verfügbar ist
+            (Textfeld-Fallback ohne tkcalendar).
+            """
+            if not self._use_datepicker:
+                return
+            self._date_entry.configure(validate="none")
+            self._date_entry.delete(0, "end")
+
         def _on_tree_select(self, _event=None) -> None:
+            self._refresh_button_states()
+
+        def _refresh_button_states(self) -> None:
+            """Setzt Speichern/Speichern-und-nächste/Nächste/Abbrechen gemäß aktuellem
+            Zustand (ADR-0059-Nachtrag) — insbesondere gesperrt während _in_flight."""
             has_sel = bool(self._tree.selection())
-            self._btn_save.config(state="normal" if has_sel else "disabled")
-            save_next_state = "normal" if (has_sel and self._has_next) else "disabled"
-            self._btn_save_next.config(state=save_next_state)
+            states = dialog_buttons_state(self._in_flight, self.ignored, has_sel, self._has_next)
+            self._btn_save.config(state="normal" if states["save"] else "disabled")
+            self._btn_save_next.config(state="normal" if states["save_next"] else "disabled")
+            self._btn_next.config(state="normal" if states["next"] else "disabled")
+            self._btn_cancel.config(state="normal" if states["cancel"] else "disabled")
+
+        def _on_delete_window(self) -> None:
+            """WM_DELETE_WINDOW (Fenster-X) — während eines laufenden Ignorieren-Aufrufs
+            ignoriert (Race-Schutz, ADR-0059-Nachtrag), sonst wie Abbrechen."""
+            if self._in_flight:
+                return
+            self._on_cancel()
+
+        def _on_toggle_ignore(self) -> None:
+            """Ignorieren/Wieder-Aufnehmen — wirkt sofort, kein Bestätigungsdialog (ADR-0059).
+
+            Netzwerkaufruf im Hintergrund-Thread; Ergebnis kommt über eine Queue zurück,
+            die im Haupt-Thread per self.after() abgefragt wird (ADR-0023-Muster — kein
+            direkter Tk-Zugriff aus dem Hintergrund-Thread). Solange der Aufruf läuft,
+            sind alle vier Workflow-Buttons UND das Schließen per Fenster-X gesperrt
+            (ADR-0059-Nachtrag) — sonst könnte main_window ``dlg.ignored`` lesen, bevor
+            die Antwort da ist (Race). Dialog bleibt nach dem Klick offen — kein
+            automatisches Weiterblättern.
+            """
+            if self._paperless_client is None or self._tags_config is None:
+                _log.warning("Ignorieren ohne Paperless-Client/Tags-Config aufgerufen — no-op")
+                return
+
+            target = ignore_toggle_target(self.ignored)
+            callsign = card_display_callsign(self._card.card_fields)
+            client = self._paperless_client
+            tags_cfg = self._tags_config
+            doc_id = self._card.doc_id
+
+            self._in_flight = True
+            if self._ignore_btn is not None:
+                self._ignore_btn.config(state="disabled")
+            self._refresh_button_states()
+
+            result_queue: "queue.Queue" = queue.Queue()
+
+            def _work() -> None:
+                from qsl73.ignore import ignore_card, unignore_card
+                from qsl73.logging_setup import get_log_dir
+                try:
+                    if target:
+                        ignore_card(client, doc_id, tags_cfg, get_log_dir(), callsign=callsign)
+                    else:
+                        unignore_card(client, doc_id, tags_cfg, get_log_dir(), callsign=callsign)
+                    result_queue.put((target, None))
+                except Exception as exc:
+                    result_queue.put((target, exc))
+
+            threading.Thread(target=_work, daemon=True).start()
+            self._poll_ignore_result(result_queue)
+
+        def _poll_ignore_result(self, result_queue: "queue.Queue") -> None:
+            try:
+                target, error = result_queue.get_nowait()
+            except queue.Empty:
+                if self.winfo_exists():
+                    self.after(50, lambda: self._poll_ignore_result(result_queue))
+                return
+            self._on_ignore_done(target, error)
+
+        def _on_ignore_done(self, target: bool, error: Optional[Exception]) -> None:
+            if not self.winfo_exists():
+                return
+            self._in_flight = False
+            if self._ignore_btn is not None:
+                self._ignore_btn.config(state="normal")
+
+            if error is None:
+                self.ignored = target
+                if self._ignore_btn is not None:
+                    self._ignore_btn.config(text=ignore_button_label(self.ignored))
+                if self._ignore_tooltip is not None:
+                    self._ignore_tooltip.set_text(ignore_button_tooltip(self.ignored))
+
+            # Zustand der vier Workflow-Buttons IMMER wiederherstellen (Erfolg wie Fehler),
+            # bevor eine evtl. Fehlermeldung modal blockiert (ADR-0059-Nachtrag).
+            self._refresh_button_states()
+
+            if error is not None:
+                from qsl73.ignore import IgnoreTagMissingError
+                if isinstance(error, IgnoreTagMissingError):
+                    show_error(
+                        self,
+                        _TITLE_IGNORE_TAG_MISSING,
+                        format_ignore_tag_missing_message(error.tag_name),
+                    )
+                else:
+                    from qsl73.gui.error_messages import classify_error
+                    c = classify_error(error)
+                    show_error(self, c.title, c.user_message)
 
         def _on_sort_click(self, column: str) -> None:
             """Spaltenklick: Richtung umkehren wenn dieselbe Spalte, sonst neue Spalte setzen."""
@@ -837,6 +1146,8 @@ if _TK_OK:
             )
             if not overrides:
                 return
+            if self._qr_hint_label is not None:
+                self._qr_hint_label.grid()
             self._applying_prefill = True
             try:
                 if "call" in overrides:

@@ -7,11 +7,105 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-18
+
 ### Added
+- Karten ignorieren (ADR-0059): Nie zuordenbare Karten (fremdes Log, QSO fehlt,
+  falsch getaggter eQSL-/LoTW-Ausdruck) lassen sich im manuellen Zuordnungs-Dialog
+  über einen neuen Button „Ignorieren" dauerhaft aus dem Lauf entfernen — wirkt
+  sofort beim Klick (nur ein Paperless-Tag, kein Bestätigungsdialog, Log4OM-DB
+  unberührt), jederzeit über den erneuten Klick auf „Nicht mehr ignorieren" oder
+  über den neuen Menüpunkt **Bearbeiten → Ignorierte Karten…** (Mehrfachauswahl,
+  „Wieder aufnehmen") rückgängig zu machen. Solange eine Karte ignoriert ist,
+  sind „Speichern"/„Speichern und nächste" gesperrt; eine bestehende manuelle
+  Vormerkung wird verworfen. Während eines laufenden Ignorieren-/Wieder-Aufnehmen-
+  Aufrufs sind alle vier Dialog-Buttons gesperrt und das Fenster lässt sich nicht
+  per Fenster-X schließen (verhindert eine Race-Bedingung zwischen Tag-Setzen und
+  Dialog-Schließen). Fehlender/leerer Ignoriert-Tag zeigt einen
+  Klartext-Hinweis statt eines Traceback-Dialogs — QSL73 legt den Tag nicht
+  automatisch an (ADR-0031 §5). Ignorierte Karten erscheinen im Hauptfenster grau
+  mit Status „Ignoriert" am Listenende, sind aus der Durcharbeiten-Sequenz und dem
+  Schreib-Korb ausgeschlossen und werden ab dem nächsten Durchlauf serverseitig
+  ausgefiltert; die Statuszeile zeigt „N Karten ignoriert" nach Lauf-Ende. Neues
+  Modul `ignore.py`, eigene Audit-Log-Zeilenart für Ignorieren/Wieder-Aufnehmen.
+  **Nach dem Update einmalig unter Bearbeiten → Einstellungen… den Ignoriert-Tag
+  auswählen oder anlegen.**
+  Fixes #39
+- Log-Level (INFO/WARNING/DEBUG) im Einstellungen-Dialog wählbar (neues Config-Feld `app.log_level`); wirkt sofort nach dem Speichern. `QSL73_DEBUG=1` bleibt als Entwickler-Override wirksam und kann das gewählte Level nur anheben, nie absenken (ADR-0055, Fixes #26)
+- Manueller Zuordnungs-Dialog zeigt jetzt Grund der Einstufung + gelesene Rohfelder: unterhalb der Suchfelder erscheinen zwei Zeilen „Grund:" (Klartext mit konkreten Werten, z. B. welches Feld widerspricht oder welche Rufzeichen-Kandidaten gelesen wurden) und „Gelesen:" (Rufzeichen/Datum/Band/Mode/Zeit, fehlend = „–"). `MatchOutcome.reason` (additiv, `None` bei CERTAIN) liefert den Grund aus der Matching-Engine als strukturierte `MatchReason` (Code + Klartext + Details); `gui/filter_util.describe_reason()`/`describe_read_fields()` rendern ihn tk-frei (ADR-0058, Fixes #37). Hauptfenster-Zeilen-Tooltip mit demselben Text zurückgestellt (Issue #38 — bestehende Tooltip-Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
+- Manueller Zuordnungs-Dialog zeigt eine dritte Zeile „Hinweis: Suchfelder aus QR-Code vorbefüllt (im Durchlauf nicht ausgewertet)." unter „Gelesen:", sobald ein QR-Code tatsächlich mindestens ein Suchfeld überschrieben hat — damit der Grund-Text (ADR-0058, beschreibt den OCR-Lauf) daneben nicht irreführend wirkt. Erscheint nicht ohne QR-Übernahme; Grund-/Gelesen-Text selbst unverändert.
 
 ### Changed
+- Config-Schema `config_version` 1 → 2 (ADR-0059): `tags.uncertain` (faktisch toter
+  Code — der Tag wurde nie gesetzt, siehe „Removed") wird beim Laden einer alten
+  Config verworfen; `tags.ignored` bekommt den Default `qsl-ignoriert`. Alte
+  `config.yaml` lädt weiterhin fehlerfrei; der alte `uncertain`-Wert wird bewusst
+  NICHT übernommen. Drittes Tag-Feld im Setup-Assistenten/den Einstellungen heißt
+  jetzt „Ignoriert-Tag" (gleiche Dropdown-/„Anlegen"-Bedienung wie die anderen
+  Tag-Felder); Auto-Matching-Warnung gilt jetzt auch für diesen Tag.
+- Randfall „QSO ohne CT=QSL-Eintrag" (Issue #4) als durch ADR-0019 + Schema-Validierung abgedeckt dokumentiert; `docs/discovery.md` Frage #3 aufgelöst. Fixes #4
+
+### Removed
+- Ungenutzter Unsicher-Tag-Mechanismus (`tags.uncertain`, `write_selected`-Parameter
+  `uncertain_doc_ids`): Der Tag wurde in der gesamten App nie gesetzt, weil
+  `gui/controller.start_write` den Parameter nie an `write_selected` übergeben hat
+  — toter Code. Der ANZEIGE-Status „Unsicher" (Matching-Einstufung) ist davon
+  unabhängig und bleibt unverändert (ADR-0059).
 
 ### Fixed
+- Trefferliste zeigte bei unsicheren Karten ohne erkennbares Gegencall das **eigene**
+  Rufzeichen an statt „–" (Fallback auf `call_to`, das per Konstruktion das Eigencall
+  ist); neue Hilfsfunktion `card_display_callsign()` in `gui/filter_util.py` sorgt für
+  konsistente Anzeige, Sortierung und Textsuche (Teil 1/2 von Issue #33).
+- Karten mit mehreren erkannten Fremd-Rufzeichen (z. B. echter Absender + Druckvermerk/
+  Werbe-Call) verloren ihren Gegencall vollständig, weil `run._extract_token_based` bei
+  mehr als einem Fremdcall hart auf `call_from=None` kollabierte → `match_card` bekam
+  keinen Kandidaten und stufte ohne Vorschlag als unsicher ein. Neues additives Feld
+  `CardFields.call_from_candidates` reicht alle erkannten Fremdcalls durch;
+  `matching.match_card` matcht jeden Kandidaten unabhängig und führt die getroffenen
+  DB-QSOs zusammen. Zusätzliche Verschärfung: ein fuzzy (Levenshtein-1) Rufzeichen-Treffer
+  darf jetzt NIE mehr automatisch „sicher" bestätigen (vorher möglich bei erfüllter
+  3-von-4-Regel) — nur ein exakter Treffer erlaubt Automatik; Fuzzy oder Mehrdeutigkeit
+  erzwingt den manuellen Pfad (ADR-0056, verschärft ADR-0016). Teil 2/2 von Issue #33,
+  Fixes #33.
+- Trefferliste zeigte bei sicheren (CERTAIN) Karten mit mehreren erkannten Fremd-
+  Rufzeichen „–" statt des tatsächlich gematchten Rufzeichens (und Datums), weil
+  `card_fields.call_from` bei >1 Kandidat `None` bleibt (ADR-0056 §1) und die Anzeige
+  bislang nur die rohen `card_fields` statt des bereits bekannten `outcome.matched_qso`
+  zeigte — reiner Anzeige-Bug, Matching (ADR-0056 R2) war korrekt. Neue Hilfsfunktion
+  `resolve_display_values()` in `gui/filter_util.py` zeigt bei gesetztem `matched_qso`
+  dessen Werte; ohne `matched_qso` (UNCERTAIN/NO_MATCH) unverändertes Verhalten.
+  Fixes #34.
+- Gedrucktes OCR-Datum im Bindestrich-Format `TT-MM-JJJJ`/`TT-MM-JJ` (z. B. `14-09-2024`)
+  wurde nicht erkannt und endete ohne Datum als „Unsicher". `normalize_date()` um dieses
+  Format ergänzt, mit derselben `>12`-Disambiguierungsregel wie beim bestehenden
+  Schrägstrich-2-stellig-Fall (ADR-0057). Im selben Beta-Befund gefundene, aber nicht
+  umgesetzte Punkte als Issues #35 und #36 festgehalten (Sonderrufzeichen mit zwei
+  Ziffern / OCR-Verwechslung O-0 und I-1 bei Rufzeichen).
+- Manueller Zuordnungs-Dialog befüllte das Rufzeichen-Suchfeld nicht, wenn eine Karte
+  mehrere erkannte Fremdcall-Kandidaten hatte (`card_fields.call_from` = `None`,
+  ADR-0056 §1) — auch wenn die Matching-Engine bereits genau EIN passendes DB-QSO
+  gefunden hatte (UNCERTAIN/`TOO_FEW_FIELDS` oder `FUZZY_CALL`): Feld blieb leer,
+  Trefferliste zeigte alle QSOs statt des einen bekannten Treffers. `card_fields_to_query`
+  nutzt jetzt zusätzlich `outcome.candidates`/`outcome.reason.details` (ADR-0058), um in
+  diesem Fall das dafür verantwortliche Karten-Rufzeichen vorzubefüllen — bei mehreren
+  getroffenen QSOs (`MULTI_QSO`) bleibt das Feld weiterhin leer (kein Raten). Keine
+  Vorauswahl eines Kandidaten in der Trefferliste (ADR-0028/ADR-0051 unverändert).
+  ADR-0051 um diesen Nachtrag ergänzt.
+- DateEntry im manuellen Zuordnungs-Dialog zeigte das heutige Datum an, obwohl kein
+  Datum gelesen wurde (Filter blieb zwar korrekt inaktiv, aber die Anzeige wirkte
+  neben „Gelesen: Datum –" wie ein echter Wert). Feld bleibt jetzt leer, solange kein
+  Datum explizit gesetzt wurde (OCR/QR/Nutzerauswahl) — auch nach Klick auf den
+  Datum-Löschen-Button (`✕`), der die Anzeige bisher unverändert ließ.
+- War das Rufzeichen-Suchfeld durch den neuen Engine-Treffer vorbefüllt (siehe
+  vorheriger Punkt), blockierte das eine spätere QR-Korrektur: `compute_qr_prefill`
+  vergleicht den aktuellen Feldwert mit dem OCR-Vorbefüllungswert, um „Nutzer hat
+  nichts geändert" zu erkennen — dieser Vergleichswert wurde bisher weiterhin aus
+  `card_fields.call_from` (leer) statt aus der tatsächlichen Vorbefüllung berechnet.
+  Bei einem unscharf gelesenen Rufzeichen (`FUZZY_CALL`) blieb dadurch der verlesene
+  Wert stehen, obwohl ein QR-Code den korrekten Call lieferte. `_ocr_prefill_call`
+  (und konsistent `_band`/`_mode`/`_date`) wird jetzt aus demselben Ergebnis wie die
+  tatsächliche Feld-Vorbefüllung berechnet. ADR-0051 um diesen Punkt ergänzt.
 
 ## [0.4.0] - 2026-06-24
 

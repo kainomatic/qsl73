@@ -62,6 +62,14 @@ if _TK_OK:
             widget.bind("<Leave>", self._on_leave, "+")
             widget.bind("<ButtonPress>", self._on_leave, "+")
 
+        def set_text(self, text: str) -> None:
+            """Aktualisiert den angezeigten Tooltip-Text (z. B. bei Button-Zustandswechsel).
+
+            Ändert nur den gespeicherten Text — keine erneute Bindung nötig, da
+            _show() den Text erst beim nächsten Einblenden liest.
+            """
+            self._text = text
+
         def _on_enter(self, _event=None) -> None:
             self._cancel_timer()
             self._after_id = self._widget.after(self._delay_ms, self._show)

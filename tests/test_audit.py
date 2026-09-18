@@ -136,3 +136,67 @@ class TestWriteAuditEntries:
         write_audit_entries(entries, tmp_path)
         lines = [l for l in (tmp_path / "audit.log").read_text(encoding="utf-8").splitlines() if l.strip()]
         assert len(lines) == 3
+
+
+class TestFormatIgnoreAuditLine:
+    def test_contains_all_fields(self):
+        from qsl73.audit import IgnoreAuditEntry, format_ignore_audit_line
+
+        entry = IgnoreAuditEntry(doc_id=42, callsign="DK1AB", action="ignoriert")
+        line = format_ignore_audit_line(entry, ts="2026-06-18T14:30:00")
+
+        assert "doc_id=42" in line
+        assert "call=DK1AB" in line
+        assert "aktion=ignoriert" in line
+        assert "2026-06-18T14:30:00" in line
+
+    def test_unignore_action(self):
+        from qsl73.audit import IgnoreAuditEntry, format_ignore_audit_line
+
+        entry = IgnoreAuditEntry(doc_id=7, callsign="?", action="wieder_aufgenommen")
+        line = format_ignore_audit_line(entry, ts="2026-01-01T00:00:00")
+        assert "aktion=wieder_aufgenommen" in line
+        assert "call=?" in line
+
+    def test_single_line_no_newline(self):
+        from qsl73.audit import IgnoreAuditEntry, format_ignore_audit_line
+
+        entry = IgnoreAuditEntry(doc_id=1, callsign="X", action="ignoriert")
+        line = format_ignore_audit_line(entry, ts="2026-01-01T00:00:00")
+        assert "\n" not in line
+
+
+class TestWriteIgnoreAuditEntry:
+    def test_creates_audit_log(self, tmp_path):
+        from qsl73.audit import IgnoreAuditEntry, write_ignore_audit_entry
+
+        write_ignore_audit_entry(
+            IgnoreAuditEntry(doc_id=10, callsign="DK9ZZ", action="ignoriert"), tmp_path
+        )
+        assert (tmp_path / "audit.log").exists()
+
+    def test_appends_without_disturbing_existing_qso_entries(self, tmp_path):
+        """Bestehendes AuditEntry-Format bleibt unverändert lesbar."""
+        from qsl73.audit import AuditEntry, IgnoreAuditEntry, write_audit_entries, write_ignore_audit_entry
+
+        write_audit_entries(
+            [AuditEntry(doc_id=1, qsoid="q1", callsign="A", qso_date="2025-01-01",
+                        band="20m", mode="FT8", route="bureau", source="auto", backup_path="–")],
+            tmp_path,
+        )
+        write_ignore_audit_entry(
+            IgnoreAuditEntry(doc_id=2, callsign="B", action="ignoriert"), tmp_path
+        )
+        content = (tmp_path / "audit.log").read_text(encoding="utf-8")
+        assert "qsoid=q1" in content
+        assert "doc_id=2" in content
+        assert "aktion=ignoriert" in content
+
+    def test_creates_log_dir_if_missing(self, tmp_path):
+        from qsl73.audit import IgnoreAuditEntry, write_ignore_audit_entry
+
+        log_dir = tmp_path / "new" / "logs"
+        write_ignore_audit_entry(
+            IgnoreAuditEntry(doc_id=1, callsign="X", action="ignoriert"), log_dir
+        )
+        assert (log_dir / "audit.log").exists()

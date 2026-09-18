@@ -307,6 +307,35 @@ Analyse der echten Test-DB (428 QSOs, 403 eindeutige Gegenstationen):
 |---|-------|--------|
 | 1 | `RV`-Wert bei bestätigtem Papier-QSL: welche Werte schreibt Log4OM exakt (Groß-/Kleinschreibung, akzeptiert Log4OM `"Undefined"`?) | **Erledigt** → RV-Hand-Test 2026-06-17; exaktes Format in §3 dokumentiert (→ ADR-0005/0006 aktualisiert) |
 | 2 | Muss `S` auf `"Yes"` gesetzt werden, wenn Karte empfangen wird? | **Entschieden:** Nein — `S`/`SV` bleiben unverändert; QSL73 bestätigt nur Empfang |
-| 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | Offen / Niedrig; →Schema-Validierung §3.3 fängt das ab |
+| 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | **Aufgelöst** (Issue #4, 2026-09-17) → siehe Absatz unten |
 | 4 | OCR-Qualität (Paperless-OCR) und Paperless-API-Details | **Erledigt** → §5.2/§5.3 (Schritt 3b) |
 | 5 | `R`-Wert `"V"` (DXCC-verifiziert) vs. `"Yes"`: setzt QSL73 „V"? | **Entschieden:** Nein — QSL73 setzt ausschließlich `"Yes"`. `"V"` vergibt der Nutzer selbst im Award-Checker. |
+
+### 6.1 Auflösung Frage #3 — QSOs ohne `CT="QSL"`-Eintrag (Issue #4)
+
+Der Randfall ist durch drei ineinandergreifende Sicherheitsebenen abgedeckt — kein
+Code-Fix nötig, kein stilles Neuanlegen eines QSL-Eintrags:
+
+1. **`apply_paper_qsl` wirft `QslEntryNotFoundError`** statt still einen neuen Eintrag
+   anzulegen oder einen anderen Eintragstyp zu überschreiben (ADR-0019).
+2. **`log4om_db.validate_schema`** erkennt den Fall vorgelagert per Stichprobe (erste
+   bis zu 30 Zeilen mit `qsoconfirmations`) und liefert eine klare deutsche Meldung,
+   bevor überhaupt ein Backup oder eine Transaktion beginnt. `write_confirmations`
+   ruft `validate_schema` als allerersten Schritt auf → bei Abweichung `SchemaError`,
+   kein Schreibversuch.
+3. **Transaktions-Rollback als zweite Verteidigungslinie:** Besteht die Stichprobe
+   (weil andere Zeilen einen gültigen QSL-Eintrag haben), aber eine einzelne Karte
+   innerhalb der Transaktion hat keinen `CT="QSL"`-Eintrag, wirft `_run_transaction`
+   `QslEntryNotFoundError` → ROLLBACK des gesamten Schreibvorgangs, kein Teilschreiben.
+
+**Bewusst akzeptierte Einschränkung (Stichprobe):** `validate_schema` prüft nur eine
+Stichprobe (bis zu 30 Zeilen), nicht die gesamte Tabelle. In einer **gemischten DB** —
+die meisten QSOs haben einen QSL-Eintrag, einzelne ADIF-importierte nicht — besteht die
+DB die Schema-Prüfung (sobald irgendeine Zeile der Stichprobe einen gültigen Eintrag
+hat), und eine betroffene Einzelkarte fällt dann erst in der Transaktion als
+`QslEntryNotFoundError` auf → ROLLBACK des gesamten Schreibvorgangs. Das ist **sicher**
+(nichts Falsches wird geschrieben, kein Datenverlust), aber die Nutzermeldung ist dann
+die technische Rollback-Meldung statt einer kartenspezifischen Meldung vorab. Bewusst so
+belassen (DF1DS-Entscheidung, 2026-09-17), da der Fall bei normalen Log4OM-QSOs praktisch
+nicht auftritt (Issue-Priorität niedrig). Optionaler künftiger Feinschliff (kartenspezifische
+Nutzermeldung statt Rollback-Meldung) bei Bedarf als separates Issue.

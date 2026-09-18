@@ -63,10 +63,17 @@ abfragt:
 - **Log4OM-Datenbank:** Pfad zur lokalen SQLite-Datenbankdatei.
 - **Eigenes Rufzeichen.**
 - **Tags:** Welcher Tag markiert QSL-Karten in Paperless; welcher Tag wird nach dem
-  Bestätigen gesetzt. Tags können aus bestehenden ausgewählt oder neu angelegt werden.
-  Verbindungstest integriert.
+  Bestätigen gesetzt; welcher Tag markiert dauerhaft ignorierte Karten
+  (Ignoriert-Tag, siehe unten). Tags können aus bestehenden ausgewählt oder neu
+  angelegt werden. Verbindungstest integriert.
 
 Die Einstellungen sind jederzeit über **Bearbeiten → Einstellungen** erreichbar.
+
+> **Hinweis nach einem Update:** Wer QSL73 von einer Version vor dem
+> Ignorieren-Feature aktualisiert, sollte den Ignoriert-Tag einmalig unter
+> **Bearbeiten → Einstellungen…** auswählen oder anlegen — QSL73 legt ihn nicht
+> automatisch an. Bis dahin zeigt der „Ignorieren"-Button im manuellen
+> Zuordnungs-Dialog einen entsprechenden Hinweis statt zu wirken.
 
 ### Durchlauf starten
 
@@ -93,11 +100,26 @@ Zuordnungs-Dialog:
 - **Durcharbeiten-Workflow:** „Speichern", „Speichern und nächste" oder „Nächste" (ohne
   Zuordnung überspringen) — alle unsicheren Karten lassen sich so in einem Zug bearbeiten.
 
+### Karten ignorieren (nie zuordenbare Karten)
+
+Manche Karten sind nie zuordenbar — fremdes Log, das QSO fehlt im Logbuch, oder ein
+eQSL-/LoTW-Ausdruck wurde versehentlich mit dem Eingangs-Tag versehen. Im manuellen
+Zuordnungs-Dialog markiert der Button **„Ignorieren"** eine solche Karte dauerhaft:
+
+- Wirkt sofort beim Klick, kein Bestätigungsdialog — betrifft ausschließlich einen
+  Paperless-Tag, das Log4OM-Logbuch bleibt unberührt.
+  Die Karte erscheint ab dem nächsten Durchlauf nicht mehr.
+- Solange eine Karte ignoriert ist, sind „Speichern"/„Speichern und nächste" für sie
+  gesperrt; ein erneuter Klick auf **„Nicht mehr ignorieren"** macht es rückgängig.
+- Bereits ignorierte Karten stehen jederzeit über **Bearbeiten → Ignorierte Karten…**
+  zur Verfügung (Mehrfachauswahl, „Wieder aufnehmen").
+
 ### Menü
 
 | Menüpunkt | Funktion |
 |-----------|----------|
 | Bearbeiten → Einstellungen | Verbindungsdaten und Tags nachträglich ändern |
+| Bearbeiten → Ignorierte Karten… | Ignorierte Karten ansehen und wieder aufnehmen |
 | Hilfe → Über QSL73 | Versionsinformation, Links |
 | Hilfe → Log-Ordner öffnen | Diagnosedateien anzeigen |
 | Hilfe → Fehler melden | Bereinigten Fehlerbericht für GitHub Issues erstellen |
@@ -107,7 +129,8 @@ Zuordnungs-Dialog:
 - **DB-Backup:** Vor jedem Schreibvorgang wird automatisch eine Sicherungskopie der
   Log4OM-Datenbank angelegt (im Ordner `QSL73_Backups` neben der Datenbankdatei).
 - **Audit-Log:** Jedes tatsächlich geschriebene QSO wird in `%APPDATA%\QSL73\audit.log`
-  mit Zeitstempel protokolliert (automatisch vs. manuell).
+  mit Zeitstempel protokolliert (automatisch vs. manuell); ebenso jede
+  Ignorieren-/Wieder-Aufnehmen-Aktion.
 
 ## Daten & Verzeichnisse
 

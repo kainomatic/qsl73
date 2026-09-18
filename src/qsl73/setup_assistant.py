@@ -55,13 +55,14 @@ _OVERRIDE_MAP = {
     "log4om.own_callsign": lambda cfg, v: setattr(cfg.log4om, "own_callsign", v),
     "tags.input": lambda cfg, v: setattr(cfg.tags, "input", v),
     "tags.confirmed": lambda cfg, v: setattr(cfg.tags, "confirmed", v),
-    "tags.uncertain": lambda cfg, v: setattr(cfg.tags, "uncertain", v),
+    "tags.ignored": lambda cfg, v: setattr(cfg.tags, "ignored", v),
     "matching.fuzzy_enabled": lambda cfg, v: setattr(cfg.matching, "fuzzy_enabled", v),
     "confirm.qsl_route_default": lambda cfg, v: setattr(cfg.confirm, "qsl_route_default", v),
     "app.language": lambda cfg, v: setattr(cfg.app, "language", v),
     "app.backup_count": lambda cfg, v: setattr(cfg.app, "backup_count", v),
     "app.update_check": lambda cfg, v: setattr(cfg.app, "update_check", v),
     "app.manual_match_limit": lambda cfg, v: setattr(cfg.app, "manual_match_limit", v),
+    "app.log_level": lambda cfg, v: setattr(cfg.app, "log_level", v),
 }
 
 

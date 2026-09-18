@@ -393,6 +393,7 @@ def _make_paperless_mock(docs: list[dict]) -> MagicMock:
     client = MagicMock()
     client.get_documents_by_tag.return_value = docs
     client.get_document_download.return_value = b""  # kein QR
+    client.count_documents_with_all_tags.return_value = 0
     return client
 
 
@@ -562,8 +563,8 @@ def test_run_pass_r_yes_excluded_from_candidates(tmp_path):
     assert len(result.no_match) == 1
 
 
-def test_run_pass_passes_exclude_tag_to_paperless(tmp_path):
-    """run_pass übergibt config.tags.confirmed als exclude_tag_name an get_documents_by_tag."""
+def test_run_pass_passes_exclude_tags_to_paperless(tmp_path):
+    """run_pass übergibt confirmed UND ignored als exclude_tag_names (ADR-0059)."""
     from qsl73.run import run_pass
 
     conn, db_path = _make_run_db(tmp_path)
@@ -576,8 +577,43 @@ def test_run_pass_passes_exclude_tag_to_paperless(tmp_path):
 
     client.get_documents_by_tag.assert_called_once_with(
         cfg.tags.input,
-        exclude_tag_name=cfg.tags.confirmed,
+        exclude_tag_names=[cfg.tags.confirmed, cfg.tags.ignored],
     )
+
+
+def test_run_pass_ignored_count_from_paperless(tmp_path):
+    """RunResult.ignored_count übernimmt den Wert aus count_documents_with_all_tags."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    conn.commit(); conn.close()
+
+    client = _make_paperless_mock([])
+    client.count_documents_with_all_tags.return_value = 3
+    cfg = _make_config()
+
+    result = run_pass(client, db_path, cfg)
+
+    assert result.ignored_count == 3
+    client.count_documents_with_all_tags.assert_called_once_with(
+        [cfg.tags.input, cfg.tags.ignored]
+    )
+
+
+def test_run_pass_ignored_count_error_is_nonfatal(tmp_path):
+    """Fehler beim Zählen ignorierter Karten bricht den Lauf nicht ab — Wert 0."""
+    from qsl73.run import run_pass
+
+    conn, db_path = _make_run_db(tmp_path)
+    conn.commit(); conn.close()
+
+    client = _make_paperless_mock([])
+    client.count_documents_with_all_tags.side_effect = RuntimeError("boom")
+    cfg = _make_config()
+
+    result = run_pass(client, db_path, cfg)
+
+    assert result.ignored_count == 0
 
 
 # --- write_selected ---
@@ -639,7 +675,7 @@ def test_write_selected_paperless_tags_set_after_db(tmp_path):
 
     fp = get_db_fingerprint(db_path)
     mock_client = MagicMock()
-    tags_cfg = TagsConfig(confirmed="qsl-bestätigt", uncertain="qsl-nicht-bestätigt")
+    tags_cfg = TagsConfig(confirmed="qsl-bestätigt")
 
     result, warnings = write_selected(
         selections=[("QSO1", "undefined")],
@@ -706,33 +742,6 @@ def test_write_selected_no_paperless_no_tags(tmp_path):
 
     assert result.written == 1
     assert warnings == []
-
-
-def test_write_selected_uncertain_tags(tmp_path):
-    """uncertain_doc_ids bekommen den 'qsl-nicht-bestätigt'-Tag."""
-    from qsl73.config import TagsConfig
-    from qsl73.log4om_db import get_db_fingerprint
-    from qsl73.run import write_selected
-
-    conn, db_path = _make_writable_db(tmp_path)
-    conn.close()
-
-    fp = get_db_fingerprint(db_path)
-    mock_client = MagicMock()
-    tags_cfg = TagsConfig(confirmed="qsl-bestätigt", uncertain="qsl-nicht-bestätigt")
-
-    result, warnings = write_selected(
-        selections=[],  # nichts schreiben
-        db_path=db_path,
-        backup_dir=tmp_path / "bak",
-        snapshot_fingerprint=fp,
-        expected_states={},
-        paperless_client=mock_client,
-        uncertain_doc_ids=[99],
-        tags_config=tags_cfg,
-    )
-
-    mock_client.add_tag_to_document.assert_called_once_with(99, "qsl-nicht-bestätigt")
 
 
 def test_write_selected_tag_warning_returned_when_tag_missing(tmp_path):
@@ -881,6 +890,15 @@ def test_ocr_fixture_oe6xxx_all_fields():
     assert card.time_utc == "12:23"
 
 
+def test_ocr_hyphen_date_ddmmyyyy():
+    """Bindestrich-Datum TT-MM-JJJJ ('14-09-2024') wird token-basiert erkannt (ADR-0057)."""
+    text = "14-09-2024 13:04 40m SSB DK8XX DL0AAA"
+    card, source = _ocr(text)
+    assert source == "ocr"
+    assert card.date == "2024-09-14"
+    assert card.time_utc == "13:04"
+
+
 def test_ocr_fixture_dg5xxx_frequency_to_band():
     """DG5XXX: Frequenz 5,3570 MHz → Band 60m; Pipe-Trennzeichen korrekt tokenisiert."""
     card, source = _ocr(OCR_DG5XXX)
@@ -999,6 +1017,47 @@ def test_ocr_tokenize_strips_surrounding_punct():
     assert "FT8" in tokens
     assert "20m" in tokens
     assert "CW" in tokens
+
+
+# ---------------------------------------------------------------------------
+# Mehrere Fremd-Rufzeichen (Issue #33 Teil 2, ADR-0056)
+# ---------------------------------------------------------------------------
+# _extract_token_based darf mehrere erkannte Fremdcalls nicht mehr hart zu
+# call_from=None kollabieren — sie werden vollständig als call_from_candidates
+# durchgereicht, damit ein Druckvermerk/Werbe-Call den echten Absender nicht
+# auslöscht. Fiktive Calls (ADR-0050).
+
+
+def test_two_foreign_calls_call_from_none_but_candidates_both():
+    """Zwei Fremdcalls: call_from bleibt None (Abwärtskomp.), beide in candidates."""
+    text = "From DL1AAA and DL9ZZZ To DL0AAA 20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from is None
+    assert card.call_from_candidates == ["DL1AAA", "DL9ZZZ"]
+
+
+def test_single_foreign_call_sets_both_call_from_and_candidates():
+    """Ein Fremdcall: call_from UND call_from_candidates gesetzt (additiv)."""
+    text = "From DL1AAA To DL0AAA 20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from == "DL1AAA"
+    assert card.call_from_candidates == ["DL1AAA"]
+
+
+def test_no_foreign_call_candidates_stays_empty():
+    """Kein Fremdcall erkannt → call_from None, call_from_candidates leer."""
+    text = "20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from is None
+    assert card.call_from_candidates == []
+
+
+def test_duplicate_foreign_call_tokens_deduplicated_in_candidates():
+    """Dasselbe Fremdcall mehrfach im Text → nur einmal in call_from_candidates."""
+    text = "DL1AAA ... DL1AAA To DL0AAA 20m FT8 2025-04-02"
+    card, _ = _ocr(text)
+    assert card.call_from == "DL1AAA"
+    assert card.call_from_candidates == ["DL1AAA"]
 
 
 # ---------------------------------------------------------------------------

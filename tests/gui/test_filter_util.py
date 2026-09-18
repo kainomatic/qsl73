@@ -4,10 +4,13 @@ import pytest
 from qsl73.gui.filter_util import (
     FILTER_MODES,
     build_workflow_sequence,
+    describe_read_fields,
+    describe_reason,
     filter_results,
     format_progress_text,
     merge_selections,
     qso_by_id,
+    resolve_display_values,
     select_range,
     qso_display_values,
     sort_cards_written_last,
@@ -15,7 +18,7 @@ from qsl73.gui.filter_util import (
     written_doc_ids,
 )
 from qsl73.run import RunResult, CardResult
-from qsl73.matching import MatchOutcome, MatchResult, CardFields, QsoCandidate
+from qsl73.matching import MatchOutcome, MatchReason, MatchReasonCode, MatchResult, CardFields, QsoCandidate
 
 
 def _make_card(doc_id: int, result: MatchResult) -> CardResult:
@@ -286,6 +289,127 @@ def test_qso_display_values_partial_fields():
     assert mode == "–"
 
 
+# ---------------------------------------------------------------------------
+# Tests für resolve_display_values (Anzeige-Fix: CERTAIN mit matched_qso
+# statt "–" bei mehreren Fremdcalls, ADR-0056)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_display_values_uses_matched_qso_when_set():
+    """matched_qso gesetzt (CERTAIN) → dessen Werte, nicht die rohen card_fields."""
+    matched = QsoCandidate(qsoid="Q1", callsign="DL1AAA", date="2025-03-15", band="20m", mode="SSB")
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to=None, date=None, band="20m", mode="SSB"),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.CERTAIN, matched_qso=matched),
+        existing_confirmations=[],
+    )
+    call, date, band, mode = resolve_display_values(card)
+    assert call == "DL1AAA"
+    assert date == "2025-03-15"
+    assert band == "20m"
+    assert mode == "SSB"
+
+
+def test_resolve_display_values_certain_multiple_foreign_calls_not_dash():
+    """Regressionstest für den Beta-Bug: call_from=None (mehrere Fremdcalls,
+    ADR-0056 §1) darf bei CERTAIN nicht mehr zu '–' führen."""
+    matched = QsoCandidate(qsoid="Q1", callsign="DL0AAA", date="2025-06-01", band="40m", mode="CW")
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(
+            call_from=None,
+            call_to=None,
+            date=None,
+            band="40m",
+            mode="CW",
+            call_from_candidates=["DL0AAA", "UX5UO"],
+        ),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.CERTAIN, matched_qso=matched),
+        existing_confirmations=[],
+    )
+    call, _, _, _ = resolve_display_values(card)
+    assert call == "DL0AAA"
+    assert call != "–"
+
+
+def test_resolve_display_values_no_matched_qso_falls_back_to_card_fields():
+    """UNCERTAIN/NO_MATCH ohne matched_qso → unverändertes Rückfallverhalten."""
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from="DL1AAA", call_to=None, date="2025-01-01", band="80m", mode="SSB"),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        existing_confirmations=[],
+    )
+    call, date, band, mode = resolve_display_values(card)
+    assert call == "DL1AAA"
+    assert date == "2025-01-01"
+    assert band == "80m"
+    assert mode == "SSB"
+
+
+def test_resolve_display_values_no_matched_qso_missing_fields_become_dash():
+    """Ohne matched_qso und ohne call_from → '–' wie bisher (kein Verhaltensbruch)."""
+    card = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to=None, date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.NO_MATCH, matched_qso=None),
+        existing_confirmations=[],
+    )
+    call, date, band, mode = resolve_display_values(card)
+    assert call == "–"
+    assert date == "–"
+    assert band == "–"
+    assert mode == "–"
+
+
+# ---------------------------------------------------------------------------
+# describe_reason() / describe_read_fields() — ADR-0058, Issue #37
+# ---------------------------------------------------------------------------
+
+
+def test_describe_reason_certain_returns_empty_string():
+    outcome = MatchOutcome(result=MatchResult.CERTAIN, matched_qso=None, reason=None)
+    assert describe_reason(outcome) == ""
+
+
+def test_describe_reason_uncertain_returns_reason_text():
+    reason = MatchReason(MatchReasonCode.FUZZY_CALL, "Rufzeichen nur unscharf erkannt.")
+    outcome = MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None, reason=reason)
+    assert describe_reason(outcome) == "Rufzeichen nur unscharf erkannt."
+
+
+def test_describe_read_fields_full():
+    card = CardFields(call_from="DL1AAA", call_to="DL0AAA", date="2025-04-02", band="6m", mode="FT8", time_utc="19:42")
+    text = describe_read_fields(card)
+    assert text == "Rufzeichen DL1AAA · Datum 2025-04-02 · Band 6m · Mode FT8 · Zeit 19:42"
+
+
+def test_describe_read_fields_all_empty_no_crash():
+    card = CardFields(call_from=None, call_to=None, date=None, band=None, mode=None)
+    text = describe_read_fields(card)
+    assert text == "Rufzeichen – · Datum – · Band – · Mode – · Zeit –"
+
+
+def test_describe_read_fields_partial():
+    card = CardFields(call_from="DK8XX", call_to=None, date="2025-04-02", band=None, mode=None)
+    text = describe_read_fields(card)
+    assert text == "Rufzeichen DK8XX · Datum 2025-04-02 · Band – · Mode – · Zeit –"
+
+
+def test_describe_read_fields_multiple_call_candidates():
+    card = CardFields(
+        call_from=None, call_to=None, date=None, band=None, mode=None,
+        call_from_candidates=["DL1AAA", "DL9ZZZ"],
+    )
+    text = describe_read_fields(card)
+    assert text.startswith("Rufzeichen DL1AAA, DL9ZZZ ·")
+
+
 class TestWrittenDocIds:
     def test_no_skips_all_confirmed_written(self):
         ids = written_doc_ids([10, 20, 30], [("Q1","b"),("Q2","b"),("Q3","b")], [])
@@ -512,6 +636,7 @@ class TestWorkflowCardContext:
 # ----- Klick-Sortierung (#28) und Textfilter (#29) -----
 
 from qsl73.gui.filter_util import (
+    card_display_callsign,
     sort_cards_by_column,
     sort_cards_written_last_then_by_column,
     sort_candidates_by_column,
@@ -547,6 +672,25 @@ def _make_candidate(
     qsoid: str = "q1",
 ) -> QsoCandidate:
     return QsoCandidate(qsoid=qsoid, callsign=callsign, date=date, band=band, mode=mode)
+
+
+# --- card_display_callsign (Issue #33 Teil 1: Eigencall nicht als Karten-Rufzeichen) ---
+
+
+def test_card_display_callsign_returns_call_from():
+    fields = CardFields(call_from="DL1AAA", call_to="DF1DS", date=None, band=None, mode=None)
+    assert card_display_callsign(fields) == "DL1AAA"
+
+
+def test_card_display_callsign_only_own_call_returns_empty():
+    """call_to ist per Konstruktion das Eigencall — kein Rückfall mehr darauf."""
+    fields = CardFields(call_from=None, call_to="DF1DS", date=None, band=None, mode=None)
+    assert card_display_callsign(fields) == ""
+
+
+def test_card_display_callsign_both_none_returns_empty():
+    fields = CardFields(call_from=None, call_to=None, date=None, band=None, mode=None)
+    assert card_display_callsign(fields) == ""
 
 
 # --- sort_cards_by_column ---
@@ -614,6 +758,20 @@ def test_sort_cards_stable_equal_keys():
     cards = [_make_card_full(1, band="40m"), _make_card_full(2, band="40m")]
     result = sort_cards_by_column(cards, "band", ascending=True)
     assert [c.doc_id for c in result] == [1, 2]
+
+
+def test_sort_cards_call_ignores_own_call_in_call_to():
+    """Karte mit nur Eigencall (call_to) sortiert wie leer, nicht als DF1DS (Issue #33 Teil 1)."""
+    own_call_only = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to="DF1DS", date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        existing_confirmations=[],
+    )
+    foreign_call = _make_card_full(2, call="DL1AAA")
+    result = sort_cards_by_column([own_call_only, foreign_call], "call", ascending=True)
+    assert [c.doc_id for c in result] == [2, 1]
 
 
 # --- sort_cards_written_last_then_by_column (V4) ---
@@ -728,6 +886,18 @@ def test_text_filter_no_match_returns_empty():
     assert text_filter_cards(cards, "DK8XX") == []
 
 
+def test_text_filter_does_not_match_own_call_in_call_to():
+    """Suche nach dem Eigencall darf eine Karte mit nur call_to=Eigencall nicht finden (Issue #33 Teil 1)."""
+    own_call_only = CardResult(
+        doc_id=1,
+        card_fields=CardFields(call_from=None, call_to="DF1DS", date=None, band=None, mode=None),
+        source="ocr",
+        outcome=MatchOutcome(result=MatchResult.UNCERTAIN, matched_qso=None),
+        existing_confirmations=[],
+    )
+    assert text_filter_cards([own_call_only], "df1ds") == []
+
+
 def test_text_filter_mode_not_searchable():
     # mode ist NICHT durchsuchbar (V5)
     cards = [_make_card_full(1, mode="FT8", call="DL1XXX")]
@@ -738,6 +908,37 @@ def test_text_filter_source_not_searchable():
     # source ist NICHT durchsuchbar (V5)
     cards = [_make_card_full(1, source="qr", call="DL1XXX")]
     assert text_filter_cards(cards, "qr") == []
+
+
+def test_done_doc_ids_unions_written_and_ignored():
+    from qsl73.gui.filter_util import done_doc_ids
+    assert done_doc_ids({1, 2}, {3}) == {1, 2, 3}
+
+
+def test_done_doc_ids_overlap_deduplicates():
+    from qsl73.gui.filter_util import done_doc_ids
+    assert done_doc_ids({1, 2}, {2, 3}) == {1, 2, 3}
+
+
+def test_done_doc_ids_empty_sets():
+    from qsl73.gui.filter_util import done_doc_ids
+    assert done_doc_ids(set(), set()) == set()
+
+
+def test_sort_cards_written_last_then_by_column_with_ignored_pushed_to_end():
+    """Ignorierte Karten landen wie geschriebene ans Listenende (ADR-0059)."""
+    from qsl73.gui.filter_util import done_doc_ids, sort_cards_written_last_then_by_column
+    cards = [
+        _make_card_full(1, call="B", result=MatchResult.UNCERTAIN),  # ignoriert
+        _make_card_full(2, call="A", result=MatchResult.CERTAIN),
+        _make_card_full(3, call="C", result=MatchResult.UNCERTAIN),  # geschrieben
+    ]
+    written = {3}
+    ignored = {1}
+    ordered = sort_cards_written_last_then_by_column(
+        cards, done_doc_ids(written, ignored), column=None
+    )
+    assert [c.doc_id for c in ordered] == [2, 1, 3]
 
 
 def test_text_filter_and_category_filter_intersection():

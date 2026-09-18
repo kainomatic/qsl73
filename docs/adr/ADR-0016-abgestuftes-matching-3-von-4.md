@@ -63,3 +63,12 @@ Bei unterschiedlichem Zusatz müssen Datum + Band + Mode alle drei explizit übe
   wirkt nur bei lesbaren (nicht-None) Feldern.
 - Die Suffix-Unterschied-Regel (strenger: alle 3 Nicht-Call-Felder müssen explizit
   matchen) bleibt erhalten, weil dort die Call-Identität bereits unsicher ist.
+
+---
+
+**Hinweis (Issue #33 Teil 2):** Der CERTAIN-Pfad wurde durch **ADR-0056** in einem
+Punkt verschärft: ein fuzzy (Levenshtein-1) Rufzeichen-Treffer darf seither auch
+bei erfüllter 3-von-4-Regel **nicht mehr** CERTAIN werden, sondern erzwingt
+UNSICHER. Die Feldregel selbst (3-von-4 + Widerspruchs-Ausschluss) bleibt
+unverändert gültig und wird nur noch in Kombination mit einem exakten
+Rufzeichen-Treffer als hinreichend für CERTAIN angewendet. → ADR-0056

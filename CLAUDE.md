@@ -111,6 +111,14 @@ Desktop spezifiziert Auftrag (Kontext + Aufgabe + Akzeptanzkriterien)
 
 **Immer nur ein Auftrag gleichzeitig aktiv.** Nicht parallel am Repo arbeiten.
 
+**Review-Rückmeldung knapp halten:** Nach einem CC-Abschlussbericht hält Desktop die
+Rückmeldung an DF1DS KURZ: Ergebnis (bestanden/nicht bestanden), die wichtigsten am
+Code geprüften Punkte in wenigen Zeilen, offene/nicht verifizierbare Punkte knapp
+benannt. Keine langen Wahrheitstabellen-Wiederholungen, keine ausschweifenden
+Erklärungen, keine Wiederholung des bereits im CC-Bericht Gesagten. Details nur auf
+Nachfrage. Der ausführliche Prüfprozess (Repo/Dateien lesen, gegen Akzeptanzkriterien
+prüfen) bleibt unverändert — nur die textliche Zusammenfassung wird knapp gehalten.
+
 ---
 
 ## Definition of Done je Bau-Schritt

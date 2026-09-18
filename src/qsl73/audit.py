@@ -61,6 +61,47 @@ def format_audit_line(entry: AuditEntry, ts: str | None = None) -> str:
     )
 
 
+@dataclass
+class IgnoreAuditEntry:
+    """Ein Eintrag pro Ignorieren/Wieder-Aufnehmen-Aktion (ADR-0059)."""
+
+    doc_id: int
+    callsign: str   # gelesenes Rufzeichen, oder "?" wenn nicht vorhanden
+    action: str     # "ignoriert" | "wieder_aufgenommen"
+
+
+def format_ignore_audit_line(entry: IgnoreAuditEntry, ts: str | None = None) -> str:
+    """Formatiert einen IgnoreAuditEntry als einzelne Log-Zeile (kein abschließender Newline).
+
+    Eigene Zeilenart, getrennt vom AuditEntry-Format für QSO-Schreibvorgänge —
+    dessen Format bleibt unverändert lesbar.
+    """
+    if ts is None:
+        ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    return (
+        f"{ts}"
+        f" | doc_id={entry.doc_id}"
+        f" | call={entry.callsign}"
+        f" | aktion={entry.action}"
+    )
+
+
+def write_ignore_audit_entry(entry: IgnoreAuditEntry, log_dir: Path) -> None:
+    """Hängt einen Ignorieren/Wieder-Aufnehmen-Eintrag an audit.log im log_dir an.
+
+    Schreibfehler werden geloggt, nicht weitergeworfen (wie write_audit_entries).
+    """
+    log_dir.mkdir(parents=True, exist_ok=True)
+    audit_path = log_dir / "audit.log"
+    line = format_ignore_audit_line(entry)
+    try:
+        with open(audit_path, "a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+        _log.debug("Audit: Ignorieren-Eintrag nach %s geschrieben", audit_path)
+    except OSError as exc:
+        _log.warning("Audit-Log (Ignorieren) konnte nicht geschrieben werden: %s", exc)
+
+
 def write_audit_entries(entries: list[AuditEntry], log_dir: Path) -> None:
     """Hängt Einträge an audit.log im log_dir an.
 

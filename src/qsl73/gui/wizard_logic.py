@@ -83,8 +83,10 @@ def resolve_effective_token(token_field: str, existing_config) -> str:
 def auto_matching_warning(tag_name: str, tags: list[dict]) -> str | None:
     """Gibt Warnmeldung zurück, wenn der genannte Tag matching_algorithm != 0 hat.
 
-    Nur für Schreib-Tags (confirmed/uncertain) aufrufen — der Eingangs-Tag (input)
-    ist auf Aufrufer-Ebene von dieser Prüfung ausgenommen.
+    Nur für Schreib-Tags (confirmed/ignored) aufrufen — der Eingangs-Tag (input)
+    ist auf Aufrufer-Ebene von dieser Prüfung ausgenommen. Gilt für den Ignoriert-
+    Tag ausdrücklich mit (ADR-0059 §G): ein von Paperless automatisch vergebener
+    Ignoriert-Tag ließe Karten still verschwinden.
     Gibt None zurück wenn kein Auto-Matching aktiv oder Tag nicht in der Liste.
     """
     if not tag_name:
@@ -96,8 +98,9 @@ def auto_matching_warning(tag_name: str, tags: list[dict]) -> str | None:
                 return (
                     f"Tag '{tag_name}' hat in Paperless automatisches Matching aktiviert "
                     f"(Algorithmus {algo}). Das kann dazu führen, dass Paperless Karten "
-                    "selbstständig als bestätigt/unsicher markiert. Bitte in Paperless für "
-                    "diesen Tag 'kein Matching' (None) einstellen."
+                    "selbstständig als bestätigt markiert oder ignoriert — und damit aus dem "
+                    "Durchlauf verschwinden lässt. Bitte in Paperless für diesen Tag "
+                    "'kein Matching' (None) einstellen."
                 )
     return None
 
@@ -128,13 +131,14 @@ def config_to_field_defaults(config: "Config") -> dict:
         "log4om.own_callsign": config.log4om.own_callsign,
         "tags.input": config.tags.input,
         "tags.confirmed": config.tags.confirmed,
-        "tags.uncertain": config.tags.uncertain,
+        "tags.ignored": config.tags.ignored,
         "matching.fuzzy_enabled": config.matching.fuzzy_enabled,
         "confirm.qsl_route_default": config.confirm.qsl_route_default,
         "app.language": config.app.language,
         "app.backup_count": str(config.app.backup_count),
         "app.update_check": config.app.update_check,
         "app.manual_match_limit": str(config.app.manual_match_limit),
+        "app.log_level": config.app.log_level,
     }
 
 

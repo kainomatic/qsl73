@@ -84,6 +84,19 @@ def normalize_date(text: str) -> Optional[str]:
             return _make_iso(y_val, a, b)
         return None  # mehrdeutig
 
+    # Bindestrich TT-MM-JJJJ / TT-MM-JJ (ADR-0057): gleiche Mehrdeutigkeitsregel
+    # wie beim Schrägstrich-2-stellig-Fall — erstes Feld > 12 → Tag-Monat-Jahr,
+    # zweites Feld > 12 → Monat-Tag-Jahr, beide <= 12 → None (kein Raten).
+    m = re.fullmatch(r"(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})", text)
+    if m:
+        a, b, y_str = int(m.group(1)), int(m.group(2)), m.group(3)
+        y_val = _expand_year(int(y_str)) if len(y_str) == 2 else int(y_str)
+        if a > 12:
+            return _make_iso(y_val, b, a)
+        if b > 12:
+            return _make_iso(y_val, a, b)
+        return None  # mehrdeutig
+
     return None
 
 

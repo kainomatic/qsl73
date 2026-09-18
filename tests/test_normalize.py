@@ -13,6 +13,12 @@ from qsl73.normalize import normalize_date, normalize_band, normalize_mode
     # TT.MM.JJJJ
     ("23.04.2025", "2025-04-23"),
     ("02.04.1985", "1985-04-02"),
+    # TT-MM-JJJJ / TT-MM-JJ (Bindestrich, ADR-0057)
+    ("14-09-2024", "2024-09-14"),
+    ("14-09-24", "2024-09-14"),
+    ("09-14-2024", "2024-09-14"),  # zweites Feld > 12 → Monat-Tag-Jahr
+    ("03-04-2025", None),  # beide Felder <= 12 → mehrdeutig
+    ("31-02-2024", None),  # ungueltiges Datum (Feb 31)
     # TT Monatsname JJJJ
     ("23Apr2025", "2025-04-23"),
     ("23 Apr 2025", "2025-04-23"),

@@ -161,6 +161,25 @@ def test_tooltip_double_hide_no_crash():
 
 
 @_tk_skip
+def test_tooltip_set_text_updates_stored_text():
+    """set_text() ändert den gespeicherten Text (für Button-Zustandswechsel, ADR-0059)."""
+    import tkinter as tk
+    from tkinter import ttk
+    from qsl73.gui.tooltip import _Tooltip
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        btn = ttk.Button(root, text="Test")
+        btn.pack()
+        tip = _Tooltip(btn, "Alt")
+        tip.set_text("Neu")
+        assert tip._text == "Neu"
+    finally:
+        root.destroy()
+
+
+@_tk_skip
 def test_tooltip_cancel_timer_without_timer_no_crash():
     """_cancel_timer() ohne laufenden Timer darf nicht abstürzen."""
     import tkinter as tk
