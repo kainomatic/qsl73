@@ -8,19 +8,20 @@
 
 ## 🔧 AKTUELLER STAND (Release)
 
-**v0.5.0-beta5** veröffentlicht und in Test durch DF1DS. **v0.5.0 STABLE noch
-NICHT released** — `dev`→`main`-Release ist **pausiert** bis DF1DS-Freigabe
-nach abgeschlossenem Beta-Test (`main` steht aktuell auf `v0.4.0`).
+**v0.5.0-beta6** in Vorbereitung (Tag gesetzt, Test durch DF1DS ausstehend).
+**v0.5.0 STABLE noch NICHT released** — `dev`→`main`-Release ist **pausiert**
+bis DF1DS-Freigabe nach abgeschlossenem Beta-Test (`main` steht aktuell auf
+`v0.4.0`).
 
 Enthaltene Änderungen seit v0.4.0: #26 (Log-Level-Einstellung), #4
 (CT=QSL-Randfälle dokumentiert), #33 (OCR-Eigencall-Anzeige + Matching-Umbau
 mehrere Fremdcalls/Fuzzy, ADR-0056), #34 (Anzeige-Fix CERTAIN-Rufzeichen),
 ADR-0057 (Bindestrich-Datumsformate), #37 (Grund der Einstufung, ADR-0058),
 Beta4-Befund-Fixes (Rufzeichen-Vorbefüllung aus Engine-Treffer, QR darf
-Engine-Vorbefüllung überschreiben, leeres Datumsfeld).
+Engine-Vorbefüllung überschreiben, leeres Datumsfeld), #39 (Karten ignorieren
+ersetzt Unsicher-Tag, ADR-0059 + Race-Nachtrag, Config v1→v2).
 
-`origin/dev = 5dfff90` (Stand vor diesem Bau-Schritt — Karten ignorieren,
-ADR-0059).
+`origin/dev = 8b2a833` (Stand vor diesem Bau-Schritt — Beta-Release beta6).
 
 ---
 
@@ -882,6 +883,32 @@ bestätigen Falsch-Positiv-Schutz. Freigegeben.
   Anwendungscode. Verifiziert stattdessen in zwei Teilläufen
   (`--ignore=tests/gui` sowie `tests/gui` einzeln), beide grün. CI (Linux,
   ohne Display) ist nicht betroffen, da dort alle tk-Tests skippen.
+- **Testnachweis-Nachtrag:** Die 899+475=1374 aus dem letzten Bericht liefen
+  beide mit `-m "not slow"` bzw. ohne `tests/acceptance`-Abdeckung — die
+  23 `slow`/Acceptance-Tests (DB-Kopie, `tests/acceptance/` +
+  `test_log4om_db.py`) fehlten damit im Nachweis. Separat nachgeholt:
+  `pytest -m slow` → 23 passed, 0 failed. Damit sind alle drei disjunkten
+  Teilmengen (899 nicht-GUI-schnell + 481 GUI [463–475 passed, Rest
+  umgebungsbedingte Skips, siehe unten] + 23 slow) nachweislich grün — DoD
+  ADR-0027 erfüllt.
+- Tcl-Absturzbefund als eigenes Tech-Debt-Issue #40 festgehalten (nicht in
+  diesem Schritt behoben); zusätzlich vermerkt: `main_window.
+  _start_update_check` nutzt dasselbe `self.after(0, …)`-aus-Hintergrund-
+  Thread-Muster wie ursprünglich der Ignorieren-Dialog — Umstellung auf
+  Queue-Polling (ADR-0023) dort zur Prüfung vorgemerkt.
+
+### 🔧 Beta-Release v0.5.0-beta6 — in Vorbereitung
+
+- Enthält Karten ignorieren (#39, ADR-0059 + Race-Nachtrag, Config v1→v2) seit
+  beta5 (`origin/dev` = `8b2a833`). `__version__.py` bleibt `0.5.0`/`stable`
+  (unverändert seit beta1, ADR-0046 §1); CHANGELOG `[Unreleased]` weiterhin
+  offen (ADR-0046 §3). Issues #35 (Sonderrufzeichen zwei Ziffern), #36 (OCR
+  O/0, I/1) und #38 (Hauptfenster-Zeilen-Tooltip) bleiben offen — nicht Teil
+  dieser Beta.
+- Tag `v0.5.0-beta6`; Praxistest des Ignorieren-Features (Button im manuellen
+  Dialog, Listenfenster, Setup-Assistent-Tag-Feld, einmaliger Ignoriert-Tag-
+  Hinweis nach dem Update) macht DF1DS manuell nach dem Build. Stable-Release
+  weiterhin nicht durch DF1DS bestätigt.
 
 ## V2 — Vorgemerkte Features
 
