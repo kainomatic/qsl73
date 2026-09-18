@@ -356,7 +356,7 @@ Read-only an einer Test-DB-Kopie erhoben, im Rahmen der Planung von Issue #42
 - **`S` kennt zusätzlich `"Requested"`** (bei `CT="EQSL"` beobachtet). Laut Log4OM-Forum
   bietet der QSL-Manager außerdem `"Queued"` und `"Invalid"` an — in der Test-DB **nicht**
   vorgekommen, daher **offen**: exakte Schreibweise noch nicht per Handtest gesichert
-  (Handtest laut Issue #42 ausstehend, siehe Frage #6 unten).
+  (Handtest laut Issue #42 ausstehend, siehe §6, Frage #6).
 - **ADIF-Hintergrund der Werte** (Log4OM leitet sie davon ab): `RCVD=Requested` = die
   loggende Station (DF1DS) hat eine QSL angefordert; `SENT=Requested` = die Gegenstation
   hat eine QSL angefordert; `SENT=Queued` = zum Versand/Upload ausgewählt. Hinweis: Bei
