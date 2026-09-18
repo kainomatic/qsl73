@@ -654,3 +654,96 @@ class TestCreateTag:
         rsps.add(rsps.POST, f"{BASE}/api/tags/", json={}, status=500)
         with pytest.raises(PaperlessAPIError):
             client.create_tag("fail-tag")
+
+
+# ── Mehrere Ausschluss-Tags + Ignoriert-Zählung/-Liste (ADR-0059) ──────────────
+
+
+class TestGetDocumentsByTagMultiExclude:
+    @rsps.activate
+    def test_exclude_tag_names_combines_multiple_ids(self, client):
+        """exclude_tag_names mit zwei existierenden Tags → kommagetrennte IDs."""
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 7, "name": "qsl-bestätigt"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 9, "name": "qsl-ignoriert"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 1, "next": None, "results": [{"id": 42}]})
+        docs = client.get_documents_by_tag(
+            "qsl-card", exclude_tag_names=["qsl-bestätigt", "qsl-ignoriert"]
+        )
+        assert len(docs) == 1
+        req_url = rsps.calls[2].request.url
+        assert "tags__id__none=7%2C9" in req_url or "tags__id__none=7,9" in req_url
+
+    @rsps.activate
+    def test_exclude_tag_names_one_missing_skips_it(self, client):
+        """Existiert nur einer der beiden Ausschluss-Tags, wird nur dessen ID verwendet."""
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 7, "name": "qsl-bestätigt"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 1, "next": None, "results": [{"id": 42}]})
+        docs = client.get_documents_by_tag(
+            "qsl-card", exclude_tag_names=["qsl-bestätigt", "nonexistent"]
+        )
+        assert len(docs) == 1
+        req_url = rsps.calls[2].request.url
+        assert "tags__id__none=7" in req_url
+        assert "7,9" not in req_url
+
+
+class TestCountDocumentsWithAllTags:
+    @rsps.activate
+    def test_count_uses_count_field_with_page_size_1(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 3, "name": "qsl-card"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 9, "name": "qsl-ignoriert"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 5, "next": None, "results": [{"id": 1}]})
+        n = client.count_documents_with_all_tags(["qsl-card", "qsl-ignoriert"])
+        assert n == 5
+        req_url = rsps.calls[2].request.url
+        assert "tags__id__all=3,9" in req_url or "tags__id__all=3%2C9" in req_url
+        assert "page_size=1" in req_url
+
+    @rsps.activate
+    def test_count_missing_tag_returns_zero(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        n = client.count_documents_with_all_tags(["qsl-card", "nonexistent"])
+        assert n == 0
+        assert len(rsps.calls) == 1  # kein Dokumenten-Request
+
+
+class TestListDocumentsWithAllTags:
+    @rsps.activate
+    def test_list_returns_all_pages(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 3, "name": "qsl-card"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None,
+                       "results": [{"id": 9, "name": "qsl-ignoriert"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 2, "next": f"{BASE}/api/documents/?page=2",
+                       "results": [{"id": 1, "title": "Karte 1"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/",
+                 json={"count": 2, "next": None,
+                       "results": [{"id": 2, "title": "Karte 2"}]})
+        docs = client.list_documents_with_all_tags(["qsl-card", "qsl-ignoriert"])
+        assert [d["id"] for d in docs] == [1, 2]
+
+    @rsps.activate
+    def test_list_missing_tag_returns_empty(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 0, "next": None, "results": []})
+        docs = client.list_documents_with_all_tags(["qsl-card", "nonexistent"])
+        assert docs == []

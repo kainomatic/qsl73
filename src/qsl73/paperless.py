@@ -114,19 +114,73 @@ class PaperlessClient:
         self,
         tag_name: str,
         exclude_tag_name: str | None = None,
+        exclude_tag_names: list[str] | None = None,
     ) -> list[dict]:
         """Gibt alle Dokumente mit dem angegebenen Tag zurück.
 
-        exclude_tag_name: Wenn gesetzt, werden Dokumente mit diesem Tag serverseitig
-        ausgeschlossen (tags__id__none). Existiert der Ausschluss-Tag nicht in Paperless,
-        wird kein Ausschluss angewendet. Paginierung vollständig aufgelöst.
+        exclude_tag_name / exclude_tag_names: Wenn gesetzt, werden Dokumente mit diesen
+        Tags serverseitig ausgeschlossen (tags__id__none, kommagetrennt bei mehreren
+        Tags — ADR-0059). Beide Parameter können kombiniert werden. Nicht existierende
+        Ausschluss-Tags werden übersprungen (kein Fehler, ADR-0032). Paginierung
+        vollständig aufgelöst.
         """
         base_query = f"{self._base}/api/documents/?tags__name__iexact={tag_name}"
+
+        names: list[str] = []
         if exclude_tag_name is not None:
-            exclude_id = self.get_tag_id(exclude_tag_name)
-            if exclude_id is not None:
-                base_query += f"&tags__id__none={exclude_id}"
+            names.append(exclude_tag_name)
+        names.extend(exclude_tag_names or [])
+
+        exclude_ids: list[int] = []
+        for name in names:
+            exclude_id = self.get_tag_id(name)
+            if exclude_id is not None and exclude_id not in exclude_ids:
+                exclude_ids.append(exclude_id)
+        if exclude_ids:
+            ids_str = ",".join(str(i) for i in exclude_ids)
+            base_query += f"&tags__id__none={ids_str}"
+
         url: str | None = base_query
+        results: list[dict] = []
+        while url:
+            data = self._get_json(url)
+            results.extend(data.get("results", []))
+            url = data.get("next")
+        return results
+
+    def count_documents_with_all_tags(self, tag_names: list[str]) -> int:
+        """Gibt die Anzahl Dokumente zurück, die ALLE angegebenen Tags tragen.
+
+        Nutzt page_size=1 und wertet nur das 'count'-Feld aus — keine Ergebnisliste
+        wird geladen. Fehlt einer der Tags in Paperless, wird 0 zurückgegeben
+        (kein Fehler, wie ADR-0032).
+        """
+        ids: list[int] = []
+        for name in tag_names:
+            tag_id = self.get_tag_id(name)
+            if tag_id is None:
+                return 0
+            ids.append(tag_id)
+        ids_str = ",".join(str(i) for i in ids)
+        data = self._get_json(
+            f"{self._base}/api/documents/?tags__id__all={ids_str}&page_size=1"
+        )
+        return int(data.get("count", 0))
+
+    def list_documents_with_all_tags(self, tag_names: list[str]) -> list[dict]:
+        """Gibt alle Dokumente zurück, die ALLE angegebenen Tags tragen (id/title/…).
+
+        Paginierung vollständig aufgelöst. Fehlt einer der Tags in Paperless, wird
+        eine leere Liste zurückgegeben (kein Fehler, wie ADR-0032).
+        """
+        ids: list[int] = []
+        for name in tag_names:
+            tag_id = self.get_tag_id(name)
+            if tag_id is None:
+                return []
+            ids.append(tag_id)
+        ids_str = ",".join(str(i) for i in ids)
+        url: str | None = f"{self._base}/api/documents/?tags__id__all={ids_str}"
         results: list[dict] = []
         while url:
             data = self._get_json(url)

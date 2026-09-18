@@ -7,7 +7,7 @@ import yaml
 
 from qsl73.crypto import CryptoBackend
 
-CURRENT_VERSION = 1
+CURRENT_VERSION = 2
 
 VALID_AUTH_MODES = {"token", "password"}
 VALID_LANGUAGES = {"de", "en"}
@@ -36,7 +36,7 @@ class Log4OMConfig:
 class TagsConfig:
     input: str = "qsl-card"
     confirmed: str = "qsl-bestätigt"
-    uncertain: str = "qsl-nicht-bestätigt"
+    ignored: str = "qsl-ignoriert"
 
 
 @dataclass
@@ -158,6 +158,16 @@ def migrate_config(data: dict) -> dict:
         # Version 0/fehlend → 1: nur config_version-Feld setzen
         data["config_version"] = 1
 
+    if version < 2:
+        # Version 1 → 2: tags.uncertain (nie gesetzt, toter Code) entfällt zugunsten
+        # von tags.ignored. Der alte Wert wird NICHT übernommen (ADR-0059 Entscheidung 6):
+        # der Name wäre irreführend, und hinge der alte Tag doch an Dokumenten, würden
+        # sie beim Laden still ausgefiltert.
+        tags = data.setdefault("tags", {})
+        tags.pop("uncertain", None)
+        tags.setdefault("ignored", "qsl-ignoriert")
+        data["config_version"] = 2
+
     # Additiver Default: fehlendes Feld → 100 (kein Versions-Bump)
     app = data.setdefault("app", {})
     if "manual_match_limit" not in app:
@@ -192,7 +202,7 @@ def _dict_to_config(data: dict) -> Config:
         tags=TagsConfig(
             input=t.get("input", "qsl-card"),
             confirmed=t.get("confirmed", "qsl-bestätigt"),
-            uncertain=t.get("uncertain", "qsl-nicht-bestätigt"),
+            ignored=t.get("ignored", "qsl-ignoriert"),
         ),
         matching=MatchingConfig(
             fuzzy_enabled=m.get("fuzzy_enabled", True),
@@ -226,7 +236,7 @@ def _config_to_dict(config: Config) -> dict:
         "tags": {
             "input": config.tags.input,
             "confirmed": config.tags.confirmed,
-            "uncertain": config.tags.uncertain,
+            "ignored": config.tags.ignored,
         },
         "matching": {
             "fuzzy_enabled": config.matching.fuzzy_enabled,

@@ -25,7 +25,10 @@ _TT_DB_PATH = "Pfad zur Log4OM-SQLite-Datenbankdatei (normalerweise Log4OM2.sqli
 _TT_OWN_CALLSIGN = "Ihr Rufzeichen — QSL73 prüft damit, ob eine eingehende Karte an Ihr Logbuch gerichtet ist"
 _TT_TAG_INPUT = "Paperless-Tag, mit dem eingehende QSL-Karten markiert sind (Eingangskorb)"
 _TT_TAG_CONFIRMED = "Paperless-Tag, der nach erfolgreicher Bestätigung gesetzt wird"
-_TT_TAG_UNCERTAIN = "Paperless-Tag, der bei unsicherer Zuordnung gesetzt wird (zur manuellen Durchsicht)"
+_TT_TAG_IGNORED = (
+    "Paperless-Tag für dauerhaft ignorierte Karten (nie zuordenbar). "
+    "Muss vor dem ersten Ignorieren hier ausgewählt oder angelegt werden."
+)
 _TT_TAG_CREATE = "Legt den eingegebenen Tag-Namen in Paperless an (ohne automatisches Matching)"
 _TT_RELOAD_TAGS = "Lädt die aktuellen Tags aus Paperless neu — Verbindung muss zuerst getestet werden"
 _TT_FUZZY = "Bei OCR-Tippfehlern im Rufzeichen (1 Zeichen Abweichung) trotzdem einen Treffer suchen"
@@ -264,12 +267,12 @@ class SetupWizard(tk.Toplevel):
         _tag_tt = {
             "tags.input": _TT_TAG_INPUT,
             "tags.confirmed": _TT_TAG_CONFIRMED,
-            "tags.uncertain": _TT_TAG_UNCERTAIN,
+            "tags.ignored": _TT_TAG_IGNORED,
         }
         for _tag_key, _tag_label, _tag_default in [
             ("tags.input", "Eingangs-Tag", "qsl-card"),
             ("tags.confirmed", "Bestätigt-Tag", "qsl-bestätigt"),
-            ("tags.uncertain", "Unsicher-Tag", "qsl-nicht-bestätigt"),
+            ("tags.ignored", "Ignoriert-Tag", "qsl-ignoriert"),
         ]:
             _var = tk.StringVar(value=_d.get(_tag_key, _tag_default))
             self._vars[_tag_key] = _var
@@ -552,7 +555,7 @@ class SetupWizard(tk.Toplevel):
         tag_names = [t["name"] for t in self._available_tags]
         state = "readonly" if self._connection_ok else "disabled"
 
-        for key in ("tags.input", "tags.confirmed", "tags.uncertain"):
+        for key in ("tags.input", "tags.confirmed", "tags.ignored"):
             combo = self._tag_combos.get(key)
             if combo is None:
                 continue
@@ -561,7 +564,7 @@ class SetupWizard(tk.Toplevel):
             combo.configure(values=tag_names, state=state)
             self._vars[key].set(new_val)
 
-        for key in ("tags.confirmed", "tags.uncertain"):
+        for key in ("tags.confirmed", "tags.ignored"):
             self._check_tag_warning(key)
 
     def _check_tag_warning(self, key: str) -> None:

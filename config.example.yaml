@@ -2,7 +2,7 @@
 # Kopiere diese Datei nach %APPDATA%\QSL73\config.yaml und fülle die Felder aus.
 # Niemals echte Werte (Tokens, Passwörter, Pfade mit Nutzernamen) ins Repo einchecken.
 
-config_version: 1
+config_version: 2
 
 paperless:
   # Vollständige Basis-URL deiner Paperless-ngx-Instanz (inkl. http/https, ohne abschließenden /)
@@ -30,8 +30,10 @@ tags:
   input: "qsl-card"
   # Name des Paperless-Tags für bestätigte Karten (sicherer Match oder manuell zugeordnet)
   confirmed: "qsl-bestätigt"
-  # Name des Paperless-Tags für unsichere/mehrdeutige Treffer
-  uncertain: "qsl-nicht-bestätigt"
+  # Name des Paperless-Tags für dauerhaft ignorierte Karten (nie zuordenbar).
+  # Muss vor dem ersten Ignorieren in Paperless vorhanden sein (Setup-Assistent →
+  # Einstellungen: auswählen oder anlegen). QSL73 legt ihn NICHT automatisch an.
+  ignored: "qsl-ignoriert"
 
 matching:
   # Fuzzy-Matching aktivieren (Toleranz: 1 Zeichen bei OCR-Verlesern)

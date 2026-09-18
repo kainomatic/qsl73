@@ -83,8 +83,10 @@ def resolve_effective_token(token_field: str, existing_config) -> str:
 def auto_matching_warning(tag_name: str, tags: list[dict]) -> str | None:
     """Gibt Warnmeldung zurück, wenn der genannte Tag matching_algorithm != 0 hat.
 
-    Nur für Schreib-Tags (confirmed/uncertain) aufrufen — der Eingangs-Tag (input)
-    ist auf Aufrufer-Ebene von dieser Prüfung ausgenommen.
+    Nur für Schreib-Tags (confirmed/ignored) aufrufen — der Eingangs-Tag (input)
+    ist auf Aufrufer-Ebene von dieser Prüfung ausgenommen. Gilt für den Ignoriert-
+    Tag ausdrücklich mit (ADR-0059 §G): ein von Paperless automatisch vergebener
+    Ignoriert-Tag ließe Karten still verschwinden.
     Gibt None zurück wenn kein Auto-Matching aktiv oder Tag nicht in der Liste.
     """
     if not tag_name:
@@ -128,7 +130,7 @@ def config_to_field_defaults(config: "Config") -> dict:
         "log4om.own_callsign": config.log4om.own_callsign,
         "tags.input": config.tags.input,
         "tags.confirmed": config.tags.confirmed,
-        "tags.uncertain": config.tags.uncertain,
+        "tags.ignored": config.tags.ignored,
         "matching.fuzzy_enabled": config.matching.fuzzy_enabled,
         "confirm.qsl_route_default": config.confirm.qsl_route_default,
         "app.language": config.app.language,

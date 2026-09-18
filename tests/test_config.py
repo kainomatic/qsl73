@@ -6,6 +6,7 @@ from qsl73.config import (
     Config,
     ConfigError,
     CURRENT_VERSION,
+    TagsConfig,
     load_config,
     save_config,
     validate_config,
@@ -27,7 +28,7 @@ class TestSaveAndLoad:
         assert loaded.log4om.own_callsign == ""
         assert loaded.tags.input == "qsl-card"
         assert loaded.tags.confirmed == "qsl-bestätigt"
-        assert loaded.tags.uncertain == "qsl-nicht-bestätigt"
+        assert loaded.tags.ignored == "qsl-ignoriert"
         assert loaded.matching.fuzzy_enabled is True
         assert loaded.confirm.qsl_route_default == "undefined"
         assert loaded.app.language == "de"
@@ -138,7 +139,7 @@ class TestValidation:
             "config_version": 1,
             "paperless": {"url": "", "auth_mode": "token", "token": ""},
             "log4om": {"db_path": "", "own_callsign": ""},
-            "tags": {"input": "qsl-card", "confirmed": "ok", "uncertain": "no"},
+            "tags": {"input": "qsl-card", "confirmed": "ok", "ignored": "no"},
             "matching": {"fuzzy_enabled": True},
             "confirm": {"qsl_route_default": "undefined"},
             "app": {"language": "de", "backup_count": 5, "update_check": True},
@@ -403,3 +404,65 @@ def test_log_level_missing_field_loads_as_info(config_path):
     )
     cfg = load_config(config_path)
     assert cfg.app.log_level == "INFO"
+
+
+# ---------------------------------------------------------------------------
+# tags.ignored — Config-Tests (ADR-0059, ersetzt tags.uncertain)
+# ---------------------------------------------------------------------------
+
+
+def test_tags_ignored_default():
+    assert TagsConfig().ignored == "qsl-ignoriert"
+
+
+def test_tags_config_has_no_uncertain_field():
+    """tags.uncertain wurde durch tags.ignored ersetzt (ADR-0059)."""
+    assert not hasattr(TagsConfig(), "uncertain")
+
+
+def test_v1_config_with_uncertain_migrates_to_ignored_default(config_path):
+    """Alte v1-Config mit tags.uncertain lädt fehlerfrei; alter Wert wird NICHT übernommen."""
+    import yaml
+    data = {
+        "config_version": 1,
+        "tags": {"input": "qsl-card", "confirmed": "qsl-bestätigt", "uncertain": "alter-name"},
+    }
+    config_path.write_text(yaml.dump(data), encoding="utf-8")
+    cfg = load_config(config_path)
+    assert cfg.config_version == 2
+    assert cfg.tags.ignored == "qsl-ignoriert"
+    assert "alter-name" not in vars(cfg.tags).values()
+
+
+def test_v1_config_without_tags_migrates_cleanly(config_path):
+    """v1-Config ganz ohne tags-Block lädt fehlerfrei → Default-Tags."""
+    import yaml
+    data = {"config_version": 1}
+    config_path.write_text(yaml.dump(data), encoding="utf-8")
+    cfg = load_config(config_path)
+    assert cfg.config_version == 2
+    assert cfg.tags.ignored == "qsl-ignoriert"
+    assert cfg.tags.input == "qsl-card"
+
+
+def test_migrate_config_v1_to_v2_drops_uncertain_sets_ignored():
+    data = {"config_version": 1, "tags": {"uncertain": "old"}}
+    result = migrate_config(data)
+    assert result["config_version"] == 2
+    assert "uncertain" not in result["tags"]
+    assert result["tags"]["ignored"] == "qsl-ignoriert"
+
+
+def test_migrate_config_v1_preserves_existing_ignored_if_present():
+    """Ist tags.ignored bereits gesetzt (untypischer Fall), bleibt der Wert erhalten."""
+    data = {"config_version": 1, "tags": {"ignored": "schon-gesetzt"}}
+    result = migrate_config(data)
+    assert result["tags"]["ignored"] == "schon-gesetzt"
+
+
+def test_current_version_config_round_trips_ignored_tag(config_path):
+    cfg = Config()
+    cfg.tags.ignored = "meine-ignorierliste"
+    save_config(cfg, config_path)
+    loaded = load_config(config_path)
+    assert loaded.tags.ignored == "meine-ignorierliste"

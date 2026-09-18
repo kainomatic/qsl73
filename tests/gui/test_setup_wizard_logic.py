@@ -78,7 +78,7 @@ def test_override_map_covers_all_expected_keys():
         "log4om.own_callsign",
         "tags.input",
         "tags.confirmed",
-        "tags.uncertain",
+        "tags.ignored",
         "matching.fuzzy_enabled",
         "confirm.qsl_route_default",
         "app.language",
@@ -117,7 +117,7 @@ class TestConfigToFieldDefaults:
         expected = {
             "paperless.url", "paperless.auth_mode",
             "log4om.db_path", "log4om.own_callsign",
-            "tags.input", "tags.confirmed", "tags.uncertain",
+            "tags.input", "tags.confirmed", "tags.ignored",
             "matching.fuzzy_enabled", "confirm.qsl_route_default",
             "app.language", "app.backup_count", "app.update_check",
             "app.manual_match_limit", "app.log_level",
@@ -148,11 +148,11 @@ class TestConfigToFieldDefaults:
         cfg = Config()
         cfg.tags.input = "inp"
         cfg.tags.confirmed = "conf"
-        cfg.tags.uncertain = "unc"
+        cfg.tags.ignored = "ign"
         d = config_to_field_defaults(cfg)
         assert d["tags.input"] == "inp"
         assert d["tags.confirmed"] == "conf"
-        assert d["tags.uncertain"] == "unc"
+        assert d["tags.ignored"] == "ign"
 
 
 class TestIsTokenRetainValid:
