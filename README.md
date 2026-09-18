@@ -176,7 +176,7 @@ Siehe [`docs/BUILD.md`](docs/BUILD.md) für PyInstaller-Bundle und Inno-Setup-In
 
 - Designentscheidungen: [`docs/adr/`](docs/adr/) (Architecture Decision Records)
 - Technische Spezifikation: [`KONZEPT.md`](KONZEPT.md)
-- Bau-Reihenfolge & Reviews: [`ROADMAP.md`](ROADMAP.md)
+- Aktueller Stand & priorisierte nächste Schritte: [`ROADMAP.md`](ROADMAP.md)
 - Offene Aufgaben: [GitHub Issues](https://github.com/kainomatic/qsl73/issues)
 
 ## Inhaber & Kontakt

@@ -88,8 +88,8 @@ verwenden bedeutet: Reviewer kann nicht reviewen.
 - Bei `NEUE SESSION: nein` wird der Auftrag in der laufenden Session fortgeführt.
 
 **Faustregel für Desktop:**
-- **Neue Session:** beim Start eines neuen, thematisch eigenständigen Bau-Schritts
-  (z. B. ROADMAP-Schritt-Grenzen wie „jetzt Schritt 3").
+- **Neue Session:** beim Start eines neuen, thematisch eigenständigen Auftrags
+  (z. B. neues Issue aus ROADMAP „Nächste Schritte").
 - **Session fortführen:** bei Folge-Korrekturen oder Ergänzungen innerhalb desselben Themas
   (z. B. Review-Feedback zum laufenden Schritt, kleine Doku-Nachbesserungen).
 

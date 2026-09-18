@@ -10,10 +10,9 @@
 
 ## A) Aktueller Stand
 
-**v0.5.0 STABLE veröffentlicht (2026-09-18).** `main` und `dev` stehen auf demselben
-Commit (`749eb2f`, Tag `v0.5.0`) — seit dem ADR-0046-Nachtrag wird `main` nach jedem
-Stable-Release per Fast-Forward nach `dev` zurückgemergt; `dev` läuft seither wie
-üblich mit weiteren (bislang rein dokumentarischen) Commits voraus, das ist normal.
+**v0.5.0 STABLE veröffentlicht (2026-09-18).** `main` = `749eb2f` (Tag `v0.5.0`).
+`dev` läuft wie üblich mit weiteren Commits voraus; `main` wird erst zum nächsten
+Stable-Release wieder aktualisiert (danach Rückmerge main→dev, ADR-0046-Nachtrag).
 
 Keine laufende Beta. Kein aktiver Bau-Auftrag.
 
