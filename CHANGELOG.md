@@ -8,12 +8,23 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- Internes, tk-freies Logikmodul `qsl73.confirmations` für das Werkzeug
-  „Bestätigungsübersicht" in Vorbereitung (Issue #42, ADR-0066): read-only-Laden
-  aller QSOs (`mode=ro`, kein Schreibpfad), Normalisieren von `qsoconfirmations` in
-  eine flache Struktur (Fakten vs. Merker getrennt, `Invalid` als eigener Zustand,
-  Bestätigungs- vs. Upload-Dienste), Kennzahlen und Filter. Noch kein
-  nutzersichtbares Feature — das Fenster folgt in einem Folgeauftrag.
+- Neues Werkzeug **Werkzeuge → Bestätigungsübersicht…** (Issue #42, ADR-0066,
+  ADR-0067): read-only-Fenster, zeigt den Bestätigungsstatus aller QSOs der
+  Log4OM-DB über alle Dienste (Papier/QSL, LoTW, eQSL, QRZ, Clublog, HRDLog,
+  HamQTH) — unabhängig vom Karten-Durchlauf, braucht nur `log4om.db_path`,
+  funktioniert auch ohne eingerichtetes Paperless. Kennzahlen-Kacheln, Tabelle mit
+  farbigen Symbolen je Dienst (✅ bekommen / ⬆️ gesendet / – keins / ⊘ ungültig,
+  kleiner Zusatzpunkt bei Requested/Queued-Merkern — nie als bekommen/gesendet
+  fehlgedeutet), Zell-Tooltips mit den wörtlichen Log4OM-Werten, Detailzeile zum
+  gewählten QSO, Basis-/Status-/Sammelfilter, Spaltenwahl für Dienst-Spalten,
+  Klick-Sortierung (ADR-0052), Anzeige-Limit bei großen Logs, „Neu laden". Strikt
+  read-only (`mode=ro`), kein Schreibpfad. CSV-Export und Schnellansichten folgen
+  in einem Folge-Issue (Stufe 2/3).
+- Internes, tk-freies Logikmodul `qsl73.confirmations` als Grundlage dafür
+  (Issue #42, ADR-0066): read-only-Laden aller QSOs (`mode=ro`, kein Schreibpfad),
+  Normalisieren von `qsoconfirmations` in eine flache Struktur (Fakten vs. Merker
+  getrennt, `Invalid` als eigener Zustand, Bestätigungs- vs. Upload-Dienste),
+  Kennzahlen und Filter.
 - Neuer Menüpunkt **Bearbeiten → Eingangs-Tag bei erledigten Karten entfernen…**
   (Issue #41, ADR-0064): zählt Dokumente mit Eingangs-Tag bei bereits bestätigten
   oder ignorierten Karten und entfernt den Eingangs-Tag nach Rückfrage (Ja/Später/

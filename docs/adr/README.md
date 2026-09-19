@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0067.
+Nächste freie Nummer: ADR-0068.
 
 ## Index
 
@@ -56,6 +56,7 @@ Nächste freie Nummer: ADR-0067.
 | ADR-0064 | Eingangs-Tag als Arbeitskorb — Entfernen bei Bestätigen/Ignorieren (ein PATCH je Aktion), einmalige Alt-Bestand-Abfrage + dauerhafter Menüpunkt (Issue #41) |
 | ADR-0065 | Beta-Vorschlag nach Issue-Abschluss; Stable-Release nur auf ausdrückliche DF1DS-Ansage |
 | ADR-0066 | Bestätigungsübersicht — read-only-Datenmodell und Fakten-vs-Merker-Trennung (Issue #42, Auftrag 1) |
+| ADR-0067 | Bestätigungsübersicht — farbige Unicode-Symbole statt `tree.tag_configure` (Issue #42, Auftrag 2) |
 
 ## Abgrenzung
 

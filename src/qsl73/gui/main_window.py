@@ -65,6 +65,9 @@ _MENU_CHANGELOG = "Was ist neu (Änderungen)…"
 
 # Bearbeiten-Menü (ADR-0059)
 _MENU_IGNORED_CARDS = "Ignorierte Karten…"
+
+# Werkzeuge-Menü (Issue #42)
+_MENU_CONFIRMATIONS_OVERVIEW = "Bestätigungsübersicht…"
 _MSG_DOC_UNAVAILABLE_TITLE = "Information nicht verfügbar — by DF1DS"
 _MSG_DOC_UNAVAILABLE_BODY = (
     "Diese Information ist nur in der installierten Version verfügbar.\n\n"
@@ -1045,6 +1048,12 @@ class MainWindow(tk.Tk):
         )
         menubar.add_cascade(label="Bearbeiten", menu=edit_menu)
 
+        tools_menu = tk.Menu(menubar, tearoff=0)
+        tools_menu.add_command(
+            label=_MENU_CONFIRMATIONS_OVERVIEW, command=self._on_show_confirmations
+        )
+        menubar.add_cascade(label="Werkzeuge", menu=tools_menu)
+
         self._help_menu = tk.Menu(menubar, tearoff=0)
         self._rebuild_help_menu()
         menubar.add_cascade(label="Hilfe", menu=self._help_menu)
@@ -1093,6 +1102,12 @@ class MainWindow(tk.Tk):
             pc = PaperlessClient(cfg.paperless.url, cfg.paperless.token)
 
         IgnoredCardsWindow(self, pc, cfg.tags)
+
+    def _on_show_confirmations(self) -> None:
+        """Öffnet die Bestätigungsübersicht (Issue #42) — unabhängig von Paperless."""
+        from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+        ConfirmationsWindow(self, self._config.log4om.db_path)
 
     # ------------------------------------------------------------------
     # Alt-Bestand-Aufräumen — Eingangs-Tag (Issue #41, ADR-0064)

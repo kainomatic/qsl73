@@ -33,14 +33,18 @@ Hauptfenster ruft nicht mehr direkt `self.after(0, …)` aus dem Hintergrund-Thr
 auf, sondern läuft über `RunController.start_update_check()` + Queue-Polling
 (ADR-0063, ADR-0023-Muster).
 
-**Issue #42 (Bestätigungsübersicht) — Auftrag 1 von 2 umgesetzt:** tk-freies
-Logikmodul `src/qsl73/confirmations.py` (read-only-Laden via `mode=ro`, Normalisieren
-von `qsoconfirmations`, Fakten-vs-Merker-Trennung, Kennzahlen, Filter), Grundlage
-ADR-0066. Handtest-Werte aus `docs/discovery.md` §7.1 (Requested/Queued/Invalid)
-verifiziert. Issue #42 bleibt offen — Auftrag 2 (Fenster, Menüpunkt) steht noch aus.
+**Issue #42 (Bestätigungsübersicht) — MVP (Stufe 1) umgesetzt und geschlossen:**
+neuer Menüpunkt **Werkzeuge → Bestätigungsübersicht…**, eigenständiges read-only-
+Fenster (`gui/confirmations_window.py`) auf Basis des tk-freien Logikmoduls
+`src/qsl73/confirmations.py` (Grundlage ADR-0066) und der tk-freien Anzeige-Hilfen
+`gui/confirmations_view.py` (Zustand→Symbol/Tooltip, Sortierung, Spaltenwahl,
+Detailzeile — ADR-0067). Zeigt Kennzahlen-Kacheln, Tabelle mit farbigen Symbolen je
+Dienst, Basis-/Status-/Sammelfilter, Spaltenwahl, Klick-Sortierung, Anzeige-Limit und
+Detailzeile — unabhängig vom Karten-Durchlauf, braucht nur `log4om.db_path`. Stufe 2/3
+(Schnellansichten, erweiterte Filter, CSV-Export, Aggregation) als Folge-Issue #45
+vorgemerkt.
 
-Es wird auf keinen bestimmten Praxistest gewartet — nächster Schritt ist Auftrag 2
-zu Issue #42 oder einer der übrigen in Abschnitt B priorisierten Punkte.
+Nächster Schritt: einer der übrigen in Abschnitt B priorisierten Punkte.
 
 ---
 
@@ -51,13 +55,12 @@ GitHub-Issue.
 
 1. **#35** / **#36** — Rufzeichen-Erkennung (Sonderrufzeichen zwei Ziffern; OCR O/0,
    I/1). Entscheidung DF1DS zum Falsch-Positiv-Risiko noch offen, erst ADR-Klärung.
-2. **#42** — Werkzeug Bestätigungsübersicht. Grundentscheidungen bereits im Issue
-   festgehalten (ADR-0060); Handtest DF1DS zu den exakten Log4OM-Strings noch
-   ausstehend.
-3. **#38** — Hauptfenster-Zeilen-Tooltip. Komfort-Feature, braucht Tooltip-Infrastruktur-
+2. **#38** — Hauptfenster-Zeilen-Tooltip. Komfort-Feature, braucht Tooltip-Infrastruktur-
    Neubau (bestehende Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
-4. **#32** — Schutz gegen Direkt-Commits auf `main`. Prozess-/Doku-Thema, keine
+3. **#32** — Schutz gegen Direkt-Commits auf `main`. Prozess-/Doku-Thema, keine
    funktionale Abhängigkeit zu den übrigen Punkten.
+4. **#45** — Bestätigungsübersicht Stufe 2/3 (Schnellansichten, erweiterte Filter,
+   CSV-Export, Aggregation). Kein Zeitdruck, MVP (#42) bereits nutzbar.
 
 **V2** (bewusst zurückgestellt): #25 (Mehrsprachigkeit i18n), #43 (visueller
 Blinken-Effekt bei Klick ins gesperrte Fenster).

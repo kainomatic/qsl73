@@ -136,6 +136,27 @@ Zuordnungs-Dialog markiert der Button **„Ignorieren"** eine solche Karte dauer
 > Start erneut; über **Bearbeiten → Eingangs-Tag bei erledigten Karten
 > entfernen…** lässt sich derselbe Aufräumvorgang jederzeit manuell auslösen.
 
+### Bestätigungsübersicht (Werkzeuge-Menü)
+
+**Werkzeuge → Bestätigungsübersicht…** zeigt den Bestätigungsstatus **aller** QSOs der
+Log4OM-Datenbank über alle Dienste (Papier/QSL, LoTW, eQSL, QRZ, Clublog, HRDLog,
+HamQTH) auf einen Blick — egal ob die Bestätigung von Log4OM selbst, per Handeintrag
+oder über QSL73 eingetragen wurde. Unabhängig vom Karten-Durchlauf: braucht nur die
+konfigurierte Log4OM-Datenbank, funktioniert auch ohne eingerichtetes Paperless.
+
+- **Strikt read-only** — öffnet die Datenbank nur lesend, kein Schreibpfad, gefahrlos
+  neben einem laufenden Log4OM nutzbar.
+- Tabelle mit farbigen Symbolen je Dienst: **✅** bekommen, **⬆️** gesendet (noch nicht
+  bekommen), **–** keins von beiden, **⊘** ungültig/zurückgewiesen (Log4OM „Invalid").
+  Ein kleiner Punkt **·** markiert zusätzlich einen Merker (Log4OM „Requested"/
+  „Queued") — diese Merker gehen **nie** als „bekommen" oder „gesendet" durch, ihre
+  genaue Bedeutung hängt von der eigenen Log4OM-Konfiguration ab. Hover über eine
+  Zelle zeigt die wörtlichen Log4OM-Werte mit neutraler Erklärung.
+- Kennzahlen-Kacheln, Detailzeile zum gewählten QSO, Basis-/Status-/Sammelfilter,
+  Spaltenwahl zum Ausblenden ungenutzter Dienste, Klick-Sortierung, „Neu laden".
+- CSV-Export und vordefinierte Schnellansichten sind für eine spätere Ausbaustufe
+  vorgesehen (Platz im Fenster bereits reserviert).
+
 ### Menü
 
 | Menüpunkt | Funktion |
@@ -143,6 +164,7 @@ Zuordnungs-Dialog markiert der Button **„Ignorieren"** eine solche Karte dauer
 | Bearbeiten → Einstellungen | Verbindungsdaten und Tags nachträglich ändern |
 | Bearbeiten → Ignorierte Karten… | Ignorierte Karten ansehen und wieder aufnehmen |
 | Bearbeiten → Eingangs-Tag bei erledigten Karten entfernen… | Alt-Bestand aufräumen (siehe oben) |
+| Werkzeuge → Bestätigungsübersicht… | Bestätigungsstatus aller QSOs über alle Dienste (read-only, siehe oben) |
 | Hilfe → Über QSL73 | Versionsinformation, Links |
 | Hilfe → Log-Ordner öffnen | Diagnosedateien anzeigen |
 | Hilfe → Fehler melden | Bereinigten Fehlerbericht für GitHub Issues erstellen |
