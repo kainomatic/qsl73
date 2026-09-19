@@ -10,9 +10,10 @@
 
 ## A) Aktueller Stand
 
-**v0.6.0-beta2 läuft (Tag auf `dev`, ADR-0046 §6).** Enthält gegenüber beta1
-zusätzlich Issue #41 (Eingangs-Tag als Arbeitskorb) und Issue #42-MVP
-(Bestätigungsübersicht). `main` unverändert bei `749eb2f` (Tag `v0.5.0`) — kein
+**v0.6.0-beta3 läuft (Tag auf `dev`, ADR-0046 §6).** Enthält gegenüber beta2
+zusätzlich die #42-Nachbesserung (Bestätigungsübersicht: farbige Symbole mit
+Uhr-Merker, Kennzahlen-Kacheln, aufgeräumte Filterspalte, 7 Presets aus #45
+vorgezogen). `main` unverändert bei `749eb2f` (Tag `v0.5.0`) — kein
 `main`-Eingriff, kein Stable-Tag (ADR-0065). `__version__.py` = `0.6.0`
 (Ziel-Stable-Nummer), `CHANGELOG.md` `[Unreleased]` bleibt bewusst offen bis zum
 Stable-Release. Stable-Freigabe erfolgt erst auf ausdrückliche Ansage von DF1DS
