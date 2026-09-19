@@ -6,7 +6,7 @@
 
 tk-abhängig:
   IgnoredCardsWindow — eigenständiges Toplevel, lädt die Liste im Hintergrund neu
-                       aus Paperless (Eingangs-Tag + Ignoriert-Tag), Mehrfachauswahl
+                       aus Paperless (nur Ignoriert-Tag, Issue #41), Mehrfachauswahl
                        + "Wieder aufnehmen".
 """
 from __future__ import annotations
@@ -128,7 +128,11 @@ if _TK_OK:
         def _load_async(self) -> None:
             self._status_var.set(_LBL_LOADING)
             client = self._client
-            tag_names = [self._tags_config.input, self._tags_config.ignored]
+            # Nur Ignoriert-Tag (Issue #41, Grundentscheidung 5): ignorierte Karten
+            # verlieren inzwischen den Eingangs-Tag; Alt-Bestand (beide Tags) wird
+            # von list_documents_with_all_tags mit einem einzelnen Tag ebenfalls
+            # gefunden.
+            tag_names = [self._tags_config.ignored]
             result_queue: "queue.Queue" = queue.Queue()
 
             def _work() -> None:

@@ -115,3 +115,16 @@ class TestCreateInitialConfig:
         assert result.app.language == "de"
         assert result.confirm.qsl_route_default == "undefined"
         assert result.matching.fuzzy_enabled is True
+
+    def test_neuinstallation_marks_input_tag_cleanup_done(self, tmp_path, null_crypto):
+        """Neuinstallation (Setup-Assistent frisch durchlaufen) → einmalige
+        Alt-Bestand-Abfrage sofort als erledigt vermerkt (Issue #41, Grundentscheidung 7)."""
+        path = tmp_path / "config.yaml"
+        result = create_initial_config(path=path, crypto=null_crypto)
+        assert result.app.input_tag_cleanup_done is True
+
+    def test_neuinstallation_cleanup_done_persisted_to_disk(self, tmp_path, null_crypto):
+        path = tmp_path / "config.yaml"
+        create_initial_config(path=path, crypto=null_crypto)
+        loaded = load_config(path)
+        assert loaded.app.input_tag_cleanup_done is True

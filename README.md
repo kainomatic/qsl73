@@ -87,8 +87,10 @@ Die Einstellungen sind jederzeit über **Bearbeiten → Einstellungen** erreichb
 
 - Sichere Karten per Klick (Shift-Klick für Bereichsauswahl) markieren.
 - **Jetzt schreiben** → Bestätigung → QSO wird in Log4OM als Papier-QSL markiert;
-  Karte erhält den Bestätigungs-Tag in Paperless und wird im nächsten Durchlauf
-  ausgeblendet.
+  Karte erhält den Bestätigungs-Tag in Paperless und **verliert dabei den
+  Eingangs-Tag** — der Eingangs-Tag ist ein Arbeitskorb, keine Dauer-Kategorie, und
+  wird von erledigten Karten automatisch entfernt (siehe „Eingangs-Tag ist ein
+  Arbeitskorb" unten).
 
 ### Manuelle Zuordnung (unsichere / nicht erkannte Karten)
 
@@ -106,13 +108,33 @@ Manche Karten sind nie zuordenbar — fremdes Log, das QSO fehlt im Logbuch, ode
 eQSL-/LoTW-Ausdruck wurde versehentlich mit dem Eingangs-Tag versehen. Im manuellen
 Zuordnungs-Dialog markiert der Button **„Ignorieren"** eine solche Karte dauerhaft:
 
-- Wirkt sofort beim Klick, kein Bestätigungsdialog — betrifft ausschließlich einen
-  Paperless-Tag, das Log4OM-Logbuch bleibt unberührt.
-  Die Karte erscheint ab dem nächsten Durchlauf nicht mehr.
+- Wirkt sofort beim Klick, kein Bestätigungsdialog — betrifft ausschließlich
+  Paperless-Tags, das Log4OM-Logbuch bleibt unberührt. Die Karte erhält den
+  Ignoriert-Tag, **verliert dabei den Eingangs-Tag** und erscheint ab dem nächsten
+  Durchlauf nicht mehr.
 - Solange eine Karte ignoriert ist, sind „Speichern"/„Speichern und nächste" für sie
-  gesperrt; ein erneuter Klick auf **„Nicht mehr ignorieren"** macht es rückgängig.
+  gesperrt; ein erneuter Klick auf **„Nicht mehr ignorieren"** macht es rückgängig —
+  die Karte bekommt den Eingangs-Tag zurück, sonst käme sie nie in einen Durchlauf
+  zurück.
 - Bereits ignorierte Karten stehen jederzeit über **Bearbeiten → Ignorierte Karten…**
   zur Verfügung (Mehrfachauswahl, „Wieder aufnehmen").
+
+### Eingangs-Tag ist ein Arbeitskorb
+
+> **Verhaltensänderung:** Ab dieser Version ist der Eingangs-Tag (Standardvorschlag
+> `qsl-card`) ein reiner Arbeitskorb, keine Dauer-Kategorie. Bestätigte und
+> ignorierte Karten verlieren ihn automatisch (siehe oben). Wer den Eingangs-Tag
+> bisher zusätzlich als Dauer-Kategorie genutzt hat (z. B. für eigene Paperless-
+> Filter oder -Auswertungen über alle QSL-Karten), sollte dafür einen zweiten,
+> eigenen Tag anlegen — QSL73 rührt ausschließlich den in den Einstellungen
+> konfigurierten Eingangs-Tag an.
+>
+> Beim ersten Start nach diesem Update prüft QSL73 im Hintergrund, ob bereits
+> bestätigte oder ignorierte Karten aus einer früheren Version noch den
+> Eingangs-Tag tragen, und fragt bei Bedarf einmalig nach, ob er entfernt werden
+> soll (Ja / Später / Nicht mehr fragen). Bei „Später" fragt QSL73 beim nächsten
+> Start erneut; über **Bearbeiten → Eingangs-Tag bei erledigten Karten
+> entfernen…** lässt sich derselbe Aufräumvorgang jederzeit manuell auslösen.
 
 ### Menü
 
@@ -120,6 +142,7 @@ Zuordnungs-Dialog markiert der Button **„Ignorieren"** eine solche Karte dauer
 |-----------|----------|
 | Bearbeiten → Einstellungen | Verbindungsdaten und Tags nachträglich ändern |
 | Bearbeiten → Ignorierte Karten… | Ignorierte Karten ansehen und wieder aufnehmen |
+| Bearbeiten → Eingangs-Tag bei erledigten Karten entfernen… | Alt-Bestand aufräumen (siehe oben) |
 | Hilfe → Über QSL73 | Versionsinformation, Links |
 | Hilfe → Log-Ordner öffnen | Diagnosedateien anzeigen |
 | Hilfe → Fehler melden | Bereinigten Fehlerbericht für GitHub Issues erstellen |

@@ -57,6 +57,7 @@ class AppConfig:
     update_check: bool = True
     manual_match_limit: int = 100
     log_level: str = "INFO"
+    input_tag_cleanup_done: bool = False
 
 
 @dataclass
@@ -146,6 +147,9 @@ def validate_config(data: dict) -> list[str]:
                 f"app.log_level: ungültiger Wert '{log_level}' "
                 f"(erlaubt: {', '.join(sorted(VALID_LOG_LEVELS))})"
             )
+        cleanup_done = app.get("input_tag_cleanup_done", False)
+        if not isinstance(cleanup_done, bool):
+            errors.append("app.input_tag_cleanup_done: muss true oder false sein")
 
     return errors
 
@@ -174,6 +178,10 @@ def migrate_config(data: dict) -> dict:
         app["manual_match_limit"] = 100
     if "log_level" not in app:
         app["log_level"] = "INFO"
+    if "input_tag_cleanup_done" not in app:
+        # Additiver Default (Issue #41, Muster ADR-0055): bestehende Configs fragen
+        # beim nächsten Start einmalig nach Alt-Bestand — kein config_version-Bump.
+        app["input_tag_cleanup_done"] = False
 
     # Künftige Migrationen: elif version < 2: ... hier einfügen
 
@@ -217,6 +225,7 @@ def _dict_to_config(data: dict) -> Config:
             update_check=a.get("update_check", True),
             manual_match_limit=a.get("manual_match_limit", 100),
             log_level=a.get("log_level", "INFO"),
+            input_tag_cleanup_done=a.get("input_tag_cleanup_done", False),
         ),
     )
 
@@ -251,6 +260,7 @@ def _config_to_dict(config: Config) -> dict:
             "update_check": config.app.update_check,
             "manual_match_limit": config.app.manual_match_limit,
             "log_level": config.app.log_level,
+            "input_tag_cleanup_done": config.app.input_tag_cleanup_done,
         },
     }
 

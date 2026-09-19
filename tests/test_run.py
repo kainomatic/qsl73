@@ -582,7 +582,12 @@ def test_run_pass_passes_exclude_tags_to_paperless(tmp_path):
 
 
 def test_run_pass_ignored_count_from_paperless(tmp_path):
-    """RunResult.ignored_count übernimmt den Wert aus count_documents_with_all_tags."""
+    """RunResult.ignored_count übernimmt den Wert aus count_documents_with_all_tags.
+
+    Issue #41, Grundentscheidung 5: die Zählung sucht nur noch nach dem
+    Ignoriert-Tag — der Eingangs-Tag wird von ignorierten Karten inzwischen
+    entfernt.
+    """
     from qsl73.run import run_pass
 
     conn, db_path = _make_run_db(tmp_path)
@@ -595,9 +600,7 @@ def test_run_pass_ignored_count_from_paperless(tmp_path):
     result = run_pass(client, db_path, cfg)
 
     assert result.ignored_count == 3
-    client.count_documents_with_all_tags.assert_called_once_with(
-        [cfg.tags.input, cfg.tags.ignored]
-    )
+    client.count_documents_with_all_tags.assert_called_once_with([cfg.tags.ignored])
 
 
 def test_run_pass_ignored_count_error_is_nonfatal(tmp_path):
@@ -688,7 +691,9 @@ def test_write_selected_paperless_tags_set_after_db(tmp_path):
         tags_config=tags_cfg,
     )
 
-    mock_client.add_tag_to_document.assert_called_once_with(1, "qsl-bestätigt")
+    mock_client.replace_tags_on_document.assert_called_once_with(
+        1, add_tag_names=["qsl-bestätigt"], remove_tag_names=[tags_cfg.input]
+    )
 
 
 def test_write_selected_tag_error_nonfatal(tmp_path):
@@ -703,7 +708,7 @@ def test_write_selected_tag_error_nonfatal(tmp_path):
 
     fp = get_db_fingerprint(db_path)
     mock_client = MagicMock()
-    mock_client.add_tag_to_document.side_effect = PaperlessConnectionError("Timeout")
+    mock_client.replace_tags_on_document.side_effect = PaperlessConnectionError("Timeout")
     tags_cfg = TagsConfig()
 
     result, warnings = write_selected(
@@ -756,7 +761,7 @@ def test_write_selected_tag_warning_returned_when_tag_missing(tmp_path):
 
     fp = get_db_fingerprint(db_path)
     mock_client = MagicMock()
-    mock_client.add_tag_to_document.side_effect = PaperlessNotFoundError("nicht gefunden")
+    mock_client.replace_tags_on_document.side_effect = PaperlessNotFoundError("nicht gefunden")
     tags_cfg = TagsConfig(confirmed="qsl-bestätigt")
 
     result, warnings = write_selected(
@@ -773,6 +778,50 @@ def test_write_selected_tag_warning_returned_when_tag_missing(tmp_path):
     assert result.written == 1
     assert len(warnings) == 1
     assert "qsl-bestätigt" in warnings[0]
+
+
+def test_write_selected_skipped_card_gets_no_tag_change(tmp_path):
+    """Übersprungene QSOs (result.skipped) bekommen weder Bestätigt-Tag noch
+    Eingangs-Tag-Entfernung — sie bleiben unverändert im Arbeitskorb (Issue #41,
+    Hinweis 2).
+    """
+    from qsl73.config import TagsConfig
+    from qsl73.log4om_db import get_db_fingerprint
+    from qsl73.run import write_selected
+
+    # QSO1 schreibbar (R='No'); QSO2 bereits bestätigt (R='Yes') → wird geskippt.
+    conn, db_path = _make_writable_db(tmp_path)
+    qsl_json_yes = json.dumps([{"CT": "QSL", "R": "Yes", "S": "No", "SV": "Electronic"}])
+    conn.execute(
+        "INSERT INTO Log VALUES (?,?,?,?,?,?,?)",
+        ("QSO2", "DK9ZZ", "2025-04-03 10:00:00Z", "40m", "SSB", "DL0AAA", qsl_json_yes),
+    )
+    conn.commit()
+    conn.close()
+
+    fp = get_db_fingerprint(db_path)
+    mock_client = MagicMock()
+    tags_cfg = TagsConfig(input="qsl-card", confirmed="qsl-bestätigt")
+
+    result, warnings = write_selected(
+        selections=[("QSO1", "bureau"), ("QSO2", "bureau")],
+        db_path=db_path,
+        backup_dir=tmp_path / "bak",
+        snapshot_fingerprint=fp,
+        expected_states={"QSO1": "No", "QSO2": "No"},
+        paperless_client=mock_client,
+        confirmed_doc_ids=[1, 2],
+        tags_config=tags_cfg,
+    )
+
+    assert result.written == 1
+    assert len(result.skipped) == 1
+    assert result.skipped[0]["qsoid"] == "QSO2"
+    # Nur doc_id=1 (tatsächlich geschrieben) bekommt den Tag-Wechsel; doc_id=2
+    # (übersprungen) bleibt unangetastet.
+    mock_client.replace_tags_on_document.assert_called_once_with(
+        1, add_tag_names=["qsl-bestätigt"], remove_tag_names=["qsl-card"]
+    )
 
 
 def test_write_selected_no_warnings_on_success(tmp_path):

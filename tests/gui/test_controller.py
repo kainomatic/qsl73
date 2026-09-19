@@ -7,15 +7,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qsl73.config import Config
+from qsl73.config import Config, TagsConfig
 from qsl73.gui.controller import (
     ErrorEvent,
+    InputTagCleanupCheckDoneEvent,
+    InputTagCleanupRunDoneEvent,
     ProgressEvent,
     RunController,
     RunDoneEvent,
     UpdateCheckDoneEvent,
     WriteDoneEvent,
 )
+from qsl73.input_tag_cleanup import CleanupResult
 from qsl73.run import RunResult
 from qsl73.log4om_db import WriteResult
 from qsl73.matching import CardFields, MatchOutcome, MatchResult
@@ -47,7 +50,10 @@ def _drain(q: queue.Queue, timeout: float = 5.0) -> list:
     while time.monotonic() < deadline:
         try:
             events.append(q.get(timeout=0.1))
-            if isinstance(events[-1], (RunDoneEvent, WriteDoneEvent, ErrorEvent, UpdateCheckDoneEvent)):
+            if isinstance(events[-1], (
+                RunDoneEvent, WriteDoneEvent, ErrorEvent, UpdateCheckDoneEvent,
+                InputTagCleanupCheckDoneEvent, InputTagCleanupRunDoneEvent,
+            )):
                 break
         except queue.Empty:
             continue
@@ -352,3 +358,103 @@ def test_start_update_check_runs_in_background_thread_not_caller_thread():
 
     assert len(worker_threads) == 1
     assert worker_threads[0] is not caller_thread
+
+
+# ---------------------------------------------------------------------------
+# Alt-Bestand-Aufräumen — Eingangs-Tag (Issue #41)
+# ---------------------------------------------------------------------------
+
+
+def _make_tags_config():
+    return TagsConfig(input="qsl-card", confirmed="qsl-bestätigt", ignored="qsl-ignoriert")
+
+
+def test_start_input_tag_cleanup_check_produces_done_event_with_count():
+    q = queue.Queue()
+    controller = RunController(q)
+
+    with patch("qsl73.gui.controller.count_input_tag_leftovers", return_value=4):
+        controller.start_input_tag_cleanup_check(MagicMock(), _make_tags_config())
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, InputTagCleanupCheckDoneEvent)]
+    assert len(done) == 1
+    assert done[0].count == 4
+    assert done[0].error is False
+    assert done[0].manual is False
+
+
+def test_start_input_tag_cleanup_check_passes_manual_flag():
+    q = queue.Queue()
+    controller = RunController(q)
+
+    with patch("qsl73.gui.controller.count_input_tag_leftovers", return_value=0):
+        controller.start_input_tag_cleanup_check(MagicMock(), _make_tags_config(), manual=True)
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, InputTagCleanupCheckDoneEvent)]
+    assert done[0].manual is True
+
+
+def test_start_input_tag_cleanup_check_error_produces_error_event_not_exception():
+    q = queue.Queue()
+    controller = RunController(q)
+
+    with patch("qsl73.gui.controller.count_input_tag_leftovers", side_effect=RuntimeError("boom")):
+        controller.start_input_tag_cleanup_check(MagicMock(), _make_tags_config())
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, InputTagCleanupCheckDoneEvent)]
+    assert len(done) == 1
+    assert done[0].error is True
+    assert done[0].count == 0
+
+
+def test_start_input_tag_cleanup_check_runs_in_background_thread():
+    q = queue.Queue()
+    controller = RunController(q)
+    caller_thread = threading.current_thread()
+    worker_threads: list[threading.Thread] = []
+
+    def _fake_count(_client, _tags):
+        worker_threads.append(threading.current_thread())
+        return 0
+
+    with patch("qsl73.gui.controller.count_input_tag_leftovers", side_effect=_fake_count):
+        controller.start_input_tag_cleanup_check(MagicMock(), _make_tags_config())
+        _drain(q)
+
+    assert len(worker_threads) == 1
+    assert worker_threads[0] is not caller_thread
+
+
+def test_start_input_tag_cleanup_run_produces_done_event_with_result():
+    q = queue.Queue()
+    controller = RunController(q)
+    fake_result = CleanupResult(removed=3, failed=1)
+
+    with patch("qsl73.gui.controller.remove_input_tag_from_leftovers", return_value=fake_result):
+        controller.start_input_tag_cleanup_run(MagicMock(), _make_tags_config(), Path("/fake/logs"))
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, InputTagCleanupRunDoneEvent)]
+    assert len(done) == 1
+    assert done[0].result is fake_result
+    assert done[0].error is None
+
+
+def test_start_input_tag_cleanup_run_error_produces_error_in_event():
+    q = queue.Queue()
+    controller = RunController(q)
+
+    with patch(
+        "qsl73.gui.controller.remove_input_tag_from_leftovers",
+        side_effect=RuntimeError("Verbindung verloren"),
+    ):
+        controller.start_input_tag_cleanup_run(MagicMock(), _make_tags_config(), Path("/fake/logs"))
+        events = _drain(q)
+
+    done = [e for e in events if isinstance(e, InputTagCleanupRunDoneEvent)]
+    assert len(done) == 1
+    assert done[0].result is None
+    assert isinstance(done[0].error, RuntimeError)

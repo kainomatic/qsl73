@@ -12,6 +12,11 @@ from typing import Optional
 
 from qsl73.config import Config, TagsConfig
 from qsl73.gui.error_messages import classify_error
+from qsl73.input_tag_cleanup import (
+    CleanupResult,
+    count_input_tag_leftovers,
+    remove_input_tag_from_leftovers,
+)
 from qsl73.log4om_db import WriteResult
 from qsl73.paperless import PaperlessClient
 from qsl73.run import RunResult, run_pass, write_selected
@@ -43,6 +48,21 @@ class UpdateCheckDoneEvent:
     """Ergebnis einer Update-Prüfung (ADR-0063) — manual: automatisch vs. manuell ausgelöst."""
     result: UpdateCheckResult
     manual: bool = False
+
+
+@dataclass
+class InputTagCleanupCheckDoneEvent:
+    """Ergebnis der Alt-Bestand-Zählung (Issue #41) — manual: Menü vs. automatischer Start-Check."""
+    count: int
+    error: bool = False
+    manual: bool = False
+
+
+@dataclass
+class InputTagCleanupRunDoneEvent:
+    """Ergebnis eines Aufräumlaufs (Issue #41). error gesetzt → result ist None."""
+    result: Optional[CleanupResult]
+    error: Optional[Exception] = None
 
 
 @dataclass
@@ -118,6 +138,48 @@ class RunController:
         def _work() -> None:
             result = check_for_update(current_version, channel)
             self._queue.put(UpdateCheckDoneEvent(result=result, manual=manual))
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def start_input_tag_cleanup_check(
+        self,
+        paperless_client: PaperlessClient,
+        tags_config: TagsConfig,
+        *,
+        manual: bool = False,
+    ) -> None:
+        """Zählt Alt-Bestand-Karten im Daemon-Thread. Ergebnis → Queue (Issue #41).
+
+        Kein direkter tk-Zugriff aus dem Thread — folgt demselben Queue-Polling-Muster
+        wie start_update_check (ADR-0023/ADR-0063). Netzwerkfehler führen zu
+        error=True statt einer geworfenen Exception in der Queue.
+        """
+        def _work() -> None:
+            try:
+                n = count_input_tag_leftovers(paperless_client, tags_config)
+                self._queue.put(
+                    InputTagCleanupCheckDoneEvent(count=n, error=False, manual=manual)
+                )
+            except Exception:
+                self._queue.put(
+                    InputTagCleanupCheckDoneEvent(count=0, error=True, manual=manual)
+                )
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def start_input_tag_cleanup_run(
+        self,
+        paperless_client: PaperlessClient,
+        tags_config: TagsConfig,
+        log_dir: Path,
+    ) -> None:
+        """Führt das Alt-Bestand-Aufräumen im Daemon-Thread aus. Ergebnis → Queue (Issue #41)."""
+        def _work() -> None:
+            try:
+                result = remove_input_tag_from_leftovers(paperless_client, tags_config, log_dir)
+                self._queue.put(InputTagCleanupRunDoneEvent(result=result, error=None))
+            except Exception as exc:
+                self._queue.put(InputTagCleanupRunDoneEvent(result=None, error=exc))
 
         threading.Thread(target=_work, daemon=True).start()
 

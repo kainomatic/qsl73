@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 from qsl73.gui.ignored_window import format_doc_row
 
 
-def _pump(root, condition, timeout_s: float = 2.0) -> bool:
+def _pump(root, condition, timeout_s: float = 5.0) -> bool:
     """Treibt die Tk-Eventloop an, bis condition() wahr wird oder timeout_s abläuft.
 
     Nötig weil das Laden/Wieder-Aufnehmen im Hintergrund-Thread läuft und das
@@ -84,7 +84,9 @@ def test_populates_tree_from_client(tk_child, monkeypatch):
 
     assert _pump(root, lambda: bool(win._tree.get_children()))
     assert len(win._tree.get_children()) == 2
-    client.list_documents_with_all_tags.assert_called_once_with(["qsl-card", "qsl-ignoriert"])
+    # Issue #41, Grundentscheidung 5: nur noch der Ignoriert-Tag — der Eingangs-Tag
+    # wird von ignorierten Karten inzwischen entfernt.
+    client.list_documents_with_all_tags.assert_called_once_with(["qsl-ignoriert"])
 
 
 def test_empty_list_shows_hint_no_error(tk_child, monkeypatch):

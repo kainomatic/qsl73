@@ -166,6 +166,7 @@ def run_app() -> None:
             app.after(0, lambda: show_beta_notice(app))
         if config.app.update_check:
             app.schedule_update_check()
+        app.schedule_input_tag_cleanup_check()
         app.mainloop()
     finally:
         lock.release()

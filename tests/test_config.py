@@ -466,3 +466,65 @@ def test_current_version_config_round_trips_ignored_tag(config_path):
     save_config(cfg, config_path)
     loaded = load_config(config_path)
     assert loaded.tags.ignored == "meine-ignorierliste"
+
+
+# ---------------------------------------------------------------------------
+# input_tag_cleanup_done — Config-Tests (Issue #41, additives Feld wie ADR-0055)
+# ---------------------------------------------------------------------------
+
+
+def test_input_tag_cleanup_done_default_false():
+    from qsl73.config import AppConfig
+    assert AppConfig().input_tag_cleanup_done is False
+
+
+def test_input_tag_cleanup_done_round_trip(config_path):
+    from qsl73.config import Config, save_config, load_config
+    cfg = Config()
+    cfg.app.input_tag_cleanup_done = True
+    save_config(cfg, config_path)
+    loaded = load_config(config_path)
+    assert loaded.app.input_tag_cleanup_done is True
+
+
+def test_input_tag_cleanup_done_migrate_adds_default_false():
+    from qsl73.config import migrate_config
+    data = {"config_version": 1, "app": {"language": "de"}}
+    result = migrate_config(data)
+    assert result["app"]["input_tag_cleanup_done"] is False
+
+
+def test_input_tag_cleanup_done_migrate_preserves_existing():
+    from qsl73.config import migrate_config
+    data = {"config_version": 1, "app": {"language": "de", "input_tag_cleanup_done": True}}
+    result = migrate_config(data)
+    assert result["app"]["input_tag_cleanup_done"] is True
+
+
+def test_input_tag_cleanup_done_missing_field_loads_as_false(config_path):
+    """Additive Migration: alte Config ohne das Feld lädt fehlerfrei → False."""
+    import yaml
+    from qsl73.config import load_config
+    config_path.write_text(
+        yaml.dump({"config_version": 1, "app": {"language": "de"}}),
+        encoding="utf-8",
+    )
+    cfg = load_config(config_path)
+    assert cfg.app.input_tag_cleanup_done is False
+
+
+def test_input_tag_cleanup_done_invalid_type_raises(config_path):
+    import yaml
+    from qsl73.config import ConfigError, load_config
+    config_path.write_text(
+        yaml.dump({"config_version": 1, "app": {"input_tag_cleanup_done": "ja"}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="input_tag_cleanup_done"):
+        load_config(config_path)
+
+
+def test_input_tag_cleanup_done_invalid_validation_error():
+    from qsl73.config import validate_config
+    errors = validate_config({"app": {"input_tag_cleanup_done": "ja"}})
+    assert any("input_tag_cleanup_done" in e for e in errors)

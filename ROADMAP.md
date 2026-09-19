@@ -14,6 +14,15 @@
 `dev` läuft wie üblich mit weiteren Commits voraus; `main` wird erst zum nächsten
 Stable-Release wieder aktualisiert (danach Rückmerge main→dev, ADR-0046-Nachtrag).
 
+**Issue #41 (Eingangs-Tag als Arbeitskorb) umgesetzt** — Bestätigen und Ignorieren
+entfernen den Eingangs-Tag jeweils in einem PATCH zusammen mit dem Bestätigt-/
+Ignoriert-Tag; „Nicht mehr ignorieren" setzt ihn zurück. Übersprungene Karten
+(`result.skipped`) bleiben unangetastet. Einmalige Alt-Bestand-Abfrage im
+Hintergrund nach dem ersten Start (Queue-Polling-Muster, ADR-0023/ADR-0063) plus
+dauerhafter Menüpunkt „Bearbeiten → Eingangs-Tag bei erledigten Karten
+entfernen…" (ADR-0064). MINOR-Kandidat (v0.6.0) — Versionierung/Release ist ein
+späterer, eigener Schritt.
+
 **Issue #40 (Tcl-Cross-Thread-Absturz im vollen Einzelprozess-Lauf) behoben** —
 `tests/gui/` nutzt jetzt einen session-weiten tk-Root statt hunderter einzelner
 `tk.Tk()`-Erzeugungen (ADR-0062). Voller `pytest -m "not slow"`-Lauf verifiziert
@@ -35,16 +44,14 @@ in Abschnitt B priorisierten Punkte.
 Priorisierte Reihenfolge (DF1DS kann jederzeit umsortieren). Jede Nummer ist ein
 GitHub-Issue.
 
-1. **#41** — Eingangs-Tag nach Bestätigen/Ignorieren entfernen. Fertig spezifiziert,
-   MINOR-Kandidat.
-2. **#35** / **#36** — Rufzeichen-Erkennung (Sonderrufzeichen zwei Ziffern; OCR O/0,
+1. **#35** / **#36** — Rufzeichen-Erkennung (Sonderrufzeichen zwei Ziffern; OCR O/0,
    I/1). Entscheidung DF1DS zum Falsch-Positiv-Risiko noch offen, erst ADR-Klärung.
-3. **#42** — Werkzeug Bestätigungsübersicht. Grundentscheidungen bereits im Issue
+2. **#42** — Werkzeug Bestätigungsübersicht. Grundentscheidungen bereits im Issue
    festgehalten (ADR-0060); Handtest DF1DS zu den exakten Log4OM-Strings noch
    ausstehend.
-4. **#38** — Hauptfenster-Zeilen-Tooltip. Komfort-Feature, braucht Tooltip-Infrastruktur-
+3. **#38** — Hauptfenster-Zeilen-Tooltip. Komfort-Feature, braucht Tooltip-Infrastruktur-
    Neubau (bestehende Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
-5. **#32** — Schutz gegen Direkt-Commits auf `main`. Prozess-/Doku-Thema, keine
+4. **#32** — Schutz gegen Direkt-Commits auf `main`. Prozess-/Doku-Thema, keine
    funktionale Abhängigkeit zu den übrigen Punkten.
 
 **V2** (bewusst zurückgestellt): #25 (Mehrsprachigkeit i18n), #43 (visueller

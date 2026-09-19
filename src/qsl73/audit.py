@@ -102,6 +102,42 @@ def write_ignore_audit_entry(entry: IgnoreAuditEntry, log_dir: Path) -> None:
         _log.warning("Audit-Log (Ignorieren) konnte nicht geschrieben werden: %s", exc)
 
 
+@dataclass
+class CleanupAuditEntry:
+    """Sammel-Eintrag für einen Alt-Bestand-Aufräumlauf (Eingangs-Tag entfernen, Issue #41)."""
+
+    removed: int
+    failed: int
+
+
+def format_cleanup_audit_line(entry: CleanupAuditEntry, ts: str | None = None) -> str:
+    """Formatiert einen CleanupAuditEntry als einzelne Log-Zeile (kein abschließender Newline)."""
+    if ts is None:
+        ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    return (
+        f"{ts}"
+        f" | aktion=eingangs_tag_aufraeumen"
+        f" | entfernt={entry.removed}"
+        f" | fehler={entry.failed}"
+    )
+
+
+def write_cleanup_audit_entry(entry: CleanupAuditEntry, log_dir: Path) -> None:
+    """Hängt einen Sammel-Eintrag des Alt-Bestand-Aufräumens an audit.log an.
+
+    Schreibfehler werden geloggt, nicht weitergeworfen (wie write_audit_entries).
+    """
+    log_dir.mkdir(parents=True, exist_ok=True)
+    audit_path = log_dir / "audit.log"
+    line = format_cleanup_audit_line(entry)
+    try:
+        with open(audit_path, "a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+        _log.debug("Audit: Aufräumen-Sammeleintrag nach %s geschrieben", audit_path)
+    except OSError as exc:
+        _log.warning("Audit-Log (Aufräumen) konnte nicht geschrieben werden: %s", exc)
+
+
 def write_audit_entries(entries: list[AuditEntry], log_dir: Path) -> None:
     """Hängt Einträge an audit.log im log_dir an.
 

@@ -474,13 +474,15 @@ def run_pass(
             len(certain), len(uncertain), len(no_match),
         )
 
-    # Zähler ignorierter Karten für die Statuszeile (ADR-0059) — Zählfehler sind
-    # nicht fatal (WARNING im Log, Wert 0), damit ein Paperless-Hänger den Lauf
-    # nicht zum Absturz bringt.
+    # Zähler ignorierter Karten für die Statuszeile — sucht NUR nach dem
+    # Ignoriert-Tag (Issue #41, Grundentscheidung 5): der Eingangs-Tag wird von
+    # ignorierten Karten inzwischen entfernt, Alt-Bestand (v0.5.0, beide Tags)
+    # wird dadurch weiterhin mitgezählt. Zählfehler sind nicht fatal (WARNING im
+    # Log, Wert 0), damit ein Paperless-Hänger den Lauf nicht zum Absturz bringt.
     ignored_count = 0
     try:
         ignored_count = paperless_client.count_documents_with_all_tags(
-            [config.tags.input, config.tags.ignored]
+            [config.tags.ignored]
         )
     except Exception as exc:
         _log.warning("Zähler ignorierter Karten konnte nicht ermittelt werden: %s", exc)
@@ -553,12 +555,34 @@ def write_selected(
 
     tag_warnings: list[str] = []
 
-    # Paperless-Tags NUR nach erfolgreicher DB-Transaktion (ADR-0003)
+    # Übersprungene QSOs (result.skipped) dürfen weder den Bestätigt-Tag bekommen
+    # noch den Eingangs-Tag verlieren — sie bleiben unverändert im Arbeitskorb
+    # (Issue #41, Hinweis 2). qsoid_to_doc_id/skipped_qsoids werden unten auch
+    # fürs Audit-Logging wiederverwendet.
+    skipped_qsoids: set[str] = {s.get("qsoid", "") for s in result.skipped}
+    qsoid_to_doc_id: dict[str, int] = {
+        qsoid: doc_id
+        for (qsoid, _route), doc_id in zip(selections, confirmed_doc_ids or [])
+    }
+    skipped_doc_ids: set[int] = {
+        qsoid_to_doc_id[q] for q in skipped_qsoids if q in qsoid_to_doc_id
+    }
+    written_ids: list[int] = [
+        doc_id for doc_id in (confirmed_doc_ids or []) if doc_id not in skipped_doc_ids
+    ]
+
+    # Paperless-Tags NUR nach erfolgreicher DB-Transaktion (ADR-0003). Bestätigt-Tag
+    # dazu, Eingangs-Tag weg — in EINEM PATCH pro Dokument (Issue #41, kein halber
+    # Zustand). Tag-Fehler bleiben nicht fatal (ADR-0031 §5).
     if paperless_client and tags_config:
         confirmed_failures = 0
-        for doc_id in (confirmed_doc_ids or []):
+        for doc_id in written_ids:
             try:
-                paperless_client.add_tag_to_document(doc_id, tags_config.confirmed)
+                paperless_client.replace_tags_on_document(
+                    doc_id,
+                    add_tag_names=[tags_config.confirmed],
+                    remove_tag_names=[tags_config.input],
+                )
             except Exception as exc:
                 confirmed_failures += 1
                 _log.warning(
@@ -577,14 +601,9 @@ def write_selected(
     )
 
     # Audit-Logging: einen Eintrag pro tatsächlich geschriebenem QSO (ADR-0035)
-    skipped_qsoids: set[str] = {s.get("qsoid", "") for s in result.skipped}
     cand_by_id: dict[str, QsoCandidate] = (
         {c.qsoid: c for c in candidates} if candidates else {}
     )
-    qsoid_to_doc_id: dict[str, int] = {
-        qsoid: doc_id
-        for (qsoid, _route), doc_id in zip(selections, confirmed_doc_ids or [])
-    }
     manual_set: set[str] = manual_qsoids or set()
     audit_entries: list[AuditEntry] = []
     for qsoid, route in selections:

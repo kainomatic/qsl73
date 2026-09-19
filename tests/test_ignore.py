@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 import pytest
 
 
-def _make_config(ignored="qsl-ignoriert"):
+def _make_config(ignored="qsl-ignoriert", input_="qsl-card"):
     from qsl73.config import TagsConfig
-    return TagsConfig(input="qsl-card", confirmed="qsl-bestätigt", ignored=ignored)
+    return TagsConfig(input=input_, confirmed="qsl-bestätigt", ignored=ignored)
 
 
 class TestIgnoreCard:
@@ -19,7 +19,9 @@ class TestIgnoreCard:
 
         ignore_card(client, doc_id=42, tags_config=cfg, log_dir=tmp_path, callsign="DK1AB")
 
-        client.add_tag_to_document.assert_called_once_with(42, "qsl-ignoriert")
+        client.replace_tags_on_document.assert_called_once_with(
+            42, add_tag_names=["qsl-ignoriert"], remove_tag_names=["qsl-card"]
+        )
         content = (tmp_path / "audit.log").read_text(encoding="utf-8")
         assert "doc_id=42" in content
         assert "call=DK1AB" in content
@@ -47,7 +49,7 @@ class TestIgnoreCard:
             ignore_card(client, doc_id=1, tags_config=cfg, log_dir=tmp_path)
 
         client.create_tag.assert_not_called()
-        client.add_tag_to_document.assert_not_called()
+        client.replace_tags_on_document.assert_not_called()
         client.set_document_tags.assert_not_called()
         assert not (tmp_path / "audit.log").exists()
 
@@ -62,11 +64,11 @@ class TestIgnoreCard:
             ignore_card(client, doc_id=1, tags_config=cfg, log_dir=tmp_path)
 
         client.create_tag.assert_not_called()
-        client.add_tag_to_document.assert_not_called()
+        client.replace_tags_on_document.assert_not_called()
         assert not (tmp_path / "audit.log").exists()
 
     def test_other_tags_untouched(self, tmp_path):
-        """ignore_card ruft add_tag_to_document auf, das bestehende Tags erhält (paperless.py)."""
+        """ignore_card ruft replace_tags_on_document EINMAL auf (EIN PATCH, kein halber Zustand)."""
         from qsl73.ignore import ignore_card
 
         client = MagicMock()
@@ -75,10 +77,10 @@ class TestIgnoreCard:
 
         ignore_card(client, doc_id=1, tags_config=cfg, log_dir=tmp_path)
 
-        # add_tag_to_document (nicht set_document_tags direkt) — bestehende Tags bleiben,
-        # siehe paperless.PaperlessClient.add_tag_to_document.
+        # replace_tags_on_document (nicht set_document_tags direkt) — bestehende Tags
+        # bleiben, siehe paperless.PaperlessClient.replace_tags_on_document.
         client.set_document_tags.assert_not_called()
-        client.add_tag_to_document.assert_called_once()
+        client.replace_tags_on_document.assert_called_once()
 
 
 class TestUnignoreCard:
@@ -91,7 +93,9 @@ class TestUnignoreCard:
 
         unignore_card(client, doc_id=42, tags_config=cfg, log_dir=tmp_path, callsign="DK1AB")
 
-        client.remove_tag_from_document.assert_called_once_with(42, "qsl-ignoriert")
+        client.replace_tags_on_document.assert_called_once_with(
+            42, add_tag_names=["qsl-card"], remove_tag_names=["qsl-ignoriert"]
+        )
         content = (tmp_path / "audit.log").read_text(encoding="utf-8")
         assert "doc_id=42" in content
         assert "aktion=wieder_aufgenommen" in content
@@ -106,7 +110,7 @@ class TestUnignoreCard:
         unignore_card(client, doc_id=1, tags_config=cfg, log_dir=tmp_path)
 
         client.set_document_tags.assert_not_called()
-        client.remove_tag_from_document.assert_called_once()
+        client.replace_tags_on_document.assert_called_once()
 
     def test_empty_tag_name_raises_without_side_effects(self, tmp_path):
         from qsl73.ignore import IgnoreTagMissingError, unignore_card
@@ -117,7 +121,7 @@ class TestUnignoreCard:
         with pytest.raises(IgnoreTagMissingError):
             unignore_card(client, doc_id=1, tags_config=cfg, log_dir=tmp_path)
 
-        client.remove_tag_from_document.assert_not_called()
+        client.replace_tags_on_document.assert_not_called()
         assert not (tmp_path / "audit.log").exists()
 
     def test_tag_not_in_paperless_raises_without_side_effects(self, tmp_path):
@@ -130,5 +134,5 @@ class TestUnignoreCard:
         with pytest.raises(IgnoreTagMissingError):
             unignore_card(client, doc_id=1, tags_config=cfg, log_dir=tmp_path)
 
-        client.remove_tag_from_document.assert_not_called()
+        client.replace_tags_on_document.assert_not_called()
         assert not (tmp_path / "audit.log").exists()

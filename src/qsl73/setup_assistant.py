@@ -35,8 +35,15 @@ def create_initial_config(
     crypto: CryptoBackend | None = None,
     overrides: dict | None = None,
 ) -> Config:
-    """Erstellt Default-Config, wendet optionale Overrides an, speichert und gibt sie zurück."""
+    """Erstellt Default-Config, wendet optionale Overrides an, speichert und gibt sie zurück.
+
+    Wird ausschließlich bei einer Neuinstallation aufgerufen (frisch durchlaufener
+    Setup-Assistent, kein Bearbeiten-Modus) — die einmalige Alt-Bestand-Abfrage für
+    den Eingangs-Tag (Issue #41) ist dann von vornherein erledigt: es gibt noch
+    keine mit QSL73 bearbeiteten Karten, die aufzuräumen wären.
+    """
     config = Config()
+    config.app.input_tag_cleanup_done = True
 
     if overrides:
         _apply_overrides(config, overrides)

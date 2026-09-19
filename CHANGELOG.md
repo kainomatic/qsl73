@@ -7,7 +7,29 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Neuer Menüpunkt **Bearbeiten → Eingangs-Tag bei erledigten Karten entfernen…**
+  (Issue #41, ADR-0064): zählt Dokumente mit Eingangs-Tag bei bereits bestätigten
+  oder ignorierten Karten und entfernt den Eingangs-Tag nach Rückfrage (Ja/Später/
+  Nicht mehr fragen). Beim ersten Start nach diesem Update prüft QSL73 dasselbe
+  einmalig automatisch im Hintergrund (nach Anzeige des Hauptfensters, blockiert
+  den Start nicht); ist Paperless dabei nicht erreichbar, wird nichts vermerkt und
+  beim nächsten Start erneut versucht. Fehler einzelner Dokumente brechen den
+  Aufräumvorgang nicht ab; ein Sammel-Eintrag landet im audit.log.
+
 ### Changed
+- **Verhaltensänderung:** Der Eingangs-Tag (Standardvorschlag `qsl-card`) ist ab
+  sofort ein Arbeitskorb, keine Dauer-Kategorie (Issue #41, ADR-0064). Bestätigte
+  Karten ("Jetzt schreiben") und ignorierte Karten ("Ignorieren") verlieren den
+  Eingangs-Tag automatisch (jeweils in einem PATCH zusammen mit dem
+  Bestätigt-/Ignoriert-Tag — kein halber Zustand); „Nicht mehr ignorieren" setzt
+  ihn wieder, sonst käme die Karte nie in einen Durchlauf zurück. Übersprungene
+  Karten (`result.skipped`) bleiben unverändert im Arbeitskorb. Wer den
+  Eingangs-Tag bisher zusätzlich als Dauer-Kategorie genutzt hat, ist betroffen —
+  siehe README, Abschnitt „Eingangs-Tag ist ein Arbeitskorb". Das Fenster
+  „Ignorierte Karten…" und der `ignored_count`-Zähler in der Statuszeile suchen
+  jetzt nur noch nach dem Ignoriert-Tag statt Eingangs- UND Ignoriert-Tag — findet
+  weiterhin sowohl neuen als auch alten Bestand (v0.5.0, beide Tags).
 - Interne Robustheit: Die Update-Prüfung im Hauptfenster (`_start_update_check`)
   ruft das Prüfergebnis nicht mehr per direktem `self.after(0, …)` aus dem
   Hintergrund-Thread in den UI-Thread — stattdessen läuft es wie

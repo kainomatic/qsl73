@@ -200,3 +200,57 @@ class TestWriteIgnoreAuditEntry:
             IgnoreAuditEntry(doc_id=1, callsign="X", action="ignoriert"), log_dir
         )
         assert (log_dir / "audit.log").exists()
+
+
+class TestFormatCleanupAuditLine:
+    def test_contains_counts(self):
+        from qsl73.audit import CleanupAuditEntry, format_cleanup_audit_line
+
+        entry = CleanupAuditEntry(removed=5, failed=1)
+        line = format_cleanup_audit_line(entry, ts="2026-06-18T14:30:00")
+
+        assert "aktion=eingangs_tag_aufraeumen" in line
+        assert "entfernt=5" in line
+        assert "fehler=1" in line
+        assert "2026-06-18T14:30:00" in line
+
+    def test_single_line_no_newline(self):
+        from qsl73.audit import CleanupAuditEntry, format_cleanup_audit_line
+
+        entry = CleanupAuditEntry(removed=0, failed=0)
+        line = format_cleanup_audit_line(entry, ts="2026-01-01T00:00:00")
+        assert "\n" not in line
+
+
+class TestWriteCleanupAuditEntry:
+    def test_creates_audit_log(self, tmp_path):
+        from qsl73.audit import CleanupAuditEntry, write_cleanup_audit_entry
+
+        write_cleanup_audit_entry(CleanupAuditEntry(removed=3, failed=0), tmp_path)
+        content = (tmp_path / "audit.log").read_text(encoding="utf-8")
+        assert "entfernt=3" in content
+
+    def test_creates_log_dir_if_missing(self, tmp_path):
+        from qsl73.audit import CleanupAuditEntry, write_cleanup_audit_entry
+
+        log_dir = tmp_path / "new" / "logs"
+        write_cleanup_audit_entry(CleanupAuditEntry(removed=1, failed=0), log_dir)
+        assert (log_dir / "audit.log").exists()
+
+    def test_appends_without_disturbing_existing_entries(self, tmp_path):
+        from qsl73.audit import (
+            AuditEntry,
+            CleanupAuditEntry,
+            write_audit_entries,
+            write_cleanup_audit_entry,
+        )
+
+        write_audit_entries(
+            [AuditEntry(doc_id=1, qsoid="q1", callsign="A", qso_date="2025-01-01",
+                        band="20m", mode="FT8", route="bureau", source="auto", backup_path="–")],
+            tmp_path,
+        )
+        write_cleanup_audit_entry(CleanupAuditEntry(removed=2, failed=0), tmp_path)
+        content = (tmp_path / "audit.log").read_text(encoding="utf-8")
+        assert "qsoid=q1" in content
+        assert "aktion=eingangs_tag_aufraeumen" in content

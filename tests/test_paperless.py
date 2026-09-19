@@ -455,6 +455,56 @@ class TestTagOperations:
             client.set_document_tags(5, [1])
 
 
+class TestReplaceTagsOnDocument:
+    """Tests für replace_tags_on_document — EIN PATCH für Hinzufügen+Entfernen (Issue #41)."""
+
+    @rsps.activate
+    def test_add_and_remove_in_one_patch(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None, "results": [{"id": 9, "name": "qsl-bestätigt"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None, "results": [{"id": 1, "name": "qsl-card"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/5/", json={"tags": [1, 2]})
+        rsps.add(rsps.PATCH, f"{BASE}/api/documents/5/", json={"id": 5, "tags": [2, 9]})
+
+        client.replace_tags_on_document(
+            5, add_tag_names=["qsl-bestätigt"], remove_tag_names=["qsl-card"]
+        )
+
+        assert len(rsps.calls) == 4  # 2x get_tag_id + 1x Dok-GET + genau 1x PATCH
+        body = json.loads(rsps.calls[3].request.body)
+        assert 1 not in body["tags"]  # entfernt
+        assert 9 in body["tags"]      # hinzugefügt
+        assert 2 in body["tags"]      # unverändert erhalten
+
+    @rsps.activate
+    def test_add_tag_missing_raises_no_patch(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/", json={"count": 0, "next": None, "results": []})
+        with pytest.raises(PaperlessNotFoundError):
+            client.replace_tags_on_document(5, add_tag_names=["missing"], remove_tag_names=[])
+        assert not any(c.request.method == "PATCH" for c in rsps.calls)
+
+    @rsps.activate
+    def test_remove_tag_missing_in_paperless_is_silently_skipped(self, client):
+        rsps.add(rsps.GET, f"{BASE}/api/tags/", json={"count": 0, "next": None, "results": []})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/5/", json={"tags": [1, 2]})
+        client.replace_tags_on_document(5, add_tag_names=[], remove_tag_names=["phantom"])
+        assert not any(c.request.method == "PATCH" for c in rsps.calls)  # nichts zu ändern
+
+    @rsps.activate
+    def test_no_change_results_in_no_patch(self, client):
+        """Add-Tag bereits vorhanden, Remove-Tag gar nicht vorhanden → keine Änderung, kein PATCH."""
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None, "results": [{"id": 9, "name": "qsl-bestätigt"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/tags/",
+                 json={"count": 1, "next": None, "results": [{"id": 1, "name": "qsl-card"}]})
+        rsps.add(rsps.GET, f"{BASE}/api/documents/5/", json={"tags": [9, 2]})
+        client.replace_tags_on_document(
+            5, add_tag_names=["qsl-bestätigt"], remove_tag_names=["qsl-card"]
+        )
+        assert not any(c.request.method == "PATCH" for c in rsps.calls)
+
+
 # ── Keine Secrets in Fehlermeldungen ─────────────────────────────────────────
 
 

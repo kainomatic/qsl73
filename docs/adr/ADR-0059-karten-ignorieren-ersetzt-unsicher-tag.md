@@ -103,3 +103,13 @@ Das hier erstmals dokumentierte cross-thread-Tk-Zugriffsmuster (direkter
 `gui/main_window.py::_start_update_check` auf (Issue #40, Fundstelle beim
 Tcl-Absturz-Review). ADR-0063 stellt die Update-Prüfung aus demselben Grund auf das
 hier etablierte Queue-Polling-Muster (ADR-0023) um.
+
+## Querverweis — ADR-0064
+
+Issue #41 macht den Eingangs-Tag zu einem Arbeitskorb: bestätigte UND ignorierte
+Karten verlieren ihn künftig. Das ändert Entscheidung 4 oben nicht (Ignorieren/
+Wieder-Aufnehmen bleibt sofortwirksam, ohne Bestätigungsdialog), aber die Tag-Suche
+in `gui/ignored_window.py` und `RunResult.ignored_count` (Konsequenzen oben) sucht
+seither nur noch nach dem Ignoriert-Tag statt nach Eingangs- UND Ignoriert-Tag —
+sonst würden neu ignorierte Karten (ohne Eingangs-Tag) nicht mehr gefunden. Details
+und die übrigen neun Grundentscheidungen: ADR-0064.

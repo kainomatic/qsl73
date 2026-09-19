@@ -306,6 +306,45 @@ class PaperlessClient:
         if updated != current_ids:
             self.set_document_tags(doc_id, updated)
 
+    def replace_tags_on_document(
+        self,
+        doc_id: int,
+        *,
+        add_tag_names: list[str] | None = None,
+        remove_tag_names: list[str] | None = None,
+    ) -> None:
+        """Fügt hinzu UND entfernt mehrere Tags eines Dokuments in EINEM PATCH (Issue #41).
+
+        add_tag_names: fehlt einer dieser Tags in Paperless → PaperlessNotFoundError
+        (wie add_tag_to_document) — kein PATCH, kein halber Zustand.
+        remove_tag_names: fehlende Tags werden stillschweigend übersprungen (wie
+        remove_tag_from_document). Alle anderen Tags des Dokuments bleiben unverändert.
+        """
+        add_ids: list[int] = []
+        for name in add_tag_names or []:
+            tag_id = self.get_tag_id(name)
+            if tag_id is None:
+                raise PaperlessNotFoundError(
+                    f"Tag '{name}' in Paperless nicht gefunden."
+                )
+            add_ids.append(tag_id)
+
+        remove_ids: set[int] = set()
+        for name in remove_tag_names or []:
+            tag_id = self.get_tag_id(name)
+            if tag_id is not None:
+                remove_ids.add(tag_id)
+
+        doc = self._get_json(f"{self._base}/api/documents/{doc_id}/?fields=tags")
+        current_ids: list[int] = doc.get("tags", [])
+        target_ids = [t for t in current_ids if t not in remove_ids]
+        for tag_id in add_ids:
+            if tag_id not in target_ids:
+                target_ids.append(tag_id)
+
+        if target_ids != current_ids:
+            self.set_document_tags(doc_id, target_ids)
+
     # ── interne Hilfsmethoden ─────────────────────────────────────────────
 
     def _get_json(self, url: str) -> dict:

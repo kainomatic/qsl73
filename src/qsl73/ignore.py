@@ -51,22 +51,29 @@ def ignore_card(
     log_dir: Path,
     callsign: str = "",
 ) -> None:
-    """Setzt den Ignoriert-Tag für ein Dokument. Andere Tags bleiben unverändert.
+    """Setzt den Ignoriert-Tag und entfernt den Eingangs-Tag — EIN PATCH (Issue #41).
+
+    Der Eingangs-Tag ist ein Arbeitskorb, keine Dauer-Kategorie: eine ignorierte
+    Karte verschwindet daraus. Andere Tags bleiben unverändert.
 
     Wirft IgnoreTagMissingError wenn tags_config.ignored leer ist oder der Tag
     nicht in Paperless existiert — legt in diesem Fall KEINEN Tag an: kein
-    create_tag, kein PATCH, kein Audit-Eintrag.
+    create_tag, kein PATCH, kein Audit-Eintrag. Fehlt der Eingangs-Tag in
+    Paperless, wird sein Entfernen stillschweigend übersprungen (wie
+    remove_tag_from_document) — blockiert das Ignorieren nicht.
     """
     tag_name = (tags_config.ignored or "").strip()
     if not tag_name or client.get_tag_id(tag_name) is None:
         raise IgnoreTagMissingError(tag_name)
 
-    client.add_tag_to_document(doc_id, tag_name)
+    client.replace_tags_on_document(
+        doc_id, add_tag_names=[tag_name], remove_tag_names=[tags_config.input]
+    )
     write_ignore_audit_entry(
         IgnoreAuditEntry(doc_id=doc_id, callsign=callsign or "?", action="ignoriert"),
         log_dir,
     )
-    _log.info("doc_id=%d als ignoriert markiert (Tag '%s')", doc_id, tag_name)
+    _log.info("doc_id=%d als ignoriert markiert (Tag '%s', Eingangs-Tag entfernt)", doc_id, tag_name)
 
 
 def unignore_card(
@@ -76,19 +83,24 @@ def unignore_card(
     log_dir: Path,
     callsign: str = "",
 ) -> None:
-    """Entfernt den Ignoriert-Tag von einem Dokument. Andere Tags bleiben unverändert.
+    """Entfernt den Ignoriert-Tag und setzt den Eingangs-Tag wieder — EIN PATCH (Issue #41).
+
+    Ohne den Eingangs-Tag käme die Karte nie mehr in einen Durchlauf zurück.
+    Andere Tags bleiben unverändert.
 
     Wirft IgnoreTagMissingError wenn tags_config.ignored leer ist oder der Tag
-    nicht (mehr) in Paperless existiert (nichts zu entfernen) — symmetrisch zu
-    ignore_card, kein Audit-Eintrag in diesem Fall.
+    nicht (mehr) in Paperless existiert — symmetrisch zu ignore_card, kein
+    Audit-Eintrag in diesem Fall.
     """
     tag_name = (tags_config.ignored or "").strip()
     if not tag_name or client.get_tag_id(tag_name) is None:
         raise IgnoreTagMissingError(tag_name)
 
-    client.remove_tag_from_document(doc_id, tag_name)
+    client.replace_tags_on_document(
+        doc_id, add_tag_names=[tags_config.input], remove_tag_names=[tag_name]
+    )
     write_ignore_audit_entry(
         IgnoreAuditEntry(doc_id=doc_id, callsign=callsign or "?", action="wieder_aufgenommen"),
         log_dir,
     )
-    _log.info("doc_id=%d wieder aufgenommen (Tag '%s' entfernt)", doc_id, tag_name)
+    _log.info("doc_id=%d wieder aufgenommen (Tag '%s' entfernt, Eingangs-Tag gesetzt)", doc_id, tag_name)

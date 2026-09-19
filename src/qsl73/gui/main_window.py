@@ -17,6 +17,8 @@ from qsl73.matching import MatchResult
 from qsl73.run import CardResult, RunResult
 from qsl73.gui.controller import (
     ErrorEvent,
+    InputTagCleanupCheckDoneEvent,
+    InputTagCleanupRunDoneEvent,
     ProgressEvent,
     RunController,
     RunDoneEvent,
@@ -68,6 +70,26 @@ _MSG_DOC_UNAVAILABLE_BODY = (
     "Diese Information ist nur in der installierten Version verfügbar.\n\n"
     "Die Seite wird stattdessen im Browser geöffnet."
 )
+
+# Alt-Bestand-Aufräumen — Eingangs-Tag (Issue #41, ADR-0064)
+_MENU_CLEANUP_INPUT_TAG = "Eingangs-Tag bei erledigten Karten entfernen…"
+_TITLE_CLEANUP = "Alt-Bestand aufräumen — by DF1DS"
+_MSG_CLEANUP_BODY = (
+    "Der Eingangs-Tag ist ab dieser Version ein Arbeitskorb: er wird von neu "
+    "bestätigten und ignorierten Karten automatisch entfernt.\n\n"
+    "{count} bereits bearbeitete Karte(n) tragen noch den Eingangs-Tag aus "
+    "einer früheren Version.\n\nJetzt entfernen?"
+)
+_BTN_CLEANUP_YES = "Ja"
+_BTN_CLEANUP_LATER = "Später"
+_BTN_CLEANUP_NEVER = "Nicht mehr fragen"
+_STATUS_CLEANUP_CHECKING = "Prüfe Alt-Bestand …"
+_STATUS_CLEANUP_RUNNING = "Räume Eingangs-Tag auf …"
+_MSG_CLEANUP_RESULT = "{removed} Eingangs-Tag(s) entfernt, {failed} Fehler."
+_MSG_CLEANUP_NONE_FOUND = "Keine Karten mit Eingangs-Tag bei erledigten Karten gefunden."
+_MSG_CLEANUP_CHECK_ERROR_TITLE = "Alt-Bestand-Prüfung — by DF1DS"
+_MSG_CLEANUP_CHECK_ERROR = "Paperless nicht erreichbar — bitte später erneut versuchen."
+_MSG_CLEANUP_RUN_ERROR_TITLE = "Fehler beim Aufräumen"
 
 _MSG_RESTART_TITLE = "Einstellungen gespeichert — by DF1DS"
 _MSG_RESTART_BODY = (
@@ -441,6 +463,10 @@ class MainWindow(tk.Tk):
             messagebox.showinfo("Schreiben abgeschlossen", msg, parent=self)
         elif isinstance(event, UpdateCheckDoneEvent):
             self._handle_update_result(event.result, manual=event.manual)
+        elif isinstance(event, InputTagCleanupCheckDoneEvent):
+            self._handle_input_tag_cleanup_check_result(event)
+        elif isinstance(event, InputTagCleanupRunDoneEvent):
+            self._handle_input_tag_cleanup_run_result(event)
         elif isinstance(event, ErrorEvent):
             self._status_var.set(event.status_message or f"Fehler: {event.exc}")
             _reset_progress(self._progress)
@@ -1014,6 +1040,9 @@ class MainWindow(tk.Tk):
         edit_menu.add_command(label="Einstellungen…", command=self._on_settings)
         edit_menu.add_separator()
         edit_menu.add_command(label=_MENU_IGNORED_CARDS, command=self._on_show_ignored)
+        edit_menu.add_command(
+            label=_MENU_CLEANUP_INPUT_TAG, command=self._on_cleanup_input_tag_menu
+        )
         menubar.add_cascade(label="Bearbeiten", menu=edit_menu)
 
         self._help_menu = tk.Menu(menubar, tearoff=0)
@@ -1064,6 +1093,145 @@ class MainWindow(tk.Tk):
             pc = PaperlessClient(cfg.paperless.url, cfg.paperless.token)
 
         IgnoredCardsWindow(self, pc, cfg.tags)
+
+    # ------------------------------------------------------------------
+    # Alt-Bestand-Aufräumen — Eingangs-Tag (Issue #41, ADR-0064)
+    # ------------------------------------------------------------------
+
+    def schedule_input_tag_cleanup_check(self) -> None:
+        """Startet die einmalige automatische Alt-Bestand-Prüfung nach kurzem Delay.
+
+        Wird von run_app() aufgerufen, nachdem das Hauptfenster sichtbar ist — analog
+        schedule_update_check(). No-op wenn bereits als erledigt vermerkt
+        (config.app.input_tag_cleanup_done); leicht versetzter Delay zur
+        Update-Prüfung, damit beide Hintergrund-Aufrufe nicht exakt gleichzeitig
+        starten.
+        """
+        if self._config.app.input_tag_cleanup_done:
+            return
+        self.after(2000, self._start_input_tag_cleanup_check)
+
+    def _start_input_tag_cleanup_check(self, manual: bool = False) -> None:
+        """Startet die Alt-Bestand-Zählung im Hintergrund-Thread (Queue-Polling, ADR-0023)."""
+        from qsl73.paperless import PaperlessClient
+
+        cfg = self._config
+        try:
+            pc = self._paperless_client or PaperlessClient(cfg.paperless.url, cfg.paperless.token)
+        except Exception:
+            if manual:
+                show_error(self, _MSG_CLEANUP_CHECK_ERROR_TITLE, _MSG_CLEANUP_CHECK_ERROR)
+            # automatisch: kein Fehlerdialog beim Start — nächster Start versucht erneut
+            return
+        self._paperless_client = pc
+
+        if manual:
+            self._status_var.set(_STATUS_CLEANUP_CHECKING)
+
+        self._controller.start_input_tag_cleanup_check(pc, cfg.tags, manual=manual)
+
+    def _handle_input_tag_cleanup_check_result(self, event: InputTagCleanupCheckDoneEvent) -> None:
+        if event.manual:
+            self._status_var.set("Bereit.")
+
+        if event.error:
+            # Paperless nicht erreichbar/Fehler → NICHT als erledigt vermerken,
+            # kein Fehlerdialog im automatischen Fall (nächster Start versucht erneut).
+            if event.manual:
+                show_error(self, _MSG_CLEANUP_CHECK_ERROR_TITLE, _MSG_CLEANUP_CHECK_ERROR)
+            else:
+                _log.debug("Alt-Bestand-Prüfung beim Start fehlgeschlagen — nächster Start erneut.")
+            return
+
+        if event.count <= 0:
+            self._mark_input_tag_cleanup_done()
+            if event.manual:
+                messagebox.showinfo(_TITLE_CLEANUP, _MSG_CLEANUP_NONE_FOUND, parent=self)
+            return
+
+        self._show_input_tag_cleanup_dialog(event.count)
+
+    def _show_input_tag_cleanup_dialog(self, count: int) -> None:
+        """Dialog: erklärt die Verhaltensänderung, fragt Ja/Später/Nicht mehr fragen."""
+        dlg = tk.Toplevel(self)
+        dlg.title(_TITLE_CLEANUP)
+        dlg.resizable(False, False)
+        dlg.transient(self)
+        dlg.grab_set()
+
+        ttk.Label(
+            dlg, text=_MSG_CLEANUP_BODY.format(count=count),
+            padding=16, wraplength=360, justify="left",
+        ).pack()
+
+        btn_frame = ttk.Frame(dlg, padding=(16, 0, 16, 12))
+        btn_frame.pack(fill="x")
+
+        choice = [None]
+
+        def _pick(value: str) -> None:
+            choice[0] = value
+            dlg.destroy()
+
+        ttk.Button(btn_frame, text=_BTN_CLEANUP_NEVER, command=lambda: _pick("never")).pack(
+            side="left"
+        )
+        ttk.Button(btn_frame, text=_BTN_CLEANUP_YES, command=lambda: _pick("yes")).pack(
+            side="right"
+        )
+        ttk.Button(btn_frame, text=_BTN_CLEANUP_LATER, command=lambda: _pick("later")).pack(
+            side="right", padx=(0, 4)
+        )
+
+        dlg.bind("<Escape>", lambda _e: _pick("later"))
+        dlg.wait_window()
+
+        if choice[0] == "never":
+            self._mark_input_tag_cleanup_done()
+        elif choice[0] == "yes":
+            self._run_input_tag_cleanup()
+        # "later" oder Fenster-X (choice[0] bleibt None) → nichts tun,
+        # nächster Start fragt erneut (Später-Fall, Issue #41)
+
+    def _run_input_tag_cleanup(self) -> None:
+        from qsl73.paperless import PaperlessClient
+        from qsl73.logging_setup import get_log_dir
+
+        cfg = self._config
+        pc = self._paperless_client or PaperlessClient(cfg.paperless.url, cfg.paperless.token)
+        self._paperless_client = pc
+
+        self._status_var.set(_STATUS_CLEANUP_RUNNING)
+        self._controller.start_input_tag_cleanup_run(pc, cfg.tags, get_log_dir())
+
+    def _handle_input_tag_cleanup_run_result(self, event: InputTagCleanupRunDoneEvent) -> None:
+        self._status_var.set("Bereit.")
+        if event.error is not None:
+            # Nicht als erledigt vermerken — Nutzer kann es jederzeit erneut versuchen
+            # (Menüpunkt bleibt verfügbar).
+            show_error(self, _MSG_CLEANUP_RUN_ERROR_TITLE, str(event.error))
+            return
+
+        result = event.result
+        messagebox.showinfo(
+            _TITLE_CLEANUP,
+            _MSG_CLEANUP_RESULT.format(removed=result.removed, failed=result.failed),
+            parent=self,
+        )
+        self._mark_input_tag_cleanup_done()
+
+    def _mark_input_tag_cleanup_done(self) -> None:
+        from qsl73.config import get_config_path, save_config
+
+        self._config.app.input_tag_cleanup_done = True
+        try:
+            save_config(self._config, get_config_path(), self._crypto)
+        except Exception as exc:
+            _log.warning("Konnte input_tag_cleanup_done nicht speichern: %s", exc)
+
+    def _on_cleanup_input_tag_menu(self) -> None:
+        """Menü-Handler: „Bearbeiten → Eingangs-Tag bei erledigten Karten entfernen…"."""
+        self._start_input_tag_cleanup_check(manual=True)
 
     def _show_restart_prompt(self) -> None:
         """Neustart-Dialog nach Einstellungs-Speichern.
