@@ -23,7 +23,7 @@ Welche Auswirkungen hat die Entscheidung (positiv und negativ)?
 ## Nummerierungsschema
 
 Dateien: `ADR-NNNN-kurztitel.md` (vierstellig, führende Nullen).  
-Nächste freie Nummer: ADR-0065.
+Nächste freie Nummer: ADR-0066.
 
 ## Index
 
@@ -54,6 +54,7 @@ Nächste freie Nummer: ADR-0065.
 | ADR-0062 | GUI-Tests nutzen einen session-weiten tk-Root (ein `tk.Tk()` pro Testprozess statt hunderter Einzel-Erzeugungen, Issue #40) |
 | ADR-0063 | Update-Prüfung nutzt Queue-Polling statt cross-thread `self.after` (RunController.start_update_check + UpdateCheckDoneEvent, Issue #40) |
 | ADR-0064 | Eingangs-Tag als Arbeitskorb — Entfernen bei Bestätigen/Ignorieren (ein PATCH je Aktion), einmalige Alt-Bestand-Abfrage + dauerhafter Menüpunkt (Issue #41) |
+| ADR-0065 | Beta-Vorschlag nach Issue-Abschluss; Stable-Release nur auf ausdrückliche DF1DS-Ansage |
 
 ## Abgrenzung
 

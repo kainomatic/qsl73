@@ -10,9 +10,11 @@
 
 ## A) Aktueller Stand
 
-**v0.5.0 STABLE veröffentlicht (2026-09-18).** `main` = `749eb2f` (Tag `v0.5.0`).
-`dev` läuft wie üblich mit weiteren Commits voraus; `main` wird erst zum nächsten
-Stable-Release wieder aktualisiert (danach Rückmerge main→dev, ADR-0046-Nachtrag).
+**v0.6.0-beta1 läuft (Tag auf `dev`, ADR-0046 §6).** `main` unverändert bei
+`749eb2f` (Tag `v0.5.0`) — kein `main`-Eingriff, kein Stable-Tag (ADR-0065).
+`__version__.py` = `0.6.0` (Ziel-Stable-Nummer), `CHANGELOG.md` `[Unreleased]`
+bleibt bewusst offen bis zum Stable-Release. Stable-Freigabe erfolgt erst auf
+ausdrückliche Ansage von DF1DS nach Desktop-Review (ADR-0065).
 
 **Issue #41 (Eingangs-Tag als Arbeitskorb) umgesetzt** — Bestätigen und Ignorieren
 entfernen den Eingangs-Tag jeweils in einem PATCH zusammen mit dem Bestätigt-/
@@ -20,8 +22,7 @@ Ignoriert-Tag; „Nicht mehr ignorieren" setzt ihn zurück. Übersprungene Karte
 (`result.skipped`) bleiben unangetastet. Einmalige Alt-Bestand-Abfrage im
 Hintergrund nach dem ersten Start (Queue-Polling-Muster, ADR-0023/ADR-0063) plus
 dauerhafter Menüpunkt „Bearbeiten → Eingangs-Tag bei erledigten Karten
-entfernen…" (ADR-0064). MINOR-Kandidat (v0.6.0) — Versionierung/Release ist ein
-späterer, eigener Schritt.
+entfernen…" (ADR-0064). MINOR-Kandidat — Beta v0.6.0-beta1 s. o.
 
 **Issue #40 (Tcl-Cross-Thread-Absturz im vollen Einzelprozess-Lauf) behoben** —
 `tests/gui/` nutzt jetzt einen session-weiten tk-Root statt hunderter einzelner
@@ -32,10 +33,10 @@ Hauptfenster ruft nicht mehr direkt `self.after(0, …)` aus dem Hintergrund-Thr
 auf, sondern läuft über `RunController.start_update_check()` + Queue-Polling
 (ADR-0063, ADR-0023-Muster).
 
-Keine laufende Beta. Kein aktiver Bau-Auftrag.
+Kein aktiver Bau-Auftrag.
 
 Es wird auf keinen bestimmten Praxistest gewartet — nächster Schritt ist einer der
-in Abschnitt B priorisierten Punkte.
+in Abschnitt B priorisierten Punkte (nach Praxistest der laufenden Beta).
 
 ---
 
