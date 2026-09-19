@@ -22,6 +22,16 @@ Die DB enthält genau **2 Tabellen**:
 ProgramName = 'LOG4OM2', ProgramVersion = '0.6', DBVersion = 1
 ```
 
+**Nachtrag 2026-09-19 (Anlass Issue #42, Handtest DF1DS):** An
+`docs/testdateien/TESTDB_DH3KR_schreibtest.sqlite` migrierte eine neuere
+Log4OM-Version die DB beim Laden von `DBVersion 1` auf `DBVersion 3`; die
+`Log`-Tabelle hat danach **98 statt 97 Spalten** (neue Spalten u. a. `Region`,
+`MUFDay`, `Reliability`, `SignalToNoiseRatio`, `Sunspots` — propagationsbezogen).
+Das `qsoconfirmations`-Format (§2/§7) ist davon unverändert. Reine
+Discovery-Notiz — ob QSL73s `validate_schema` mit `DBVersion 3` sauber läuft,
+ist ein separates, hier nicht behandeltes Thema. Der obige Befund (`DBVersion 1`,
+97 Spalten) bleibt als ursprünglicher Stand der Original-Testdatei bestehen.
+
 ### Log-Tabelle: relevante Felder
 
 | Spalte | Typ | Bedeutung |
@@ -310,7 +320,7 @@ Analyse der echten Test-DB (428 QSOs, 403 eindeutige Gegenstationen):
 | 3 | Verhalten bei QSOs ohne `CT="QSL"`-Eintrag (ältere DB-Versionen)? | **Aufgelöst** (Issue #4, 2026-09-17) → siehe Absatz unten |
 | 4 | OCR-Qualität (Paperless-OCR) und Paperless-API-Details | **Erledigt** → §5.2/§5.3 (Schritt 3b) |
 | 5 | `R`-Wert `"V"` (DXCC-verifiziert) vs. `"Yes"`: setzt QSL73 „V"? | **Entschieden:** Nein — QSL73 setzt ausschließlich `"Yes"`. `"V"` vergibt der Nutzer selbst im Award-Checker. |
-| 6 | Exakte Strings für `Queued`/`Invalid`/`Requested` je Seite (S/R) + Verhalten beim tatsächlichen Upload zu einem Dienst (welche Felder ändern sich, wird `SD` gesetzt?) | **Offen** — Handtest durch DF1DS laut Issue #42 ausstehend; Befunde bisher in §7 |
+| 6 | Exakte Strings für `Queued`/`Invalid`/`Requested` je Seite (S/R) + Verhalten beim tatsächlichen Upload zu einem Dienst (welche Felder ändern sich, wird `SD` gesetzt?) | **Weitgehend erledigt** → Handtest DF1DS 2026-09-19 (Issue #42): `Requested`/`Queued`/`Invalid` exakt gesichert, siehe §7. **Weiterhin offen:** Verhalten beim tatsächlichen Upload zu einem Dienst (welche Felder ändern sich, wird `SD` gesetzt?) — in DF1DS' Setup nicht durchführbar. |
 
 ### 6.1 Auflösung Frage #3 — QSOs ohne `CT="QSL"`-Eintrag (Issue #4)
 
@@ -368,3 +378,45 @@ Read-only an einer Test-DB-Kopie erhoben, im Rahmen der Planung von Issue #42
   echten fremden Rufzeichen im Repo).
 - **SD/RD:** bei elektronischen Diensten vorhanden; für Papier-QSL (`CT="QSL"`) schreibt
   Log4OM kein `RD` (bestätigt konsistent mit §3).
+
+### 7.1 Nachtrag 2026-09-19: Handtest `Requested`/`Queued`/`Invalid` (Issue #42)
+
+Read-only-Auswertung durch Claude Desktop an `docs/testdateien/TESTDB_DH3KR_schreibtest.sqlite`,
+nachdem DF1DS vier Test-QSOs im Log4OM-QSL-Manager gesetzt hat. Löst den in §6 Frage #6
+offenen Teil (exakte Strings) weitgehend auf.
+
+**Ausgangszustand aller vier QSL-Blöcke vorher:**
+```json
+{"CT":"QSL","S":"No","R":"No","SV":"Electronic","RV":"Electronic"}
+```
+
+**Nachher, je Testfall:**
+
+| Fall | qsoid | Aktion in Log4OM | QSL-Block nachher |
+|---|---|---|---|
+| Papier EMPFANGEN = angefordert | `20250426195200002` (DG5MLA) | R auf „angefordert" | `{"CT":"QSL","S":"No","R":"Requested"}` |
+| Papier GESENDET = angefordert | `20250423122300001` (OE6DRG) | S auf „angefordert" | `{"CT":"QSL","S":"Requested","R":"No"}` |
+| Papier GESENDET = vorgemerkt | `20250402194200003` (DK8NE, 19:42) | S auf „vorgemerkt" | `{"CT":"QSL","S":"Queued","R":"No"}` |
+| Dienst auf ungültig | `20250402090000004` (DK8NE, 09:00, LOTW) | S und R auf „ungültig" | `{"CT":"LOTW","S":"Invalid","R":"Invalid","SV":"Electronic","RV":"Electronic"}` |
+
+Wörtliche Schreibweise (exakte Groß-/Kleinschreibung): `"Requested"`, `"Queued"`
+(großes Q — dieser Wert kam in keiner der bisherigen Test-DBs vor, jetzt erstmals
+empirisch gesichert), `"Invalid"` (großes I).
+
+**Zusatzbefunde:**
+
+1. Bei `"Requested"`/`"Queued"` **entfernt** Log4OM die Felder `SV` und `RV` aus dem
+   QSL-Block (siehe Fälle „angefordert"/„vorgemerkt" oben: nur noch `CT`/`S`/`R`). Bei
+   `"Invalid"` bleiben `SV`/`RV` erhalten (Fall „Dienst auf ungültig"). Konsequenz für
+   Issue #42: Das Logikmodul darf nicht voraussetzen, dass `SV`/`RV` in jedem Block
+   vorhanden sind — fehlende Felder sind normal.
+2. `"Invalid"` wurde im Handtest auf **beiden** Seiten (S und R) gesetzt — das war eine
+   bewusste manuelle Eingabe von DF1DS, kein beobachteter Log4OM-Automatismus. Ob Log4OM
+   beim Setzen einer Seite die andere automatisch mitzieht, wurde nicht geprüft.
+3. **Weiterhin offen:** Der Upload-Fall (welche Felder ändern sich beim tatsächlichen
+   Upload zu einem Dienst, wird `SD` gesetzt?) wurde nicht getestet (in DF1DS' Setup
+   nicht durchführbar) — bleibt der einzige noch offene Teil von Frage #6 (§6).
+
+Keine Interpretation der Merker-Bedeutung enthalten (bewusst nicht Ziel dieses Handtests,
+Issue #42 Grundentscheidung 3). Nebenbefund zur DB-Migration (DBVersion 3, 98 Spalten)
+siehe §1-Nachtrag.
