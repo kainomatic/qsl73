@@ -33,10 +33,14 @@ Hauptfenster ruft nicht mehr direkt `self.after(0, …)` aus dem Hintergrund-Thr
 auf, sondern läuft über `RunController.start_update_check()` + Queue-Polling
 (ADR-0063, ADR-0023-Muster).
 
-Kein aktiver Bau-Auftrag.
+**Issue #42 (Bestätigungsübersicht) — Auftrag 1 von 2 umgesetzt:** tk-freies
+Logikmodul `src/qsl73/confirmations.py` (read-only-Laden via `mode=ro`, Normalisieren
+von `qsoconfirmations`, Fakten-vs-Merker-Trennung, Kennzahlen, Filter), Grundlage
+ADR-0066. Handtest-Werte aus `docs/discovery.md` §7.1 (Requested/Queued/Invalid)
+verifiziert. Issue #42 bleibt offen — Auftrag 2 (Fenster, Menüpunkt) steht noch aus.
 
-Es wird auf keinen bestimmten Praxistest gewartet — nächster Schritt ist einer der
-in Abschnitt B priorisierten Punkte (nach Praxistest der laufenden Beta).
+Es wird auf keinen bestimmten Praxistest gewartet — nächster Schritt ist Auftrag 2
+zu Issue #42 oder einer der übrigen in Abschnitt B priorisierten Punkte.
 
 ---
 
