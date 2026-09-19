@@ -35,16 +35,20 @@ Hauptfenster ruft nicht mehr direkt `self.after(0, …)` aus dem Hintergrund-Thr
 auf, sondern läuft über `RunController.start_update_check()` + Queue-Polling
 (ADR-0063, ADR-0023-Muster).
 
-**Issue #42 (Bestätigungsübersicht) — MVP (Stufe 1) umgesetzt und geschlossen:**
-neuer Menüpunkt **Werkzeuge → Bestätigungsübersicht…**, eigenständiges read-only-
-Fenster (`gui/confirmations_window.py`) auf Basis des tk-freien Logikmoduls
-`src/qsl73/confirmations.py` (Grundlage ADR-0066) und der tk-freien Anzeige-Hilfen
-`gui/confirmations_view.py` (Zustand→Symbol/Tooltip, Sortierung, Spaltenwahl,
-Detailzeile — ADR-0067). Zeigt Kennzahlen-Kacheln, Tabelle mit farbigen Symbolen je
-Dienst, Basis-/Status-/Sammelfilter, Spaltenwahl, Klick-Sortierung, Anzeige-Limit und
-Detailzeile — unabhängig vom Karten-Durchlauf, braucht nur `log4om.db_path`. Stufe 2/3
-(Schnellansichten, erweiterte Filter, CSV-Export, Aggregation) als Folge-Issue #45
-vorgemerkt.
+**Issue #42 (Bestätigungsübersicht) — MVP umgesetzt, danach optisch/ergonomisch
+nachgebessert (geschlossen):** Menüpunkt **Werkzeuge → Bestätigungsübersicht…**,
+eigenständiges read-only-Fenster (`gui/confirmations_window.py`) auf Basis des
+tk-freien Logikmoduls `src/qsl73/confirmations.py` (ADR-0066) und der tk-freien
+Anzeige-Hilfen `gui/confirmations_view.py` (ADR-0067). Tabelle (`ttk.Treeview`) mit
+farbigen Symbolen je Dienst (✅/⬆️/–/⊘, Merker jetzt als kleine Uhr 🕐), Kennzahlen
+als kompakte Kacheln (QSOs, Bestätigt, LoTW/QRZ, Papier/eQSL, Hochgeladen, DXCC
+bestätigt), Basisfilter (Freitext/Zeitraum/Band/Mode) direkt sichtbar, Kontinent/
+DXCC-Land/Sammelfilter/Status-je-Dienst hinter aufklappbaren „Erweiterten Filtern"
+(Default eingeklappt), 7 Schnellansichten (Presets, aus Issue #45 vorgezogen)
+ausschließlich aus harten Fakten, Spaltenwahl, Klick-Sortierung, Anzeige-Limit,
+Detailzeile — unabhängig vom Karten-Durchlauf, braucht nur `log4om.db_path`.
+Restliche Stufe 2/3 (erweiterte Filter wie Award/Contest/Zone, CSV-Export,
+Aggregation) bleiben in Issue #45 vorgemerkt.
 
 Nächster Schritt: einer der übrigen in Abschnitt B priorisierten Punkte.
 
@@ -61,8 +65,9 @@ GitHub-Issue.
    Neubau (bestehende Infrastruktur bindet nur pro Widget, nicht pro Treeview-Zeile).
 3. **#32** — Schutz gegen Direkt-Commits auf `main`. Prozess-/Doku-Thema, keine
    funktionale Abhängigkeit zu den übrigen Punkten.
-4. **#45** — Bestätigungsübersicht Stufe 2/3 (Schnellansichten, erweiterte Filter,
-   CSV-Export, Aggregation). Kein Zeitdruck, MVP (#42) bereits nutzbar.
+4. **#45** — Bestätigungsübersicht Stufe 2/3 (erweiterte Filter wie Award/Contest/
+   Zone, CSV-Export, Spaltenwahl-Persistenz, Aggregation). Schnellansichten bereits
+   umgesetzt (s. o.). Kein Zeitdruck, Fenster (#42) bereits nutzbar.
 
 **V2** (bewusst zurückgestellt): #25 (Mehrsprachigkeit i18n), #43 (visueller
 Blinken-Effekt bei Klick ins gesperrte Fenster).

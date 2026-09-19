@@ -309,3 +309,116 @@ def test_toggle_column_hides_and_shows_service_column(tk_child, tmp_path):
     assert "CLUBLOG" not in win._tree["displaycolumns"]
     win._toggle_column("CLUBLOG", True)
     assert "CLUBLOG" in win._tree["displaycolumns"]
+
+
+# ---------------------------------------------------------------------------
+# Kennzahlen-Kacheln (Nachbesserung #42)
+# ---------------------------------------------------------------------------
+
+
+def test_metric_tiles_built_for_every_label(tk_child, tmp_path):
+    from qsl73.gui.confirmations_view import METRIC_TILE_LABELS
+    from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+    db_path = _make_db(tmp_path, [{"qsoid": "Q1", "confirmations": [_SCHEMA_OK_QSL]}])
+    win = ConfirmationsWindow(tk_child, str(db_path))
+    assert len(win._tile_value_vars) == len(METRIC_TILE_LABELS)
+
+
+def test_metric_tiles_update_on_filter_change(tk_child, tmp_path):
+    from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+    db_path = _make_db(
+        tmp_path,
+        [
+            {"qsoid": "Q1", "callsign": "DK8XX", "confirmations": [{"CT": "QSL", "S": "No", "R": "Yes"}]},
+            {"qsoid": "Q2", "callsign": "DL0AAA", "confirmations": []},
+        ],
+    )
+    root = tk_child
+    win = ConfirmationsWindow(root, str(db_path))
+    assert _pump(root, lambda: len(win._tree.get_children()) == 2)
+
+    assert win._tile_value_vars_by_label("QSOs") == "2"
+
+    win._text_var.set("DK8XX")
+    assert _pump(root, lambda: win._tile_value_vars_by_label("QSOs") == "1")
+
+
+# ---------------------------------------------------------------------------
+# Presets / Schnellansichten (Nachbesserung #42)
+# ---------------------------------------------------------------------------
+
+
+def test_preset_combo_has_seven_entries(tk_child, tmp_path):
+    from qsl73.confirmations import PRESETS
+    from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+    db_path = _make_db(tmp_path, [{"qsoid": "Q1", "confirmations": [_SCHEMA_OK_QSL]}])
+    win = ConfirmationsWindow(tk_child, str(db_path))
+    assert list(win._preset_combo["values"]) == [p.label for p in PRESETS]
+
+
+def test_selecting_preset_reduces_tree_rows(tk_child, tmp_path):
+    from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+    db_path = _make_db(
+        tmp_path,
+        [
+            {"qsoid": "Q1", "confirmations": [{"CT": "QSL", "S": "No", "R": "No"}]},
+            {"qsoid": "Q2", "confirmations": [{"CT": "QSL", "S": "No", "R": "Yes"}]},
+        ],
+    )
+    root = tk_child
+    win = ConfirmationsWindow(root, str(db_path))
+    assert _pump(root, lambda: len(win._tree.get_children()) == 2)
+
+    win._preset_var.set("Nirgends bestätigt")
+    win._on_preset_selected()
+    assert _pump(root, lambda: len(win._tree.get_children()) == 1)
+    assert win._tree.exists("Q1")
+
+
+def test_selecting_preset_paper_requested_sets_received_status(tk_child, tmp_path):
+    from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+    db_path = _make_db(
+        tmp_path,
+        [
+            {"qsoid": "Q1", "confirmations": [{"CT": "QSL", "S": "No", "R": "Requested"}]},
+            {"qsoid": "Q2", "confirmations": [{"CT": "QSL", "S": "No", "R": "Yes"}]},
+        ],
+    )
+    root = tk_child
+    win = ConfirmationsWindow(root, str(db_path))
+    assert _pump(root, lambda: len(win._tree.get_children()) == 2)
+
+    win._preset_var.set("Papier angefordert")
+    win._on_preset_selected()
+    assert _pump(root, lambda: len(win._tree.get_children()) == 1)
+    assert win._tree.exists("Q1")
+
+
+# ---------------------------------------------------------------------------
+# Erweiterte Filter (aufklappbar, default eingeklappt)
+# ---------------------------------------------------------------------------
+
+
+def test_advanced_filters_collapsed_by_default(tk_child, tmp_path):
+    from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+    db_path = _make_db(tmp_path, [{"qsoid": "Q1", "confirmations": [_SCHEMA_OK_QSL]}])
+    win = ConfirmationsWindow(tk_child, str(db_path))
+    assert win._advanced_frame.winfo_manager() == ""
+
+
+def test_advanced_filters_toggle_shows_and_hides(tk_child, tmp_path):
+    from qsl73.gui.confirmations_window import ConfirmationsWindow
+
+    db_path = _make_db(tmp_path, [{"qsoid": "Q1", "confirmations": [_SCHEMA_OK_QSL]}])
+    win = ConfirmationsWindow(tk_child, str(db_path))
+
+    win._on_toggle_advanced()
+    assert win._advanced_frame.winfo_manager() == "pack"
+    win._on_toggle_advanced()
+    assert win._advanced_frame.winfo_manager() == ""

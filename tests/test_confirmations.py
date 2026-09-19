@@ -15,6 +15,7 @@ import pytest
 
 from qsl73.confirmations import (
     CONFIRMATION_SERVICES,
+    PRESETS,
     UPLOAD_SERVICES,
     CollectiveFilter,
     ConfirmationFilters,
@@ -40,6 +41,7 @@ from qsl73.confirmations import (
     matches_text_query,
     open_readonly_connection,
     parse_qsoconfirmations,
+    preset_filters,
     service_group,
 )
 from qsl73.log4om_db import SchemaError
@@ -473,6 +475,147 @@ def test_collective_both_paper_and_electronic_excludes_only_variants():
     assert matches_collective_filter(row, CollectiveFilter.CONFIRMED_ANYWHERE) is True
     assert matches_collective_filter(row, CollectiveFilter.PAPER_ONLY) is False
     assert matches_collective_filter(row, CollectiveFilter.ELECTRONIC_ONLY) is False
+
+
+# ---------------------------------------------------------------------------
+# Sammelfilter — neu für Presets (Nachbesserung #42, harte Fakten je Dienst)
+# ---------------------------------------------------------------------------
+
+
+def test_collective_received_not_sent_any_service_true_when_paper_confirmed_not_sent():
+    row = _row(services={"QSL": _status(s="No", r="Yes")})
+    assert matches_collective_filter(row, CollectiveFilter.RECEIVED_NOT_SENT_ANY) is True
+
+
+def test_collective_received_not_sent_any_service_false_when_same_service_also_sent():
+    """Digital automatisch S+R=Yes bei LoTW darf hier NICHT anschlagen (Grenzfall Presets 5/6)."""
+    row = _row(services={"LOTW": _status(ct="LOTW", s="Yes", r="Yes")})
+    assert matches_collective_filter(row, CollectiveFilter.RECEIVED_NOT_SENT_ANY) is False
+
+
+def test_collective_received_not_sent_any_service_false_when_nothing_received():
+    row = _row(services={"QSL": _status(s="No", r="No")})
+    assert matches_collective_filter(row, CollectiveFilter.RECEIVED_NOT_SENT_ANY) is False
+
+
+def test_collective_received_not_sent_any_service_ignores_requested_marker():
+    """Requested ist kein hartes R=Yes — darf Preset 5 nicht auslösen."""
+    row = _row(services={"QSL": _status(s="No", r="Requested")})
+    assert matches_collective_filter(row, CollectiveFilter.RECEIVED_NOT_SENT_ANY) is False
+
+
+def test_collective_paper_received_not_sent_true():
+    row = _row(services={"QSL": _status(s="No", r="Yes")})
+    assert matches_collective_filter(row, CollectiveFilter.PAPER_RECEIVED_NOT_SENT) is True
+
+
+def test_collective_paper_received_not_sent_false_when_paper_also_sent():
+    row = _row(services={"QSL": _status(s="Yes", r="Yes")})
+    assert matches_collective_filter(row, CollectiveFilter.PAPER_RECEIVED_NOT_SENT) is False
+
+
+def test_collective_paper_received_not_sent_false_when_only_electronic_confirmed():
+    """Preset 6 ist NUR QSL — ein bestätigter Digital-Dienst darf nicht anschlagen."""
+    row = _row(services={"LOTW": _status(ct="LOTW", s="No", r="Yes")})
+    assert matches_collective_filter(row, CollectiveFilter.PAPER_RECEIVED_NOT_SENT) is False
+
+
+def test_collective_not_uploaded_anywhere_true_when_no_upload_service_sent():
+    row = _row(services={"CLUBLOG": _status(ct="CLUBLOG", s="No")})
+    assert matches_collective_filter(row, CollectiveFilter.NOT_UPLOADED_ANYWHERE) is True
+
+
+def test_collective_not_uploaded_anywhere_false_when_one_uploaded():
+    row = _row(services={
+        "CLUBLOG": _status(ct="CLUBLOG", s="No"),
+        "HRDLOG": _status(ct="HRDLOG", s="Yes"),
+    })
+    assert matches_collective_filter(row, CollectiveFilter.NOT_UPLOADED_ANYWHERE) is False
+
+
+def test_collective_not_uploaded_anywhere_true_when_no_upload_entries_at_all():
+    row = _row(services={})
+    assert matches_collective_filter(row, CollectiveFilter.NOT_UPLOADED_ANYWHERE) is True
+
+
+# ---------------------------------------------------------------------------
+# Presets / Schnellansichten (Nachbesserung #42 — nur harte Fakten + Merker)
+# ---------------------------------------------------------------------------
+
+
+def test_presets_has_seven_entries_in_order():
+    assert [p.label for p in PRESETS] == [
+        "Alle",
+        "Nirgends bestätigt",
+        "Nur digital, Papier fehlt",
+        "Papier angefordert",
+        "Bekommen, selbst nicht gesendet",
+        "Papier bekommen, selbst noch nicht gesendet",
+        "Noch nicht hochgeladen",
+    ]
+
+
+def test_preset_alle_matches_everything():
+    rows = [_row(qsoid="A"), _row(qsoid="B", services={"QSL": _status(s="No", r="Yes")})]
+    filters = preset_filters(PRESETS[0])
+    assert len(apply_filters(rows, filters)) == 2
+
+
+def test_preset_nirgends_bestaetigt():
+    rows = [
+        _row(qsoid="A", services={"QSL": _status(s="No", r="No")}),
+        _row(qsoid="B", services={"QSL": _status(s="No", r="Yes")}),
+    ]
+    filters = preset_filters(PRESETS[1])
+    assert [r.qsoid for r in apply_filters(rows, filters)] == ["A"]
+
+
+def test_preset_nur_digital_papier_fehlt():
+    rows = [
+        _row(qsoid="A", services={"LOTW": _status(ct="LOTW", s="No", r="Yes")}),
+        _row(qsoid="B", services={
+            "LOTW": _status(ct="LOTW", s="No", r="Yes"),
+            "QSL": _status(s="No", r="Yes"),
+        }),
+    ]
+    filters = preset_filters(PRESETS[2])
+    assert [r.qsoid for r in apply_filters(rows, filters)] == ["A"]
+
+
+def test_preset_papier_angefordert():
+    rows = [
+        _row(qsoid="A", services={"QSL": _status(s="No", r="Requested")}),
+        _row(qsoid="B", services={"QSL": _status(s="No", r="Yes")}),
+    ]
+    filters = preset_filters(PRESETS[3])
+    assert [r.qsoid for r in apply_filters(rows, filters)] == ["A"]
+
+
+def test_preset_bekommen_selbst_nicht_gesendet():
+    rows = [
+        _row(qsoid="A", services={"EQSL": _status(ct="EQSL", s="No", r="Yes")}),
+        _row(qsoid="B", services={"LOTW": _status(ct="LOTW", s="Yes", r="Yes")}),
+    ]
+    filters = preset_filters(PRESETS[4])
+    assert [r.qsoid for r in apply_filters(rows, filters)] == ["A"]
+
+
+def test_preset_papier_bekommen_selbst_noch_nicht_gesendet():
+    rows = [
+        _row(qsoid="A", services={"QSL": _status(s="No", r="Yes")}),
+        _row(qsoid="B", services={"LOTW": _status(ct="LOTW", s="No", r="Yes")}),
+    ]
+    filters = preset_filters(PRESETS[5])
+    assert [r.qsoid for r in apply_filters(rows, filters)] == ["A"]
+
+
+def test_preset_noch_nicht_hochgeladen():
+    rows = [
+        _row(qsoid="A", services={}),
+        _row(qsoid="B", services={"CLUBLOG": _status(ct="CLUBLOG", s="Yes")}),
+    ]
+    filters = preset_filters(PRESETS[6])
+    assert [r.qsoid for r in apply_filters(rows, filters)] == ["A"]
 
 
 # ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ from pathlib import Path
 
 from qsl73.confirmations import (
     CONFIRMATION_SERVICES,
+    PRESETS,
     UPLOAD_SERVICES,
     CollectiveFilter,
     ConfirmationFilters,
@@ -23,9 +24,11 @@ from qsl73.confirmations import (
     available_status_values,
     compute_metrics,
     load_confirmation_data,
+    preset_filters,
     service_group,
 )
 from qsl73.gui.confirmations_view import (
+    METRIC_TILE_LABELS,
     QUICK_RANGE_CHOICES,
     SERVICE_COLUMN_ORDER,
     SERVICE_LABELS,
@@ -33,7 +36,7 @@ from qsl73.gui.confirmations_view import (
     cell_display,
     cell_tooltip_text,
     format_detail_line,
-    format_metrics_line,
+    metric_tile_values,
     quick_range_bounds,
     sort_rows_by_column,
 )
@@ -51,6 +54,8 @@ _LBL_COLUMNS = "Spalten wählen…"
 _LBL_CSV_EXPORT = "CSV exportieren…"
 _LBL_RESET_FILTERS = "Filter zurücksetzen"
 _LBL_ALL = "Alle"
+_LBL_ADVANCED_SHOW = "▶ Erweiterte Filter"
+_LBL_ADVANCED_HIDE = "▼ Erweiterte Filter"
 _MSG_NO_DB = "Keine gültige Log4OM-Datenbank konfiguriert (log4om.db_path fehlt oder ist ungültig)."
 _MSG_LOAD_ERROR = "Bestätigungsdaten konnten nicht geladen werden: {error}"
 _TT_RELOAD = "Lädt die Log4OM-Datenbank erneut (read-only)"
@@ -58,10 +63,12 @@ _TT_CSV_EXPORT = "Kommt in einer späteren Ausbaustufe (Issue #42 Stufe 2)"
 _TT_TREE = "Zellen zeigen beim Hover die wörtlichen Log4OM-Werte; Zeile anklicken für Details"
 _TT_COLUMNS = "Blendet ungenutzte Dienst-Spalten aus (Sitzungszustand, Default: alle sichtbar)"
 _TT_RESET_FILTERS = "Setzt alle Filter auf Ausgangszustand zurück"
+_TT_PRESET = "Setzt Basisfilter/Sammelfilter auf einen Startpunkt — danach frei änderbar"
+_TT_ADVANCED_TOGGLE = "Kontinent, DXCC-Land, Sammelfilter und Status je Dienst (rohe Log4OM-Werte)"
 
 _LEGEND_TEXT = (
     "✅ bekommen   ⬆️ gesendet, noch nicht bekommen   – keins   "
-    "⊘ ungültig/zurückgewiesen   · Merker (Requested/Queued) auf Sende- oder Empfangsseite"
+    "⊘ ungültig/zurückgewiesen   🕐 Merker (Requested/Queued) auf Sende- oder Empfangsseite"
 )
 
 _COLLECTIVE_LABELS: dict[str, CollectiveFilter] = {
@@ -70,6 +77,12 @@ _COLLECTIVE_LABELS: dict[str, CollectiveFilter] = {
     "Nirgends bestätigt": CollectiveFilter.CONFIRMED_NOWHERE,
     "Nur elektronisch": CollectiveFilter.ELECTRONIC_ONLY,
     "Nur Papier": CollectiveFilter.PAPER_ONLY,
+    "Bekommen, nicht gesendet (irgendein Dienst)": CollectiveFilter.RECEIVED_NOT_SENT_ANY,
+    "Papier bekommen, nicht gesendet": CollectiveFilter.PAPER_RECEIVED_NOT_SENT,
+    "Nicht hochgeladen": CollectiveFilter.NOT_UPLOADED_ANYWHERE,
+}
+_COLLECTIVE_LABELS_REVERSE: dict[CollectiveFilter, str] = {
+    v: k for k, v in _COLLECTIVE_LABELS.items()
 }
 
 _BASE_COLUMNS: tuple[str, ...] = ("qsodate", "callsign", "band", "mode", "country")
@@ -115,6 +128,8 @@ if _TK_OK:
             self._loaded_at: str | None = None
             self._last_cell_key = None
             self._cell_tooltip_win = None
+            self._tile_value_vars: dict[str, tk.StringVar] = {}
+            self._advanced_visible = False
 
             self._build_ui()
             self._load_async()
@@ -126,12 +141,7 @@ if _TK_OK:
         def _build_ui(self) -> None:
             from qsl73.gui.tooltip import attach_tooltip
 
-            self._metrics_var = tk.StringVar(value="")
-            metrics_lbl = ttk.Label(
-                self, textvariable=self._metrics_var, wraplength=1100, justify="left",
-                padding=(8, 6), background="#eef3fa",
-            )
-            metrics_lbl.pack(fill="x")
+            self._build_metric_tiles(self)
 
             content = ttk.Frame(self)
             content.pack(fill="both", expand=True)
@@ -182,7 +192,38 @@ if _TK_OK:
 
             self.minsize(1100, 650)
 
+        def _build_metric_tiles(self, parent: "tk.Misc") -> None:
+            tiles_frame = ttk.Frame(parent, padding=(8, 6))
+            tiles_frame.pack(fill="x")
+            for label in METRIC_TILE_LABELS:
+                tile = ttk.Frame(tiles_frame, relief="ridge", borderwidth=1, padding=(10, 6))
+                tile.pack(side="left", padx=4, pady=2)
+                value_var = tk.StringVar(value="–")
+                ttk.Label(
+                    tile, textvariable=value_var, font=("", 14, "bold"), anchor="center",
+                ).pack()
+                ttk.Label(
+                    tile, text=label, foreground="#555555", font=("", 8), anchor="center",
+                    wraplength=140, justify="center",
+                ).pack()
+                self._tile_value_vars[label] = value_var
+
+        def _tile_value_vars_by_label(self, label: str) -> str:
+            return self._tile_value_vars[label].get()
+
         def _build_filters(self, frame: "ttk.Frame") -> None:
+            from qsl73.gui.tooltip import attach_tooltip
+
+            ttk.Label(frame, text="Schnellansicht").pack(anchor="w")
+            self._preset_var = tk.StringVar(value=PRESETS[0].label)
+            self._preset_combo = ttk.Combobox(
+                frame, textvariable=self._preset_var, values=[p.label for p in PRESETS],
+                state="readonly", width=26,
+            )
+            self._preset_combo.bind("<<ComboboxSelected>>", self._on_preset_selected)
+            self._preset_combo.pack(anchor="w", pady=(0, 6))
+            attach_tooltip(self._preset_combo, _TT_PRESET)
+
             self._text_var = tk.StringVar()
             self._text_var.trace_add("write", self._on_filters_changed)
             ttk.Label(frame, text="Freitext (Call/Land/Locator)").pack(anchor="w")
@@ -209,6 +250,21 @@ if _TK_OK:
 
             self._band_var, self._band_combo = self._make_filter_combo(frame, "Band")
             self._mode_var, self._mode_combo = self._make_filter_combo(frame, "Mode")
+
+            self._btn_advanced = ttk.Button(
+                frame, text=_LBL_ADVANCED_SHOW, command=self._on_toggle_advanced,
+            )
+            self._btn_advanced.pack(anchor="w", pady=(6, 2))
+            attach_tooltip(self._btn_advanced, _TT_ADVANCED_TOGGLE)
+
+            self._advanced_frame = ttk.Frame(frame)
+            self._build_advanced_filters(self._advanced_frame)
+
+            reset_btn = ttk.Button(frame, text=_LBL_RESET_FILTERS, command=self._reset_filters)
+            reset_btn.pack(anchor="w", pady=(8, 0))
+            attach_tooltip(reset_btn, _TT_RESET_FILTERS)
+
+        def _build_advanced_filters(self, frame: "ttk.Frame") -> None:
             self._cont_var, self._cont_combo = self._make_filter_combo(frame, "Kontinent")
             self._country_var, self._country_combo = self._make_filter_combo(frame, "DXCC-Land")
 
@@ -216,7 +272,7 @@ if _TK_OK:
             ttk.Label(frame, text="Sammelfilter").pack(anchor="w")
             coll_combo = ttk.Combobox(
                 frame, textvariable=self._collective_var, values=list(_COLLECTIVE_LABELS.keys()),
-                state="readonly", width=22,
+                state="readonly", width=30,
             )
             coll_combo.bind("<<ComboboxSelected>>", self._on_filters_changed)
             coll_combo.pack(anchor="w", pady=(0, 6))
@@ -249,10 +305,38 @@ if _TK_OK:
                 self._sent_vars[ct] = sv
                 self._sent_combos[ct] = sc
 
-            reset_btn = ttk.Button(frame, text=_LBL_RESET_FILTERS, command=self._reset_filters)
-            reset_btn.pack(anchor="w", pady=(8, 0))
-            from qsl73.gui.tooltip import attach_tooltip
-            attach_tooltip(reset_btn, _TT_RESET_FILTERS)
+        def _on_toggle_advanced(self) -> None:
+            self._advanced_visible = not self._advanced_visible
+            if self._advanced_visible:
+                self._advanced_frame.pack(anchor="w", fill="x", after=self._btn_advanced)
+                self._btn_advanced.configure(text=_LBL_ADVANCED_HIDE)
+            else:
+                self._advanced_frame.pack_forget()
+                self._btn_advanced.configure(text=_LBL_ADVANCED_SHOW)
+
+        def _on_preset_selected(self, _event=None) -> None:
+            label = self._preset_var.get()
+            preset = next((p for p in PRESETS if p.label == label), PRESETS[0])
+            filters = preset_filters(preset)
+
+            self._text_var.set("")
+            self._date_start_var.set("")
+            self._date_end_var.set("")
+            self._quick_range_var.set(QUICK_RANGE_CHOICES[0])
+            self._band_var.set(_LBL_ALL)
+            self._mode_var.set(_LBL_ALL)
+            self._cont_var.set(_LBL_ALL)
+            self._country_var.set(_LBL_ALL)
+            for var in self._sent_vars.values():
+                var.set(_LBL_ALL)
+            for var in self._recv_vars.values():
+                var.set(_LBL_ALL)
+
+            self._collective_var.set(_COLLECTIVE_LABELS_REVERSE.get(filters.collective, _LBL_ALL))
+            for ct, value in filters.received_status.items():
+                self._recv_vars[ct].set(value)
+
+            self._on_filters_changed()
 
         def _make_filter_combo(self, frame: "ttk.Frame", label: str):
             ttk.Label(frame, text=label).pack(anchor="w")
@@ -406,6 +490,7 @@ if _TK_OK:
             self._date_end_var.set(end or "")
 
         def _reset_filters(self) -> None:
+            self._preset_var.set(PRESETS[0].label)
             self._text_var.set("")
             self._date_start_var.set("")
             self._date_end_var.set("")
@@ -452,7 +537,9 @@ if _TK_OK:
                 self._row_by_iid[iid] = row
 
             metrics = compute_metrics(self._filtered_rows)
-            self._metrics_var.set(format_metrics_line(metrics))
+            values = metric_tile_values(metrics)
+            for label, value in zip(METRIC_TILE_LABELS, values):
+                self._tile_value_vars[label].set(value)
 
             loaded_label = self._loaded_at or "noch nicht geladen"
             status = f"{len(self._filtered_rows)} von {len(self._all_rows)} QSOs"

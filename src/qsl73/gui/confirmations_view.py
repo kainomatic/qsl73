@@ -53,11 +53,11 @@ SERVICE_COLUMN_ORDER: tuple[str, ...] = CONFIRMATION_SERVICES + UPLOAD_SERVICES
 
 _STATE_SYMBOLS: dict[ConfirmationState, str] = {
     ConfirmationState.RECEIVED: "✅",  # ✅ bekommen (farbig grün)
-    ConfirmationState.SENT: "⬆️",  # ⬆️ gesendet, noch nicht bekommen (farbig)
+    ConfirmationState.SENT: "⬆️",  # ⬆️ gesendet, noch nicht bekommen (farbig blau)
     ConfirmationState.NONE: "–",  # – keins von beiden
-    ConfirmationState.INVALID: "⊘",  # ⊘ gedämpft, klar von „–" unterscheidbar
+    ConfirmationState.INVALID: "⊘",  # ⊘ gedämpft über die Form, klar von „–" unterscheidbar
 }
-MARKER_SUFFIX = "·"  # · kleiner, unauffälliger Zusatzpunkt bei Requested/Queued
+MARKER_SUFFIX = "🕐"  # kleine orange Uhr als Zusatzsymbol bei Requested/Queued (Nachbesserung #42)
 
 
 def cell_symbol(state: ConfirmationState, marker: bool) -> str:
@@ -254,23 +254,39 @@ def quick_range_bounds(choice: str, today: _date) -> tuple[str | None, str | Non
 
 
 # ---------------------------------------------------------------------------
-# Kennzahlen-Kacheln — Anzeigetext (bezogen auf die gefilterte Menge, Fensteraufbau)
+# Kennzahlen-Kacheln (Nachbesserung #42) — Aufteilung als tk-freie Hilfsstruktur.
+#
+# Labels sind statisch (unabhängig von den Daten) — das Fenster baut die Kachel-
+# Widgets einmal beim Aufbau aus METRIC_TILE_LABELS und aktualisiert bei jeder
+# Filteränderung nur die Werte aus metric_tile_values(). Kompakt gruppiert statt
+# einer Kachel je der 7 Dienste (Auftrag Punkt 2): LoTW+QRZ und Papier+eQSL je ein
+# Zahlenpaar (Empfangen), die drei Upload-Dienste eine gemeinsame Kachel (Gesendet).
 # ---------------------------------------------------------------------------
 
+METRIC_TILE_LABELS: tuple[str, ...] = (
+    "QSOs",
+    "Bestätigt",
+    "LoTW / QRZ",
+    "Papier / eQSL",
+    "Hochgeladen (Clublog/HRDLog/HamQTH)",
+    "DXCC bestätigt",
+)
 
-def format_metrics_line(metrics: ConfirmationMetrics) -> str:
-    """Formatiert `ConfirmationMetrics` als einzeiligen Kennzahlen-Text für die Kacheln."""
-    parts = [
-        f"QSOs: {metrics.total_qsos}",
-        f"Bestätigt: {metrics.confirmed_anywhere} ({metrics.confirmed_anywhere_pct:.1f} %)",
-    ]
-    for ct in CONFIRMATION_SERVICES:
-        sm = metrics.services[ct]
-        label = SERVICE_LABELS.get(ct, ct)
-        parts.append(f"{label}: {sm.sent}↑ / {sm.received}✓")
-    for ct in UPLOAD_SERVICES:
-        sm = metrics.services[ct]
-        label = SERVICE_LABELS.get(ct, ct)
-        parts.append(f"{label}: {sm.sent}↑")
-    parts.append(f"DXCC bestätigt: {metrics.dxcc_confirmed} / {metrics.dxcc_worked}")
-    return "   |   ".join(parts)
+
+def metric_tile_values(metrics: ConfirmationMetrics) -> tuple[str, ...]:
+    """Werte in derselben Reihenfolge wie `METRIC_TILE_LABELS`, bezogen auf `metrics`."""
+    lotw = metrics.services["LOTW"]
+    qrz = metrics.services["QRZCOM"]
+    qsl = metrics.services["QSL"]
+    eqsl = metrics.services["EQSL"]
+    clublog = metrics.services["CLUBLOG"]
+    hrdlog = metrics.services["HRDLOG"]
+    hamqth = metrics.services["HAMQTH"]
+    return (
+        str(metrics.total_qsos),
+        f"{metrics.confirmed_anywhere} ({metrics.confirmed_anywhere_pct:.1f} %)",
+        f"{lotw.received}/{qrz.received}",
+        f"{qsl.received}/{eqsl.received}",
+        f"{clublog.sent}/{hrdlog.sent}/{hamqth.sent}",
+        f"{metrics.dxcc_confirmed} / {metrics.dxcc_worked}",
+    )

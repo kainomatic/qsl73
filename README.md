@@ -148,14 +148,22 @@ konfigurierte Log4OM-Datenbank, funktioniert auch ohne eingerichtetes Paperless.
   neben einem laufenden Log4OM nutzbar.
 - Tabelle mit farbigen Symbolen je Dienst: **✅** bekommen, **⬆️** gesendet (noch nicht
   bekommen), **–** keins von beiden, **⊘** ungültig/zurückgewiesen (Log4OM „Invalid").
-  Ein kleiner Punkt **·** markiert zusätzlich einen Merker (Log4OM „Requested"/
+  Eine kleine Uhr **🕐** markiert zusätzlich einen Merker (Log4OM „Requested"/
   „Queued") — diese Merker gehen **nie** als „bekommen" oder „gesendet" durch, ihre
   genaue Bedeutung hängt von der eigenen Log4OM-Konfiguration ab. Hover über eine
   Zelle zeigt die wörtlichen Log4OM-Werte mit neutraler Erklärung.
-- Kennzahlen-Kacheln, Detailzeile zum gewählten QSO, Basis-/Status-/Sammelfilter,
-  Spaltenwahl zum Ausblenden ungenutzter Dienste, Klick-Sortierung, „Neu laden".
-- CSV-Export und vordefinierte Schnellansichten sind für eine spätere Ausbaustufe
-  vorgesehen (Platz im Fenster bereits reserviert).
+- Kennzahlen als kompakte Kacheln (QSOs, Bestätigt, LoTW/QRZ, Papier/eQSL,
+  Hochgeladen, DXCC bestätigt), Detailzeile zum gewählten QSO, Spaltenwahl zum
+  Ausblenden ungenutzter Dienste, Klick-Sortierung, „Neu laden".
+- **Schnellansicht** (7 vordefinierte Startpunkte, danach frei weiter filterbar):
+  Alle; Nirgends bestätigt; Nur digital, Papier fehlt; Papier angefordert; Bekommen,
+  selbst nicht gesendet; Papier bekommen, selbst noch nicht gesendet; Noch nicht
+  hochgeladen.
+- Basisfilter (Freitext, Zeitraum, Band, Mode) immer sichtbar; **Erweiterte Filter**
+  (Kontinent, DXCC-Land, Sammelfilter, Status je Dienst) aufklappbar, standardmäßig
+  eingeklappt.
+- CSV-Export ist für eine spätere Ausbaustufe vorgesehen (Platz im Fenster bereits
+  reserviert, Button deaktiviert).
 
 ### Menü
 

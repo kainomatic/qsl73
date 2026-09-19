@@ -47,6 +47,20 @@ das Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   „Ignorierte Karten…" und der `ignored_count`-Zähler in der Statuszeile suchen
   jetzt nur noch nach dem Ignoriert-Tag statt Eingangs- UND Ignoriert-Tag — findet
   weiterhin sowohl neuen als auch alten Bestand (v0.5.0, beide Tags).
+- **Bestätigungsübersicht optisch/ergonomisch nachgebessert** (Nachbesserung zu
+  Issue #42, ADR-0067-Symboltabelle aktualisiert): Merker-Zusatzsymbol bei
+  Requested/Queued ist jetzt eine kleine Uhr (🕐) statt eines Punkts; die
+  Kennzahlen erscheinen als abgesetzte Kacheln (QSOs, Bestätigt, LoTW/QRZ,
+  Papier/eQSL, Hochgeladen, DXCC bestätigt) statt einer Textzeile; die Filterspalte
+  zeigt nur noch Freitext/Zeitraum/Band/Mode sowie eine neue **Schnellansicht**
+  direkt, Kontinent/DXCC-Land/Sammelfilter/Status-je-Dienst-Matrix liegen jetzt
+  hinter „Erweiterte Filter" (aufklappbar, Default eingeklappt). Neu: 7
+  Schnellansichten (Presets) als Startpunkt für die Filter — Alle; Nirgends
+  bestätigt; Nur digital, Papier fehlt; Papier angefordert; Bekommen, selbst nicht
+  gesendet; Papier bekommen, selbst noch nicht gesendet; Noch nicht hochgeladen —
+  ausschließlich aus harten Fakten (`S=Yes`/`R=Yes`) abgeleitet, danach frei weiter
+  filterbar. Tabelle bleibt `ttk.Treeview`, kein dunkles Theme. Presets damit aus
+  Issue #45 vorgezogen.
 - Interne Robustheit: Die Update-Prüfung im Hauptfenster (`_start_update_check`)
   ruft das Prüfergebnis nicht mehr per direktem `self.after(0, …)` aus dem
   Hintergrund-Thread in den UI-Thread — stattdessen läuft es wie

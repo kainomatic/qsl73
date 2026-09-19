@@ -28,12 +28,20 @@ Widget-Vordergrundfarbe mit eigener Farbe gerendert werden), statt über
 | Zustand (`ConfirmationState`) | Symbol | Farbe (glyphenintern) |
 |---|---|---|
 | `RECEIVED` (R=Yes) | `✅` | grün |
-| `SENT` (S=Yes, noch nicht bekommen) | `⬆️` | farbig (Pfeil-Emoji) |
+| `SENT` (S=Yes, noch nicht bekommen) | `⬆️` | farbig blau (Pfeil-Emoji) |
 | `NONE` (keins von beiden) | `–` | neutral (Textfarbe) |
 | `INVALID` | `⊘` | gedämpft (Textfarbe, eigene Form statt eigener Farbe) |
 
-Zusätzlich ein kleiner Punkt `·` als Suffix, wenn `has_marker()` True ist
+Zusätzlich eine kleine Uhr `🕐` als Suffix, wenn `has_marker()` True ist
 (Requested/Queued auf Sende- oder Empfangsseite) — unabhängig vom Hauptzustand.
+
+**Nachtrag (Nachbesserung Issue #42, 2026-09-19):** Der Merker-Suffix war
+ursprünglich ein Punkt `·` — auf Rückmeldung von DF1DS zu blass/unauffällig, um als
+eigenständiges Signal wahrgenommen zu werden. Ersetzt durch `🕐` (`MARKER_SUFFIX` in
+`gui/confirmations_view.py`); Hauptsymbole (`✅`/`⬆️`/`–`/`⊘`) unverändert. Gleicher
+Zeitpunkt: Die Kennzahlen wechselten von einer Textzeile (`format_metrics_line`) zu
+Kachel-Widgets (`METRIC_TILE_LABELS`/`metric_tile_values`) — reine Darstellungsfrage,
+keine neue Design-Entscheidung, da weiterhin nur harte Fakten gezeigt werden.
 
 Implementiert in `gui/confirmations_view.py` (`cell_symbol`, `cell_display`) — tk-frei
 und unit-getestet. Das Fenster (`gui/confirmations_window.py`) wendet die Symbole nur

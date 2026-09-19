@@ -452,6 +452,11 @@ class CollectiveFilter(Enum):
     CONFIRMED_NOWHERE = "confirmed_nowhere"
     ELECTRONIC_ONLY = "electronic_only"
     PAPER_ONLY = "paper_only"
+    # Nachbesserung #42 — Grundlage für Presets 5–7, ausschließlich harte Fakten
+    # (S=Yes/R=Yes) je Dienst, keine Deutung der Nutzerabsicht (Issue #42 Grundentscheidung 3).
+    RECEIVED_NOT_SENT_ANY = "received_not_sent_any"
+    PAPER_RECEIVED_NOT_SENT = "paper_received_not_sent"
+    NOT_UPLOADED_ANYWHERE = "not_uploaded_anywhere"
 
 
 _ELECTRONIC_SERVICES: tuple[str, ...] = ("EQSL", "LOTW", "QRZCOM")
@@ -460,6 +465,11 @@ _ELECTRONIC_SERVICES: tuple[str, ...] = ("EQSL", "LOTW", "QRZCOM")
 def _received_yes(row: QsoConfirmationRow, ct: str) -> bool:
     status = row.services.get(ct)
     return status is not None and status.r == "Yes"
+
+
+def _received_not_sent(status: ServiceStatus | None) -> bool:
+    """True nur bei hartem R=Yes UND S!=Yes AM SELBEN Dienst (kein automatischer Digital-Fall)."""
+    return status is not None and status.r == "Yes" and status.s != "Yes"
 
 
 def matches_collective_filter(row: QsoConfirmationRow, mode: CollectiveFilter) -> bool:
@@ -477,6 +487,15 @@ def matches_collective_filter(row: QsoConfirmationRow, mode: CollectiveFilter) -
         return electronic and not paper
     if mode is CollectiveFilter.PAPER_ONLY:
         return paper and not electronic
+    if mode is CollectiveFilter.RECEIVED_NOT_SENT_ANY:
+        return any(_received_not_sent(row.services.get(ct)) for ct in CONFIRMATION_SERVICES)
+    if mode is CollectiveFilter.PAPER_RECEIVED_NOT_SENT:
+        return _received_not_sent(row.services.get("QSL"))
+    if mode is CollectiveFilter.NOT_UPLOADED_ANYWHERE:
+        return not any(
+            (status := row.services.get(ct)) is not None and status.s == "Yes"
+            for ct in UPLOAD_SERVICES
+        )
     return True
 
 
@@ -527,3 +546,40 @@ def apply_filters(
             continue
         result.append(row)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Presets / Schnellansichten (Nachbesserung #42) — nur harte Fakten + Merker,
+# neutral benannt (Issue #42 Grundentscheidung 3: keine Deutung der Nutzerabsicht).
+# Jedes Preset ist nur ein Startpunkt für die einfachen Filter/Sammelfilter; ändert
+# der Nutzer danach einen Einzelfilter, bleibt das unbeschränkt möglich.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Preset:
+    label: str
+    collective: CollectiveFilter = CollectiveFilter.ANY
+    received_status: tuple[tuple[str, str], ...] = ()
+
+
+PRESETS: tuple[Preset, ...] = (
+    Preset("Alle"),
+    Preset("Nirgends bestätigt", collective=CollectiveFilter.CONFIRMED_NOWHERE),
+    Preset("Nur digital, Papier fehlt", collective=CollectiveFilter.ELECTRONIC_ONLY),
+    Preset("Papier angefordert", received_status=(("QSL", "Requested"),)),
+    Preset("Bekommen, selbst nicht gesendet", collective=CollectiveFilter.RECEIVED_NOT_SENT_ANY),
+    Preset(
+        "Papier bekommen, selbst noch nicht gesendet",
+        collective=CollectiveFilter.PAPER_RECEIVED_NOT_SENT,
+    ),
+    Preset("Noch nicht hochgeladen", collective=CollectiveFilter.NOT_UPLOADED_ANYWHERE),
+)
+
+
+def preset_filters(preset: Preset) -> ConfirmationFilters:
+    """Baut einen frischen `ConfirmationFilters`-Startpunkt aus einem Preset."""
+    return ConfirmationFilters(
+        collective=preset.collective,
+        received_status=dict(preset.received_status),
+    )

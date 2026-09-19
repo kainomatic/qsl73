@@ -19,13 +19,15 @@ from qsl73.confirmations import (
 )
 from qsl73.gui.confirmations_view import (
     ColumnVisibility,
+    METRIC_TILE_LABELS,
+    MARKER_SUFFIX,
     SERVICE_COLUMN_ORDER,
     SERVICE_LABELS,
     cell_display,
     cell_symbol,
     cell_tooltip_text,
     format_detail_line,
-    format_metrics_line,
+    metric_tile_values,
     quick_range_bounds,
     row_sort_key,
     sort_rows_by_column,
@@ -69,10 +71,12 @@ def test_cell_symbol_invalid_distinct_from_none():
     assert invalid == "⊘"
 
 
-def test_cell_symbol_marker_adds_dot_suffix():
+def test_cell_symbol_marker_adds_clock_suffix():
+    """Merker-Zusatzsymbol ist jetzt eine kleine orange Uhr statt eines Punkts (Nachbesserung #42)."""
     base = cell_symbol(ConfirmationState.SENT, marker=False)
     with_marker = cell_symbol(ConfirmationState.SENT, marker=True)
-    assert with_marker == base + "·"
+    assert with_marker == base + MARKER_SUFFIX
+    assert MARKER_SUFFIX == "🕐"
 
 
 def test_cell_display_requested_received_shown_as_none_not_received():
@@ -260,17 +264,45 @@ def test_quick_range_unknown_choice_returns_none_bounds():
 
 
 # ---------------------------------------------------------------------------
-# Kennzahlen-Kacheln
+# Kennzahlen-Kacheln (Nachbesserung #42 — kompakt gruppiert statt einer Textzeile)
 # ---------------------------------------------------------------------------
 
 
-def test_format_metrics_line_contains_key_numbers():
+def test_metric_tile_labels_and_values_same_length():
+    metrics = compute_metrics([])
+    assert len(METRIC_TILE_LABELS) == len(metric_tile_values(metrics))
+
+
+def test_metric_tile_values_total_and_confirmed():
     rows = [
         _row(qsoid="A", services={"QSL": _status(s="Yes", r="Yes")}),
         _row(qsoid="B", services={}),
     ]
     metrics = compute_metrics(rows)
-    text = format_metrics_line(metrics)
-    assert "QSOs: 2" in text
-    assert "Bestätigt: 1" in text
-    assert "DXCC bestätigt:" in text
+    values = metric_tile_values(metrics)
+    assert values[METRIC_TILE_LABELS.index("QSOs")] == "2"
+    assert values[METRIC_TILE_LABELS.index("Bestätigt")] == "1 (50.0 %)"
+
+
+def test_metric_tile_values_groups_lotw_qrz_pair():
+    rows = [
+        _row(qsoid="A", services={"LOTW": _status(ct="LOTW", s="Yes", r="Yes")}),
+        _row(qsoid="B", services={"QRZCOM": _status(ct="QRZCOM", s="Yes", r="Yes")}),
+    ]
+    metrics = compute_metrics(rows)
+    values = metric_tile_values(metrics)
+    assert values[METRIC_TILE_LABELS.index("LoTW / QRZ")] == "1/1"
+
+
+def test_metric_tile_values_groups_papier_eqsl_pair():
+    rows = [_row(qsoid="A", services={"QSL": _status(s="No", r="Yes")})]
+    metrics = compute_metrics(rows)
+    values = metric_tile_values(metrics)
+    assert values[METRIC_TILE_LABELS.index("Papier / eQSL")] == "1/0"
+
+
+def test_metric_tile_values_dxcc():
+    rows = [_row(qsoid="A", dxcc=230, services={"QSL": _status(s="No", r="Yes")})]
+    metrics = compute_metrics(rows)
+    values = metric_tile_values(metrics)
+    assert values[METRIC_TILE_LABELS.index("DXCC bestätigt")] == "1 / 1"

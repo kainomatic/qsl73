@@ -90,3 +90,28 @@ sonst gültigen Arrays werden übersprungen statt das gesamte Parsen scheitern z
 - `docs/discovery.md` §2, §3, §7, §7.1
 - ADR-0012 (Robustheit — Geist auf Datenparsing übertragen)
 - ADR-0004 (Schema-Validierung, hier wiederverwendet statt dupliziert)
+
+## Nachtrag (Nachbesserung Issue #42, 2026-09-19): Presets → harte-Fakten-Abbildung
+
+Aus Issue #45 vorgezogen: 7 Schnellansichten (`PRESETS` in `confirmations.py`), jede
+eine reine Abbildung auf `ConfirmationFilters` — ausschließlich aus harten Fakten
+(`S=Yes`/`R=Yes`) und dem bestehenden Merker-Konzept (`Requested`), keine neue
+Deutung der Nutzerabsicht (bleibt bei Entscheidung 2 oben). Drei zusätzliche
+`CollectiveFilter`-Werte tragen die Presets, die sich nicht über die bestehenden
+Einzelfilter ausdrücken lassen:
+
+- `RECEIVED_NOT_SENT_ANY` — bei mind. einem Bestätigungsdienst `R=Yes` UND an
+  demselben Dienst `S≠Yes` (Preset „Bekommen, selbst nicht gesendet").
+- `PAPER_RECEIVED_NOT_SENT` — dieselbe Bedingung, aber nur für `QSL` (Preset
+  „Papier bekommen, selbst noch nicht gesendet").
+- `NOT_UPLOADED_ANYWHERE` — bei keinem Upload-Dienst `S=Yes` (Preset „Noch nicht
+  hochgeladen").
+
+Wichtiger Grenzfall (von DF1DS verlangt, testabgesichert): Ein QSO, das bei einem
+Dienst automatisch sowohl gesendet als auch bestätigt wurde (`S=Yes` UND `R=Yes` am
+selben Dienst, z. B. LoTW), löst `RECEIVED_NOT_SENT_ANY`/`PAPER_RECEIVED_NOT_SENT`
+NICHT aus — die Prüfung ist immer dienstbezogen, nie global. Presets sind reine
+Startpunkte für die Filterwidgets (`preset_filters()` liefert einen frischen
+`ConfirmationFilters`); ändert der Nutzer danach einen Einzelfilter, bleibt das
+unbeschränkt möglich (Entscheidung 2 gilt unverändert). Kein eigenständiges ADR
+nötig — reine Ausgestaltung des bestehenden Datenmodells.
